@@ -1,0 +1,81 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Pteronimbus – Cursor Context
+
+This document exists to help tools like Cursor understand **how Pteronimbus is designed**, where the architectural boundaries are, and what kind of code behavior is expected across modules.
+
+---
+
+## 🧭 Project Purpose
+
+Pteronimbus is a multi-tenant, Kubernetes-native game server manager designed to let users deploy and monitor game servers in a secure, isolated way — without exposing any cluster infrastructure directly.
+
+It draws inspiration from tools like Pterodactyl, but diverges significantly in implementation.
+
+---
+
+## 📐 Architectural Summary
+
+- **Web UI (frontend):** Nuxt-based, talks only to the backend.
+- **Backend API (Go):** Stores user intent in DB, handles authentication, renders Kubernetes manifests, and manages user sessions.
+- **Controller (Go):** Kubernetes-native controller that watches CRDs like `GameServer` and reconciles state accordingly.
+- **CRDs:** Used to model game servers natively in Kubernetes, enabling kubectl integration and status reporting.
+
+---
+
+## 🧱 Key Design Rules (Cursor)
+
+```yaml
+rules:
+  - Always use CRDs for managing game server lifecycle and state.
+  - The controller operates in a pull-based reconciliation loop.
+  - Backend is the source of truth; controller syncs Kubernetes to that desired state.
+  - No direct user access to kubectl in hosted deployments; allowed in self-hosted only.
+  - Web UI and API never interact directly with Kubernetes; only the controller does.
+  - All auth and authorization happen in the backend API layer.
+  - Permissions are fine-grained and mapped from OIDC claims (Authentik).
+```
+
+---
+
+## 🔐 Security Model
+
+- Hosted SaaS instances do **not** expose kubectl or cluster credentials to users.
+- Self-hosted instances assume trusted administrators who might interact with kubectl.
+- RBAC is enforced at the backend and Kubernetes levels.
+- Controller enforces state but assumes cluster admin trust.
+
+---
+
+## 🔄 Future Directions
+
+- Multi-region and multi-cluster support via controller handshake and federation.
+- Pro-tier features for advanced auth providers and quota management.
+- SDKs and extensibility for custom game servers.
+
+---
+
+## 📁 Repo Overview
+
+- `apps/backend/` – API server, auth, business logic.
+- `apps/controller/` – Kubernetes operator/controller managing CRDs.
+- `apps/frontend/` – Web UI built with Nuxt.
+- `config/crd/` – Auto-generated Kubernetes CRD YAMLs.
+- `charts/` – Helm charts for deploying components.
+- `internal/auth/` – AuthN/AuthZ logic and middleware.
+- `proto/` – Protobuf/OpenAPI specs for API definitions.
+- `scripts/` – Utility scripts.
+- `docs/` – User and developer documentation.
+
+---
+
+## Documentation
+
+Don't add any documentation to this folder until a feature that we are working on has been tested.
+
+- `docs/docs` - docusaurus root folder
+
+This file is intended to guide Cursor in understanding project boundaries, rules, and architectural decisions.
