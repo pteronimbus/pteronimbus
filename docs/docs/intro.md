@@ -7,7 +7,9 @@ Pteronimbus is a **Kubernetes-native game server hosting platform** currently in
 **🚧 In Development** - This project is in the early stages of development.
 
 ### What's Built
+- ✅ **Controller**: Basic Go HTTP service with health check endpoints
 - ✅ **Backend Service**: Basic Go HTTP service with health check endpoints
+- ✅ **Frontend Service**: Nuxt 3 application with health check endpoints
 - ✅ **Architecture Design**: System design and component definitions
 
 ### What's Planned
@@ -41,6 +43,7 @@ graph TB
 
 - [Architecture Overview](/docs/architecture/overview) - Detailed system design
 - [Backend Health Checks](/docs/backend/health-checks) - Current backend implementation
+- [Frontend Health Checks](/docs/frontend/health-checks) - Current frontend implementation
 
 ---
 

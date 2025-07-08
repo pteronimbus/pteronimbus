@@ -182,7 +182,7 @@ sequenceDiagram
 
 ## Next Steps
 
-- [Backend Architecture](/docs/architecture/backend) - Deep dive into the API server
-- [Controller Architecture](/docs/architecture/controller) - Understanding the Kubernetes operator
-- [Security Model](/docs/architecture/security-model) - Detailed security implementation
-- [Development Setup](/docs/architecture/development/setup) - Setting up a development environment 
+- **Backend Architecture** - Deep dive into the API server *(Coming Soon)*
+- **Controller Architecture** - Understanding the Kubernetes operator *(Coming Soon)*
+- **Security Model** - Detailed security implementation *(Coming Soon)*
+- **Development Setup** - Setting up a development environment *(Coming Soon)* 

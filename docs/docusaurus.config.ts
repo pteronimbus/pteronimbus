@@ -87,15 +87,9 @@ const config: Config = {
       items: [
         {
           type: 'docSidebar',
-          sidebarId: 'architectureSidebar',
+          sidebarId: 'tutorialSidebar',
           position: 'left',
-          label: 'Architecture',
-        },
-        {
-          type: 'docSidebar',
-          sidebarId: 'backendSidebar',
-          position: 'left',
-          label: 'Backend',
+          label: 'Documentation',
         },
         {to: '/blog', label: 'Blog', position: 'left'},
         {
@@ -112,12 +106,24 @@ const config: Config = {
           title: 'Documentation',
           items: [
             {
+              label: 'Getting Started',
+              to: '/docs/intro',
+            },
+            {
               label: 'Architecture',
               to: '/docs/architecture/overview',
             },
             {
               label: 'Backend Service',
               to: '/docs/backend/health-checks',
+            },
+            {
+              label: 'Frontend',
+              to: '/docs/frontend/health-checks',
+            },
+            {
+              label: 'Controller',
+              to: '/docs/controller/overview',
             },
           ],
         },
@@ -146,8 +152,8 @@ const config: Config = {
               to: '/blog',
             },
             {
-              label: 'Changelog',
-              to: '/blog/tags/release',
+              label: 'GitHub',
+              href: 'https://github.com/pteronimbus/pteronimbus',
             },
           ],
         },
