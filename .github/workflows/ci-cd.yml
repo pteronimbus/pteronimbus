@@ -81,7 +81,7 @@ jobs:
 
     - name: Run tests with coverage
       working-directory: ./apps/frontend
-      run: npm run test -- --coverage
+      run: npm run test -- --coverage --reporter=verbose
 
   build:
     runs-on: ubuntu-latest
