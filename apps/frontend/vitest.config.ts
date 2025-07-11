@@ -5,7 +5,10 @@ export default defineVitestConfig({
     environment: 'nuxt',
     environmentOptions: {
       nuxt: {
-        domEnvironment: 'happy-dom'
+        domEnvironment: 'happy-dom',
+        overrides: {
+          modules: ['@nuxt/ui']
+        }
       }
     }
   }

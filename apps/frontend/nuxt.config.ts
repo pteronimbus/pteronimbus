@@ -3,10 +3,17 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-05-15',
   devtools: { enabled: true },
 
+  css: ['~/assets/css/main.css'],
+
   modules: [
     '@nuxt/icon',
     '@nuxt/fonts',
     '@nuxt/test-utils/module',
-    '@nuxt/ui'
-  ]
+    '@nuxt/ui',
+    '@nuxtjs/i18n'
+  ],
+
+  i18n: {
+    // vueI18n: './i18n.config.ts' // No longer needed, will be auto-detected
+  }
 })
