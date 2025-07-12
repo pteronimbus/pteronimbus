@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { h, resolveComponent } from 'vue'
+
 definePageMeta({
   layout: 'default'
 })
@@ -6,8 +8,19 @@ definePageMeta({
 const { t } = useI18n()
 const router = useRouter()
 
+// Define Player interface
+interface Player {
+  id: number
+  name: string
+  server: string
+  status: string
+  playtime: string
+  lastSeen: string
+  avatar?: string | null
+}
+
 // Mock players data
-const players = ref([
+const players = ref<Player[]>([
   {
     id: 1,
     name: 'PlayerOne',
@@ -55,12 +68,78 @@ const statusOptions = [
   { label: 'Offline', value: 'offline' }
 ]
 
-const columns = [
-  { key: 'player', label: 'Player', id: 'player' },
-  { key: 'server', label: 'Server', id: 'server' },
-  { key: 'status', label: 'Status', id: 'status' },
-  { key: 'playtime', label: 'Playtime', id: 'playtime' },
-  { key: 'lastSeen', label: 'Last Seen', id: 'lastSeen' }
+// Resolve components for use in cell renderers
+const UAvatar = resolveComponent('UAvatar')
+const UBadge = resolveComponent('UBadge')
+
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'online': return 'success'
+    case 'offline': return 'neutral'
+    default: return 'neutral'
+  }
+}
+
+const columns: any[] = [
+  {
+    accessorKey: 'name',
+    header: 'Player',
+    cell: ({ row }: any) => {
+      const player = row.original
+      return h('div', { class: 'flex items-center gap-3' }, [
+        h(UAvatar, {
+          src: player.avatar || undefined,
+          alt: player.name,
+          size: 'sm'
+        }, () => h('span', { class: 'text-xs font-medium text-primary-600 dark:text-primary-400' }, 
+          player.name.split('').slice(0, 2).join('').toUpperCase()
+        )),
+        h('div', [
+          h('span', { class: 'font-medium text-gray-900 dark:text-gray-100' }, player.name)
+        ])
+      ])
+    }
+  },
+  {
+    accessorKey: 'server',
+    header: 'Server',
+    cell: ({ row }: any) => {
+      const player = row.original
+      return h('span', { class: 'text-gray-600 dark:text-gray-400' }, player.server)
+    }
+  },
+  {
+    accessorKey: 'status',
+    header: 'Status',
+    cell: ({ row }: any) => {
+      const player = row.original
+      return h(UBadge, {
+        color: getStatusColor(player.status),
+        variant: 'subtle',
+        class: [
+          'capitalize',
+          player.status === 'online' ? 'text-green-700 dark:text-green-300' : '',
+          player.status === 'offline' ? 'text-gray-700 dark:text-gray-300' : ''
+        ]
+      }, () => player.status)
+    }
+  },
+  {
+    accessorKey: 'playtime',
+    header: 'Playtime',
+    cell: ({ row }: any) => {
+      const player = row.original
+      return h('span', { class: 'text-gray-900 dark:text-gray-100' }, player.playtime)
+    }
+  },
+  {
+    accessorKey: 'lastSeen',
+    header: 'Last Seen',
+    cell: ({ row }: any) => {
+      const player = row.original
+      return h('span', { class: 'text-sm text-gray-500 dark:text-gray-400' }, player.lastSeen)
+    }
+  }
 ]
 
 const filteredPlayers = computed(() => {
@@ -79,14 +158,6 @@ const filteredPlayers = computed(() => {
 
   return filtered
 })
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'online': return 'success'
-    case 'offline': return 'neutral'
-    default: return 'neutral'
-  }
-}
 
 const playerStats = computed(() => ({
   total: players.value.length,
@@ -168,56 +239,7 @@ const playerStats = computed(() => ({
 
     <!-- Players Table -->
     <UCard>
-      <UTable :rows="filteredPlayers" :columns="columns">
-        <!-- Player column with avatar and name -->
-        <template #player-data="{ row }">
-          <div class="flex items-center gap-3">
-            <UAvatar
-              :src="row.avatar"
-              :alt="row.name"
-              size="sm"
-              :ui="{ background: 'bg-primary-100 dark:bg-primary-900' }"
-            >
-              <span class="text-xs font-medium text-primary-600 dark:text-primary-400">
-                {{ row.name.split('').slice(0, 2).join('').toUpperCase() }}
-              </span>
-            </UAvatar>
-            <div>
-              <span class="font-medium text-gray-900 dark:text-gray-100">{{ row.name }}</span>
-            </div>
-          </div>
-        </template>
-
-        <!-- Server column -->
-        <template #server-data="{ row }">
-          <span class="text-gray-600 dark:text-gray-400">{{ row.server }}</span>
-        </template>
-
-        <!-- Status column -->
-        <template #status-data="{ row }">
-          <UBadge 
-            :color="getStatusColor(row.status)" 
-            variant="subtle"
-            class="capitalize"
-            :class="[
-              row.status === 'online' ? 'text-green-700 dark:text-green-300' : '',
-              row.status === 'offline' ? 'text-gray-700 dark:text-gray-300' : ''
-            ]"
-          >
-            {{ row.status }}
-          </UBadge>
-        </template>
-
-        <!-- Playtime column -->
-        <template #playtime-data="{ row }">
-          <span class="text-gray-900 dark:text-gray-100">{{ row.playtime }}</span>
-        </template>
-
-        <!-- Last Seen column -->
-        <template #lastSeen-data="{ row }">
-          <span class="text-sm text-gray-500 dark:text-gray-400">{{ row.lastSeen }}</span>
-        </template>
-      </UTable>
+      <UTable :data="filteredPlayers" :columns="columns" />
 
       <!-- Empty state -->
       <div v-if="filteredPlayers.length === 0" class="text-center py-12">

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { h, resolveComponent } from 'vue'
+
 definePageMeta({
   layout: 'default'
 })
@@ -6,8 +8,24 @@ definePageMeta({
 const { t } = useI18n()
 const router = useRouter()
 
+// Define server interface for better type safety
+interface Server {
+  id: number
+  name: string
+  game: string
+  status: string
+  players: string
+  ip: string
+  port: number
+  version: string
+  uptime: string
+  cpu: number
+  memory: number
+  createdAt: string
+}
+
 // Mock server data - in real app this would come from API
-const servers = ref([
+const servers = ref<Server[]>([
   { 
     id: 1, 
     name: 'Minecraft Survival', 
@@ -101,33 +119,33 @@ const gameOptions = computed(() => {
   }))
 })
 
-const columns = [
-  { key: 'server', label: t('servers.columns.name'), id: 'server' },
-  { key: 'game', label: t('servers.columns.game'), id: 'game' },
-  { key: 'status', label: t('servers.columns.status'), id: 'status' },
-  { key: 'players', label: t('servers.columns.players'), id: 'players' },
-  { key: 'performance', label: 'Performance', id: 'performance' },
-  { key: 'uptime', label: t('servers.columns.uptime'), id: 'uptime' },
-  { key: 'actions', label: t('servers.columns.actions'), id: 'actions' }
-]
+// Resolve components for use in cell renderers
+const UIcon = resolveComponent('UIcon')
+const UBadge = resolveComponent('UBadge')
+const UButton = resolveComponent('UButton')
+const UDropdownMenu = resolveComponent('UDropdownMenu')
 
-// Filtered servers based on search and filters
-const filteredServers = computed(() => {
-  return servers.value.filter(server => {
-    const matchesSearch = searchQuery.value === '' || 
-      server.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      server.game.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      server.ip.includes(searchQuery.value)
-    
-    const matchesStatus = selectedStatus.value === 'all' || server.status === selectedStatus.value
-    const matchesGame = selectedGame.value === 'all' || server.game === selectedGame.value
-    
-    return matchesSearch && matchesStatus && matchesGame
-  })
-})
+// Helper functions
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'online': return 'success'
+    case 'offline': return 'error'
+    case 'starting': return 'warning'
+    case 'stopping': return 'warning'
+    case 'error': return 'error'
+    default: return 'neutral'
+  }
+}
+
+const getPerformanceColor = (cpu: number, memory: number) => {
+  const maxUsage = Math.max(cpu, memory)
+  if (maxUsage > 80) return 'error'
+  if (maxUsage > 60) return 'warning'
+  return 'success'
+}
 
 // Action items for dropdown
-const getActionItems = (server) => [
+const getActionItems = (server: Server) => [
   [{
     label: t('servers.actions.viewDetails'),
     icon: 'i-heroicons-eye-20-solid',
@@ -163,27 +181,8 @@ const getActionItems = (server) => [
   }]
 ]
 
-// Helper functions
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'online': return 'success'
-    case 'offline': return 'error'
-    case 'starting': return 'warning'
-    case 'stopping': return 'warning'
-    case 'error': return 'error'
-    default: return 'neutral'
-  }
-}
-
-const getPerformanceColor = (cpu: number, memory: number) => {
-  const maxUsage = Math.max(cpu, memory)
-  if (maxUsage > 80) return 'error'
-  if (maxUsage > 60) return 'warning'
-  return 'success'
-}
-
 // Action functions
-const toggleServer = (server: any) => {
+const toggleServer = (server: Server) => {
   const index = servers.value.findIndex(s => s.id === server.id)
   if (index !== -1) {
     if (server.status === 'online') {
@@ -205,7 +204,7 @@ const toggleServer = (server: any) => {
   }
 }
 
-const restartServer = (server: any) => {
+const restartServer = (server: Server) => {
   const index = servers.value.findIndex(s => s.id === server.id)
   if (index !== -1) {
     servers.value[index].status = 'stopping'
@@ -218,24 +217,125 @@ const restartServer = (server: any) => {
   }
 }
 
-const createBackup = (server: any) => {
+const createBackup = (server: Server) => {
   console.log('Creating backup for:', server.name)
   // Implementation for creating backup
 }
 
-const deleteServer = (server: any) => {
+const deleteServer = (server: Server) => {
   console.log('Deleting server:', server.name)
   // Implementation for server deletion
 }
 
 // Navigation functions
-const viewServer = (server: any) => {
+const viewServer = (server: Server) => {
   router.push(`/servers/${server.id}`)
 }
 
 const createServer = () => {
   router.push('/servers/create')
 }
+
+const columns: any[] = [
+  {
+    accessorKey: 'name',
+    header: 'Name',
+    cell: ({ row }: any) => {
+      const server = row.original
+      return h('div', { class: 'flex items-center gap-3' }, [
+        h('div', { class: 'flex-shrink-0 w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center' }, [
+          h(UIcon, { name: 'i-heroicons-server-20-solid', class: 'w-5 h-5 text-blue-600 dark:text-blue-400' })
+        ]),
+        h('div', [
+          h('button', {
+            onClick: () => viewServer(server),
+            class: 'font-medium text-gray-900 dark:text-gray-100 hover:text-primary-600 dark:hover:text-primary-400 transition-colors'
+          }, server.name),
+          h('p', { class: 'text-sm text-gray-500 dark:text-gray-400' }, `${server.ip}:${server.port}`)
+        ])
+      ])
+    }
+  },
+  {
+    accessorKey: 'game',
+    header: 'Game',
+    cell: ({ row }: any) => {
+      const server = row.original
+      return h('div', [
+        h('p', { class: 'font-medium text-gray-900 dark:text-gray-100' }, server.game),
+        h('p', { class: 'text-sm text-gray-500 dark:text-gray-400' }, `v${server.version}`)
+      ])
+    }
+  },
+  {
+    accessorKey: 'status',
+    header: 'Status',
+    cell: ({ row }: any) => {
+      const server = row.original
+      return h('div', { class: 'space-y-1' }, [
+        h(UBadge, { 
+          color: getStatusColor(server.status), 
+          variant: 'subtle', 
+          class: 'capitalize' 
+        }, () => t(`servers.status.${server.status}`)),
+        server.status === 'online' ? h('div', { class: 'flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400' }, [
+          h(UIcon, { name: 'i-heroicons-clock-20-solid', class: 'w-3 h-3' }),
+          server.uptime
+        ]) : null
+      ])
+    }
+  },
+  {
+    accessorKey: 'players',
+    header: 'Players',
+    cell: ({ row }: any) => {
+      const server = row.original
+      return h('div', { class: 'space-y-1' }, [
+        h('p', { class: 'font-medium text-gray-900 dark:text-gray-100' }, server.players),
+        server.status === 'online' ? h('div', { class: 'flex items-center gap-2 text-xs' }, [
+          h('div', { class: 'flex items-center gap-1' }, [
+            h('div', { class: 'w-2 h-2 rounded-full bg-blue-500' }),
+            h('span', { class: 'text-gray-500 dark:text-gray-400' }, `CPU: ${server.cpu}%`)
+          ]),
+          h('div', { class: 'flex items-center gap-1' }, [
+            h('div', { class: 'w-2 h-2 rounded-full bg-green-500' }),
+            h('span', { class: 'text-gray-500 dark:text-gray-400' }, `MEM: ${server.memory}%`)
+          ])
+        ]) : null
+      ])
+    }
+  },
+  {
+    id: 'actions',
+    header: 'Actions',
+    cell: ({ row }: any) => {
+      const server = row.original
+      return h(UDropdownMenu, {
+        items: getActionItems(server)
+      }, () => h(UButton, {
+        variant: 'ghost',
+        color: 'neutral',
+        size: 'sm',
+        icon: 'i-heroicons-ellipsis-horizontal-20-solid'
+      }))
+    }
+  }
+]
+
+// Filtered servers based on search and filters
+const filteredServers = computed(() => {
+  return servers.value.filter(server => {
+    const matchesSearch = searchQuery.value === '' || 
+      server.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+      server.game.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+      server.ip.includes(searchQuery.value)
+    
+    const matchesStatus = selectedStatus.value === 'all' || server.status === selectedStatus.value
+    const matchesGame = selectedGame.value === 'all' || server.game === selectedGame.value
+    
+    return matchesSearch && matchesStatus && matchesGame
+  })
+})
 
 // Stats
 const serverStats = computed(() => ({
@@ -346,143 +446,7 @@ const serverStats = computed(() => ({
 
     <!-- Servers Table -->
     <UCard>
-      <UTable :rows="filteredServers" :columns="columns">
-        <!-- Server column with icon and name -->
-        <template #server-data="{ row }">
-          <div class="flex items-center gap-3">
-            <div class="flex-shrink-0 w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-              <UIcon name="i-heroicons-server-20-solid" class="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div>
-              <button
-                @click="viewServer(row)"
-                class="font-medium text-gray-900 dark:text-gray-100 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-              >
-                {{ row.name }}
-              </button>
-              <p class="text-sm text-gray-500 dark:text-gray-400">{{ row.ip }}:{{ row.port }}</p>
-            </div>
-          </div>
-        </template>
-
-        <!-- Game column -->
-        <template #game-data="{ row }">
-          <div>
-            <span class="font-medium text-gray-900 dark:text-gray-100">{{ row.game }}</span>
-            <p class="text-sm text-gray-500 dark:text-gray-400">{{ row.version }}</p>
-          </div>
-        </template>
-
-        <!-- Status column -->
-        <template #status-data="{ row }">
-          <UBadge 
-            :color="getStatusColor(row.status)" 
-            variant="subtle"
-            class="capitalize"
-            :class="[
-              row.status === 'online' ? 'text-green-700 dark:text-green-300' : '',
-              row.status === 'offline' ? 'text-red-700 dark:text-red-300' : '',
-              row.status === 'starting' ? 'text-yellow-700 dark:text-yellow-300' : '',
-              row.status === 'stopping' ? 'text-orange-700 dark:text-orange-300' : '',
-              row.status === 'error' ? 'text-red-700 dark:text-red-300' : ''
-            ]"
-          >
-            {{ t(`servers.status.${row.status}`) }}
-          </UBadge>
-        </template>
-
-        <!-- Players column -->
-        <template #players-data="{ row }">
-          <div class="flex items-center gap-2">
-            <UIcon name="i-heroicons-users-20-solid" class="w-4 h-4 text-gray-400" />
-            <span class="font-medium text-gray-900 dark:text-gray-100">{{ row.players }}</span>
-          </div>
-        </template>
-
-        <!-- Performance column -->
-        <template #performance-data="{ row }">
-          <div class="flex items-center gap-2">
-            <div class="flex flex-col gap-1">
-              <div class="flex items-center gap-2">
-                <span class="text-xs text-gray-500 dark:text-gray-400">CPU:</span>
-                <div class="w-12 h-2 bg-gray-200 dark:bg-gray-700 rounded-full">
-                  <div 
-                    :class="[
-                      'h-2 rounded-full transition-all duration-300',
-                      getPerformanceColor(row.cpu, row.memory) === 'success' ? 'bg-green-500' : '',
-                      getPerformanceColor(row.cpu, row.memory) === 'warning' ? 'bg-yellow-500' : '',
-                      getPerformanceColor(row.cpu, row.memory) === 'error' ? 'bg-red-500' : ''
-                    ]"
-                    :style="{ width: `${row.cpu}%` }"
-                  />
-                </div>
-                <span class="text-xs font-medium text-gray-900 dark:text-gray-100">{{ row.cpu }}%</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-xs text-gray-500 dark:text-gray-400">RAM:</span>
-                <div class="w-12 h-2 bg-gray-200 dark:bg-gray-700 rounded-full">
-                  <div 
-                    :class="[
-                      'h-2 rounded-full transition-all duration-300',
-                      getPerformanceColor(row.cpu, row.memory) === 'success' ? 'bg-green-500' : '',
-                      getPerformanceColor(row.cpu, row.memory) === 'warning' ? 'bg-yellow-500' : '',
-                      getPerformanceColor(row.cpu, row.memory) === 'error' ? 'bg-red-500' : ''
-                    ]"
-                    :style="{ width: `${row.memory}%` }"
-                  />
-                </div>
-                <span class="text-xs font-medium text-gray-900 dark:text-gray-100">{{ row.memory }}%</span>
-              </div>
-            </div>
-          </div>
-        </template>
-
-        <!-- Uptime column -->
-        <template #uptime-data="{ row }">
-          <span class="text-sm text-gray-600 dark:text-gray-400">{{ row.uptime }}</span>
-        </template>
-
-        <!-- Actions column -->
-        <template #actions-data="{ row }">
-          <div class="flex items-center gap-2">
-            <UButton 
-              color="primary" 
-              variant="ghost" 
-              icon="i-heroicons-eye-20-solid"
-              size="sm"
-              class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
-              @click="viewServer(row)"
-            />
-            <UButton 
-              v-if="row.status === 'online'"
-              color="error" 
-              variant="ghost" 
-              icon="i-heroicons-stop-20-solid"
-              size="sm"
-              class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200"
-              @click="toggleServer(row)"
-            />
-            <UButton 
-              v-else-if="row.status === 'offline'"
-              color="success" 
-              variant="ghost" 
-              icon="i-heroicons-play-20-solid"
-              size="sm"
-              class="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-200"
-              @click="toggleServer(row)"
-            />
-            <UDropdown :items="getActionItems(row)">
-              <UButton 
-                color="neutral" 
-                variant="ghost" 
-                icon="i-heroicons-ellipsis-horizontal-20-solid"
-                size="sm"
-                class="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
-              />
-            </UDropdown>
-          </div>
-        </template>
-      </UTable>
+      <UTable :data="filteredServers" :columns="columns" />
 
       <!-- Empty state -->
       <div v-if="filteredServers.length === 0" class="text-center py-12">

@@ -7,7 +7,24 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 
-const serverId = route.params.id
+const serverId = Array.isArray(route.params.id) ? route.params.id[0] : route.params.id
+
+// Define types for better type safety
+interface Player {
+  id: number
+  name: string
+  joinedAt: string
+  playtime: string
+  ping: number
+}
+
+interface Backup {
+  id: number
+  name: string
+  size: string
+  createdAt: string
+  type: string
+}
 
 // Mock server data - in real app this would come from API
 const server = ref({
@@ -143,7 +160,7 @@ const sendConsoleCommand = () => {
   }
 }
 
-const kickPlayer = (player) => {
+const kickPlayer = (player: Player) => {
   // Remove player from current players list
   const index = server.value.currentPlayers.findIndex(p => p.id === player.id)
   if (index !== -1) {
@@ -152,7 +169,7 @@ const kickPlayer = (player) => {
   }
 }
 
-const banPlayer = (player) => {
+const banPlayer = (player: Player) => {
   // Ban player and remove from current players list
   kickPlayer(player)
   console.log('Banned player:', player.name)
@@ -169,18 +186,18 @@ const createBackup = () => {
   server.value.backups.unshift(newBackup)
 }
 
-const deleteBackup = (backup) => {
+const deleteBackup = (backup: Backup) => {
   const index = server.value.backups.findIndex(b => b.id === backup.id)
   if (index !== -1) {
     server.value.backups.splice(index, 1)
   }
 }
 
-const restoreBackup = (backup) => {
+const restoreBackup = (backup: Backup) => {
   console.log('Restore backup:', backup.name)
 }
 
-const downloadBackup = (backup) => {
+const downloadBackup = (backup: Backup) => {
   console.log('Download backup:', backup.name)
 }
 
@@ -189,7 +206,7 @@ const goBack = () => {
 }
 
 // Auto-scroll console output
-const consoleContainer = ref(null)
+const consoleContainer = ref<HTMLElement | null>(null)
 watch(consoleOutput, () => {
   nextTick(() => {
     if (consoleContainer.value) {
@@ -270,7 +287,7 @@ watch(consoleOutput, () => {
             >
               {{ t('servers.actions.restart') }}
             </UButton>
-            <UDropdown :items="[
+            <UDropdownMenu :items="[
               [{
                 label: t('servers.actions.edit'),
                 icon: 'i-heroicons-pencil-square-20-solid',
@@ -293,7 +310,7 @@ watch(consoleOutput, () => {
                 icon="i-heroicons-ellipsis-horizontal-20-solid"
                 class="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
               />
-            </UDropdown>
+            </UDropdownMenu>
           </div>
         </div>
       </UCard>

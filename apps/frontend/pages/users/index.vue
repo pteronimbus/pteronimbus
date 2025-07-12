@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { h, resolveComponent } from 'vue'
+
 definePageMeta({
   layout: 'default'
 })
@@ -6,8 +8,20 @@ definePageMeta({
 const { t } = useI18n()
 const router = useRouter()
 
+// Define user interface for better type safety
+interface User {
+  id: number
+  name: string
+  email: string
+  role: string
+  status: string
+  lastSeen: string
+  serversAccess: number
+  avatar: string | null
+}
+
 // Mock user data - in real app this would come from API
-const users = ref([
+const users = ref<User[]>([
   { 
     id: 1, 
     name: 'John Doe', 
@@ -79,32 +93,66 @@ const roleOptions = [
   { value: 'user', label: t('users.roles.user') }
 ]
 
-const columns = [
-  { key: 'user', label: t('users.columns.name'), id: 'user' },
-  { key: 'email', label: t('users.columns.email'), id: 'email' },
-  { key: 'role', label: t('users.columns.role'), id: 'role' },
-  { key: 'status', label: t('users.columns.status'), id: 'status' },
-  { key: 'lastSeen', label: t('users.columns.lastSeen'), id: 'lastSeen' },
-  { key: 'serversAccess', label: t('users.columns.serversAccess'), id: 'serversAccess' },
-  { key: 'actions', label: t('users.columns.actions'), id: 'actions' }
-]
+// Resolve components for use in cell renderers
+const UAvatar = resolveComponent('UAvatar')
+const UBadge = resolveComponent('UBadge')
+const UButton = resolveComponent('UButton')
+const UDropdownMenu = resolveComponent('UDropdownMenu')
+const UIcon = resolveComponent('UIcon')
 
-// Filtered users based on search and filters
-const filteredUsers = computed(() => {
-  return users.value.filter(user => {
-    const matchesSearch = searchQuery.value === '' || 
-      user.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.value.toLowerCase())
-    
-    const matchesStatus = selectedStatus.value === 'all' || user.status === selectedStatus.value
-    const matchesRole = selectedRole.value === 'all' || user.role === selectedRole.value
-    
-    return matchesSearch && matchesStatus && matchesRole
-  })
-})
+// Helper functions for user actions
+const resetPassword = (user: User) => {
+  // Implementation for password reset
+  console.log('Reset password for:', user.name)
+}
+
+const changeRole = (user: User) => {
+  // Implementation for role change
+  console.log('Change role for:', user.name)
+}
+
+const toggleBan = (user: User) => {
+  const index = users.value.findIndex(u => u.id === user.id)
+  if (index !== -1) {
+    users.value[index].status = user.status === 'banned' ? 'offline' : 'banned'
+  }
+}
+
+const toggleSuspend = (user: User) => {
+  const index = users.value.findIndex(u => u.id === user.id)
+  if (index !== -1) {
+    users.value[index].status = user.status === 'suspended' ? 'offline' : 'suspended'
+  }
+}
+
+const deleteUser = (user: User) => {
+  // Implementation for user deletion
+  console.log('Delete user:', user.name)
+}
+
+// Get status color
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'online': return 'success'
+    case 'offline': return 'neutral'
+    case 'banned': return 'error'
+    case 'suspended': return 'warning'
+    default: return 'neutral'
+  }
+}
+
+// Get role color
+const getRoleColor = (role: string) => {
+  switch (role) {
+    case 'admin': return 'error'
+    case 'moderator': return 'primary'
+    case 'user': return 'neutral'
+    default: return 'neutral'
+  }
+}
 
 // Action items for dropdown
-const getActionItems = (user) => [
+const getActionItems = (user: User) => [
   [{
     label: t('users.actions.viewDetails'),
     icon: 'i-heroicons-eye-20-solid',
@@ -139,59 +187,135 @@ const getActionItems = (user) => [
   }]
 ]
 
-// Helper functions for user actions
-const resetPassword = (user) => {
-  // Implementation for password reset
-  console.log('Reset password for:', user.name)
-}
-
-const changeRole = (user) => {
-  // Implementation for role change
-  console.log('Change role for:', user.name)
-}
-
-const toggleBan = (user) => {
-  const index = users.value.findIndex(u => u.id === user.id)
-  if (index !== -1) {
-    users.value[index].status = user.status === 'banned' ? 'offline' : 'banned'
+const columns: any[] = [
+  {
+    accessorKey: 'name',
+    header: t('users.columns.name'),
+    cell: ({ row }: any) => {
+      const user = row.original
+      return h('div', { class: 'flex items-center gap-3' }, [
+        h(UAvatar, {
+          src: user.avatar || undefined,
+          alt: user.name,
+          size: 'sm'
+        }, () => h('span', { class: 'text-xs font-medium text-primary-600 dark:text-primary-400' }, 
+          user.name.split(' ').map((n: string) => n[0]).join('')
+        )),
+        h('div', [
+          h('button', {
+            onClick: () => viewUser(user),
+            class: 'font-medium text-gray-900 dark:text-gray-100 hover:text-primary-600 dark:hover:text-primary-400 transition-colors'
+          }, user.name)
+        ])
+      ])
+    }
+  },
+  {
+    accessorKey: 'email',
+    header: t('users.columns.email'),
+    cell: ({ row }: any) => {
+      const user = row.original
+      return h('span', { class: 'text-gray-600 dark:text-gray-400' }, user.email)
+    }
+  },
+  {
+    accessorKey: 'role',
+    header: t('users.columns.role'),
+    cell: ({ row }: any) => {
+      const user = row.original
+      return h(UBadge, {
+        color: getRoleColor(user.role),
+        variant: 'subtle',
+        class: [
+          'capitalize',
+          user.role === 'admin' ? 'text-red-700 dark:text-red-300' : '',
+          user.role === 'moderator' ? 'text-blue-700 dark:text-blue-300' : '',
+          user.role === 'user' ? 'text-gray-700 dark:text-gray-300' : ''
+        ]
+      }, () => t(`users.roles.${user.role}`))
+    }
+  },
+  {
+    accessorKey: 'status',
+    header: t('users.columns.status'),
+    cell: ({ row }: any) => {
+      const user = row.original
+      return h(UBadge, {
+        color: getStatusColor(user.status),
+        variant: 'subtle',
+        class: [
+          'capitalize',
+          user.status === 'online' ? 'text-green-700 dark:text-green-300' : '',
+          user.status === 'offline' ? 'text-gray-700 dark:text-gray-300' : '',
+          user.status === 'banned' ? 'text-red-700 dark:text-red-300' : '',
+          user.status === 'suspended' ? 'text-yellow-700 dark:text-yellow-300' : ''
+        ]
+      }, () => t(`users.status.${user.status}`))
+    }
+  },
+  {
+    accessorKey: 'lastSeen',
+    header: t('users.columns.lastSeen'),
+    cell: ({ row }: any) => {
+      const user = row.original
+      return h('span', { class: 'text-sm text-gray-500 dark:text-gray-400' }, user.lastSeen)
+    }
+  },
+  {
+    accessorKey: 'serversAccess',
+    header: t('users.columns.serversAccess'),
+    cell: ({ row }: any) => {
+      const user = row.original
+      return h('div', { class: 'flex items-center gap-2' }, [
+        h(UIcon, { name: 'i-heroicons-server-20-solid', class: 'w-4 h-4 text-gray-400' }),
+        h('span', { class: 'text-sm text-gray-600 dark:text-gray-400' }, user.serversAccess.toString())
+      ])
+    }
+  },
+  {
+    id: 'actions',
+    header: t('users.columns.actions'),
+    cell: ({ row }: any) => {
+      const user = row.original
+      return h('div', { class: 'flex items-center gap-2' }, [
+        h(UButton, {
+          color: 'primary',
+          variant: 'ghost',
+          icon: 'i-heroicons-eye-20-solid',
+          size: 'sm',
+          class: 'text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200',
+          onClick: () => viewUser(user)
+        }),
+        h(UDropdownMenu, {
+          items: getActionItems(user)
+        }, () => h(UButton, {
+          color: 'neutral',
+          variant: 'ghost',
+          icon: 'i-heroicons-ellipsis-horizontal-20-solid',
+          size: 'sm',
+          class: 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+        }))
+      ])
+    }
   }
-}
+]
 
-const toggleSuspend = (user) => {
-  const index = users.value.findIndex(u => u.id === user.id)
-  if (index !== -1) {
-    users.value[index].status = user.status === 'suspended' ? 'offline' : 'suspended'
-  }
-}
-
-const deleteUser = (user) => {
-  // Implementation for user deletion
-  console.log('Delete user:', user.name)
-}
-
-// Get status color
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'online': return 'success'
-    case 'offline': return 'neutral'
-    case 'banned': return 'error'
-    case 'suspended': return 'warning'
-    default: return 'neutral'
-  }
-}
-
-// Get role color
-const getRoleColor = (role: string) => {
-  switch (role) {
-    case 'admin': return 'error'
-    case 'moderator': return 'primary'
-    case 'user': return 'neutral'
-    default: return 'neutral'
-  }
-}
+// Filtered users based on search and filters
+const filteredUsers = computed(() => {
+  return users.value.filter(user => {
+    const matchesSearch = searchQuery.value === '' || 
+      user.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchQuery.value.toLowerCase())
+    
+    const matchesStatus = selectedStatus.value === 'all' || user.status === selectedStatus.value
+    const matchesRole = selectedRole.value === 'all' || user.role === selectedRole.value
+    
+    return matchesSearch && matchesStatus && matchesRole
+  })
+})
 
 // Navigation functions
-const viewUser = (user: any) => {
+const viewUser = (user: User) => {
   router.push(`/users/${user.id}`)
 }
 
@@ -249,105 +373,7 @@ const createUser = () => {
 
     <!-- Users Table -->
     <UCard>
-      <UTable :rows="filteredUsers" :columns="columns">
-        <!-- User column with avatar and name -->
-        <template #user-data="{ row }">
-          <div class="flex items-center gap-3">
-            <UAvatar
-              :src="row.avatar"
-              :alt="row.name"
-              size="sm"
-              :ui="{ background: 'bg-primary-100 dark:bg-primary-900' }"
-            >
-              <span class="text-xs font-medium text-primary-600 dark:text-primary-400">
-                {{ row.name.split(' ').map(n => n[0]).join('') }}
-              </span>
-            </UAvatar>
-            <div>
-              <button
-                @click="viewUser(row)"
-                class="font-medium text-gray-900 dark:text-gray-100 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-              >
-                {{ row.name }}
-              </button>
-            </div>
-          </div>
-        </template>
-
-        <!-- Email column -->
-        <template #email-data="{ row }">
-          <span class="text-gray-600 dark:text-gray-400">{{ row.email }}</span>
-        </template>
-
-        <!-- Role column -->
-        <template #role-data="{ row }">
-          <UBadge 
-            :color="getRoleColor(row.role)" 
-            variant="subtle"
-            class="capitalize"
-            :class="[
-              row.role === 'admin' ? 'text-red-700 dark:text-red-300' : '',
-              row.role === 'moderator' ? 'text-blue-700 dark:text-blue-300' : '',
-              row.role === 'user' ? 'text-gray-700 dark:text-gray-300' : ''
-            ]"
-          >
-            {{ t(`users.roles.${row.role}`) }}
-          </UBadge>
-        </template>
-
-        <!-- Status column -->
-        <template #status-data="{ row }">
-          <UBadge 
-            :color="getStatusColor(row.status)" 
-            variant="subtle"
-            class="capitalize"
-            :class="[
-              row.status === 'online' ? 'text-green-700 dark:text-green-300' : '',
-              row.status === 'offline' ? 'text-gray-700 dark:text-gray-300' : '',
-              row.status === 'banned' ? 'text-red-700 dark:text-red-300' : '',
-              row.status === 'suspended' ? 'text-yellow-700 dark:text-yellow-300' : ''
-            ]"
-          >
-            {{ t(`users.status.${row.status}`) }}
-          </UBadge>
-        </template>
-
-        <!-- Last Seen column -->
-        <template #lastSeen-data="{ row }">
-          <span class="text-sm text-gray-500 dark:text-gray-400">{{ row.lastSeen }}</span>
-        </template>
-
-        <!-- Servers Access column -->
-        <template #serversAccess-data="{ row }">
-          <div class="flex items-center gap-2">
-            <UIcon name="i-heroicons-server-20-solid" class="w-4 h-4 text-gray-400" />
-            <span class="text-sm text-gray-600 dark:text-gray-400">{{ row.serversAccess }}</span>
-          </div>
-        </template>
-
-        <!-- Actions column -->
-        <template #actions-data="{ row }">
-          <div class="flex items-center gap-2">
-            <UButton 
-              color="primary" 
-              variant="ghost" 
-              icon="i-heroicons-eye-20-solid"
-              size="sm"
-              class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
-              @click="viewUser(row)"
-            />
-            <UDropdown :items="getActionItems(row)">
-              <UButton 
-                color="neutral" 
-                variant="ghost" 
-                icon="i-heroicons-ellipsis-horizontal-20-solid"
-                size="sm"
-                class="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
-              />
-            </UDropdown>
-          </div>
-        </template>
-      </UTable>
+      <UTable :data="filteredUsers" :columns="columns" />
 
       <!-- Empty state -->
       <div v-if="filteredUsers.length === 0" class="text-center py-12">

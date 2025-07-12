@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import type { DropdownMenuItem } from '@nuxt/ui'
+
 const { user, clearUser } = useUser()
 const router = useRouter()
 
-const items = [
+const items: DropdownMenuItem[][] = [
   [{
-    label: user.value?.email,
+    label: (user.value as any)?.email || 'User',
     slot: 'account',
     disabled: true
   }],
@@ -15,7 +17,7 @@ const items = [
   }, {
     label: 'Sign out',
     icon: 'i-heroicons-arrow-left-on-rectangle',
-    click: () => {
+    onSelect: () => {
       clearUser()
       router.push('/login')
     }
@@ -24,7 +26,7 @@ const items = [
 </script>
 
 <template>
-  <UDropdown :items="items" :ui="{ item: { disabled: 'cursor-text select-text' } }" :popper="{ placement: 'bottom-end' }">
+  <UDropdownMenu :items="items" :ui="{ content: 'w-48' }">
     <UAvatar src="https://avatars.githubusercontent.com/u/739984?v=4" />
 
     <template #account="{ item }">
@@ -33,14 +35,14 @@ const items = [
           Signed in as
         </p>
         <p class="truncate font-medium text-gray-900 dark:text-white">
-          {{ item.label }}
+          {{ (item as any).label }}
         </p>
       </div>
     </template>
 
     <template #item="{ item }">
-      <span class="truncate">{{ item.label }}</span>
-      <UIcon :name="item.icon" class="flex-shrink-0 h-4 w-4 text-gray-400 dark:text-gray-500 ms-auto" />
+      <span class="truncate">{{ (item as any).label }}</span>
+      <UIcon v-if="(item as any).icon" :name="(item as any).icon" class="flex-shrink-0 h-4 w-4 text-gray-400 dark:text-gray-500 ms-auto" />
     </template>
-  </UDropdown>
+  </UDropdownMenu>
 </template> 

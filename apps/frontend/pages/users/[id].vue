@@ -7,7 +7,7 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 
-const userId = route.params.id
+const userId = Array.isArray(route.params.id) ? route.params.id[0] : route.params.id
 
 // Mock user data - in real app this would come from API
 const user = ref({
@@ -18,7 +18,7 @@ const user = ref({
   status: 'online',
   lastSeen: '2 minutes ago',
   joinedAt: '2024-01-15',
-  avatar: null,
+  avatar: null as string | null,
   serversAccess: 5,
   totalPlaytime: '240 hours',
   totalSessions: 156,
@@ -125,10 +125,9 @@ const goBack = () => {
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-6">
             <UAvatar
-              :src="user.avatar"
+              :src="user.avatar || undefined"
               :alt="user.name"
               size="lg"
-              :ui="{ background: 'bg-primary-100 dark:bg-primary-900' }"
             >
               <span class="text-xl font-medium text-primary-600 dark:text-primary-400">
                 {{ user.name.split(' ').map(n => n[0]).join('') }}
@@ -178,7 +177,7 @@ const goBack = () => {
             >
               {{ t('users.actions.edit') }}
             </UButton>
-            <UDropdown :items="[
+            <UDropdownMenu :items="[
               [{
                 label: t('users.actions.resetPassword'),
                 icon: 'i-heroicons-key-20-solid',
@@ -208,7 +207,7 @@ const goBack = () => {
                 variant="ghost" 
                 icon="i-heroicons-ellipsis-horizontal-20-solid"
               />
-            </UDropdown>
+            </UDropdownMenu>
           </div>
         </div>
       </UCard>
