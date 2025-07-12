@@ -80,11 +80,11 @@ const filteredPlayers = computed(() => {
   return filtered
 })
 
-const getStatusColor = (status) => {
+const getStatusColor = (status: string) => {
   switch (status) {
-    case 'online': return 'green'
-    case 'offline': return 'gray'
-    default: return 'gray'
+    case 'online': return 'success'
+    case 'offline': return 'neutral'
+    default: return 'neutral'
   }
 }
 
@@ -199,6 +199,10 @@ const playerStats = computed(() => ({
             :color="getStatusColor(row.status)" 
             variant="subtle"
             class="capitalize"
+            :class="[
+              row.status === 'online' ? 'text-green-700 dark:text-green-300' : '',
+              row.status === 'offline' ? 'text-gray-700 dark:text-gray-300' : ''
+            ]"
           >
             {{ row.status }}
           </UBadge>
@@ -214,6 +218,19 @@ const playerStats = computed(() => ({
           <span class="text-sm text-gray-500 dark:text-gray-400">{{ row.lastSeen }}</span>
         </template>
       </UTable>
+
+      <!-- Empty state -->
+      <div v-if="filteredPlayers.length === 0" class="text-center py-12">
+        <UIcon name="i-heroicons-users-20-solid" class="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+          {{ searchQuery || selectedStatus !== 'all' ? 'No players found' : 'No players online' }}
+        </h3>
+        <p class="text-gray-500 dark:text-gray-400 mb-6">
+          {{ searchQuery || selectedStatus !== 'all' 
+            ? 'Try adjusting your search or filters' 
+            : 'Players will appear here when they join servers' }}
+        </p>
+      </div>
     </UCard>
   </div>
 </template> 

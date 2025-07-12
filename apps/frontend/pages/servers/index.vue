@@ -164,26 +164,26 @@ const getActionItems = (server) => [
 ]
 
 // Helper functions
-const getStatusColor = (status) => {
+const getStatusColor = (status: string) => {
   switch (status) {
-    case 'online': return 'green'
-    case 'offline': return 'red'
-    case 'starting': return 'yellow'
-    case 'stopping': return 'orange'
-    case 'error': return 'red'
-    default: return 'gray'
+    case 'online': return 'success'
+    case 'offline': return 'error'
+    case 'starting': return 'warning'
+    case 'stopping': return 'warning'
+    case 'error': return 'error'
+    default: return 'neutral'
   }
 }
 
-const getPerformanceColor = (cpu, memory) => {
+const getPerformanceColor = (cpu: number, memory: number) => {
   const maxUsage = Math.max(cpu, memory)
-  if (maxUsage > 80) return 'red'
-  if (maxUsage > 60) return 'yellow'
-  return 'green'
+  if (maxUsage > 80) return 'error'
+  if (maxUsage > 60) return 'warning'
+  return 'success'
 }
 
 // Action functions
-const toggleServer = (server) => {
+const toggleServer = (server: any) => {
   const index = servers.value.findIndex(s => s.id === server.id)
   if (index !== -1) {
     if (server.status === 'online') {
@@ -205,7 +205,7 @@ const toggleServer = (server) => {
   }
 }
 
-const restartServer = (server) => {
+const restartServer = (server: any) => {
   const index = servers.value.findIndex(s => s.id === server.id)
   if (index !== -1) {
     servers.value[index].status = 'stopping'
@@ -218,18 +218,18 @@ const restartServer = (server) => {
   }
 }
 
-const createBackup = (server) => {
+const createBackup = (server: any) => {
   console.log('Creating backup for:', server.name)
   // Implementation for creating backup
 }
 
-const deleteServer = (server) => {
+const deleteServer = (server: any) => {
   console.log('Deleting server:', server.name)
   // Implementation for server deletion
 }
 
 // Navigation functions
-const viewServer = (server) => {
+const viewServer = (server: any) => {
   router.push(`/servers/${server.id}`)
 }
 
@@ -379,6 +379,13 @@ const serverStats = computed(() => ({
             :color="getStatusColor(row.status)" 
             variant="subtle"
             class="capitalize"
+            :class="[
+              row.status === 'online' ? 'text-green-700 dark:text-green-300' : '',
+              row.status === 'offline' ? 'text-red-700 dark:text-red-300' : '',
+              row.status === 'starting' ? 'text-yellow-700 dark:text-yellow-300' : '',
+              row.status === 'stopping' ? 'text-orange-700 dark:text-orange-300' : '',
+              row.status === 'error' ? 'text-red-700 dark:text-red-300' : ''
+            ]"
           >
             {{ t(`servers.status.${row.status}`) }}
           </UBadge>
@@ -402,9 +409,9 @@ const serverStats = computed(() => ({
                   <div 
                     :class="[
                       'h-2 rounded-full transition-all duration-300',
-                      getPerformanceColor(row.cpu, row.memory) === 'green' ? 'bg-green-500' : '',
-                      getPerformanceColor(row.cpu, row.memory) === 'yellow' ? 'bg-yellow-500' : '',
-                      getPerformanceColor(row.cpu, row.memory) === 'red' ? 'bg-red-500' : ''
+                      getPerformanceColor(row.cpu, row.memory) === 'success' ? 'bg-green-500' : '',
+                      getPerformanceColor(row.cpu, row.memory) === 'warning' ? 'bg-yellow-500' : '',
+                      getPerformanceColor(row.cpu, row.memory) === 'error' ? 'bg-red-500' : ''
                     ]"
                     :style="{ width: `${row.cpu}%` }"
                   />
@@ -417,9 +424,9 @@ const serverStats = computed(() => ({
                   <div 
                     :class="[
                       'h-2 rounded-full transition-all duration-300',
-                      getPerformanceColor(row.cpu, row.memory) === 'green' ? 'bg-green-500' : '',
-                      getPerformanceColor(row.cpu, row.memory) === 'yellow' ? 'bg-yellow-500' : '',
-                      getPerformanceColor(row.cpu, row.memory) === 'red' ? 'bg-red-500' : ''
+                      getPerformanceColor(row.cpu, row.memory) === 'success' ? 'bg-green-500' : '',
+                      getPerformanceColor(row.cpu, row.memory) === 'warning' ? 'bg-yellow-500' : '',
+                      getPerformanceColor(row.cpu, row.memory) === 'error' ? 'bg-red-500' : ''
                     ]"
                     :style="{ width: `${row.memory}%` }"
                   />
@@ -439,34 +446,38 @@ const serverStats = computed(() => ({
         <template #actions-data="{ row }">
           <div class="flex items-center gap-2">
             <UButton 
-              color="blue" 
+              color="primary" 
               variant="ghost" 
               icon="i-heroicons-eye-20-solid"
               size="sm"
+              class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
               @click="viewServer(row)"
             />
             <UButton 
               v-if="row.status === 'online'"
-              color="red" 
+              color="error" 
               variant="ghost" 
               icon="i-heroicons-stop-20-solid"
               size="sm"
+              class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200"
               @click="toggleServer(row)"
             />
             <UButton 
               v-else-if="row.status === 'offline'"
-              color="green" 
+              color="success" 
               variant="ghost" 
               icon="i-heroicons-play-20-solid"
               size="sm"
+              class="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-200"
               @click="toggleServer(row)"
             />
             <UDropdown :items="getActionItems(row)">
               <UButton 
-                color="gray" 
+                color="neutral" 
                 variant="ghost" 
                 icon="i-heroicons-ellipsis-horizontal-20-solid"
                 size="sm"
+                class="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
               />
             </UDropdown>
           </div>
@@ -488,6 +499,7 @@ const serverStats = computed(() => ({
           v-if="!searchQuery && selectedStatus === 'all' && selectedGame === 'all'"
           @click="createServer"
           icon="i-heroicons-plus-circle"
+          class="text-blue-700 dark:text-blue-300"
         >
           {{ t('servers.createServer') }}
         </UButton>

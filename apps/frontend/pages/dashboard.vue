@@ -267,40 +267,40 @@ const resourceData = computed(() => ({
         </template>
         <div class="grid grid-cols-2 gap-4">
           <UButton 
-            color="blue" 
+            color="primary" 
             variant="soft" 
             size="lg" 
             icon="i-heroicons-plus-circle-20-solid"
-            class="justify-start"
+            class="justify-start text-blue-700 dark:text-blue-300"
             @click="router.push('/servers/create')"
           >
             {{ t('servers.createServer') }}
           </UButton>
           <UButton 
-            color="purple" 
+            color="secondary" 
             variant="soft" 
             size="lg" 
             icon="i-heroicons-user-plus-20-solid"
-            class="justify-start"
+            class="justify-start text-purple-700 dark:text-purple-300"
             @click="router.push('/users/create')"
           >
             {{ t('users.createUser') }}
           </UButton>
           <UButton 
-            color="green" 
+            color="success" 
             variant="soft" 
             size="lg" 
             icon="i-heroicons-arrow-path-20-solid"
-            class="justify-start"
+            class="justify-start text-green-700 dark:text-green-300"
           >
             {{ t('common.refresh') }}
           </UButton>
           <UButton 
-            color="orange" 
+            color="warning" 
             variant="soft" 
             size="lg" 
             icon="i-heroicons-cog-6-tooth-20-solid"
-            class="justify-start"
+            class="justify-start text-orange-700 dark:text-orange-300"
             @click="router.push('/settings')"
           >
             Settings
@@ -313,7 +313,13 @@ const resourceData = computed(() => ({
         <template #header>
           <div class="flex items-center justify-between">
             <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100">{{ t('dashboard.stats.resourceMonitoring') }}</h3>
-            <UButton color="gray" variant="ghost" icon="i-heroicons-arrow-path-20-solid" size="sm" />
+            <UButton 
+              color="neutral" 
+              variant="ghost" 
+              icon="i-heroicons-arrow-path-20-solid" 
+              size="sm"
+              class="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+            />
           </div>
         </template>
         <div class="h-64 bg-gray-100 dark:bg-gray-800 rounded-md flex items-center justify-center">
@@ -321,6 +327,14 @@ const resourceData = computed(() => ({
             <UIcon name="i-heroicons-chart-bar-20-solid" class="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-2" />
             <p class="text-gray-500 dark:text-gray-400">Resource usage chart</p>
             <p class="text-sm text-gray-400 dark:text-gray-500">Chart component would be displayed here</p>
+            <UButton 
+              color="neutral" 
+              variant="ghost" 
+              size="sm"
+              class="mt-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+            >
+              View Processes
+            </UButton>
           </div>
         </div>
       </UCard>
@@ -330,7 +344,14 @@ const resourceData = computed(() => ({
         <template #header>
           <div class="flex items-center justify-between">
             <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100">{{ t('dashboard.activity.title') }}</h3>
-            <UButton color="gray" variant="ghost" size="sm">{{ t('common.viewAll') }}</UButton>
+            <UButton 
+              color="neutral" 
+              variant="ghost" 
+              size="sm"
+              class="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+            >
+              {{ t('common.viewAll') }}
+            </UButton>
           </div>
         </template>
         <div class="space-y-4">
@@ -374,7 +395,11 @@ const resourceData = computed(() => ({
         <template #header>
           <div class="flex items-center justify-between">
             <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100">{{ t('dashboard.alerts.title') }}</h3>
-            <UBadge v-if="activeAlerts.length > 0" :color="activeAlerts.some(a => a.severity === 'error') ? 'red' : 'yellow'" variant="subtle">
+            <UBadge 
+              v-if="activeAlerts.length > 0" 
+              :color="activeAlerts.some(a => a.severity === 'error') ? 'error' : 'warning'" 
+              variant="subtle"
+            >
               {{ activeAlerts.length }}
             </UBadge>
           </div>
@@ -400,10 +425,11 @@ const resourceData = computed(() => ({
               <p class="text-xs text-gray-500 dark:text-gray-400">{{ alert.timestamp }}</p>
             </div>
             <UButton 
-              :color="alert.severity === 'error' ? 'red' : 'yellow'" 
+              :color="alert.severity === 'error' ? 'error' : 'warning'" 
               variant="ghost" 
               size="xs"
               icon="i-heroicons-x-mark-20-solid"
+              class="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
             />
           </div>
           <div v-if="activeAlerts.length === 0" class="text-center py-8">

@@ -101,7 +101,7 @@ const columns = [
   { key: 'timestamp', label: 'Time', id: 'timestamp' },
   { key: 'status', label: 'Status', id: 'status' },
   { key: 'actions', label: 'Actions', id: 'actions' }
-] as const
+]
 
 const filteredAlerts = computed(() => {
   let filtered = alerts.value
@@ -172,10 +172,21 @@ const alertStats = computed(() => ({
         </p>
       </div>
       <div class="mt-4 sm:mt-0 flex items-center gap-2">
-        <UButton color="primary" icon="i-heroicons-check-20-solid" size="sm">
+        <UButton 
+          color="primary" 
+          icon="i-heroicons-check-20-solid" 
+          size="sm"
+          class="text-primary-700 dark:text-primary-300"
+        >
           Acknowledge All
         </UButton>
-        <UButton color="neutral" variant="ghost" icon="i-heroicons-arrow-path-20-solid" size="sm">
+        <UButton 
+          color="neutral" 
+          variant="ghost" 
+          icon="i-heroicons-arrow-path-20-solid" 
+          size="sm"
+          class="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+        >
           Refresh
         </UButton>
       </div>
@@ -298,6 +309,12 @@ const alertStats = computed(() => ({
             :color="getSeverityColor((row as Alert).severity)" 
             variant="subtle"
             class="capitalize"
+            :class="[
+              (row as Alert).severity === 'critical' ? 'text-red-700 dark:text-red-300' : '',
+              (row as Alert).severity === 'error' ? 'text-red-700 dark:text-red-300' : '',
+              (row as Alert).severity === 'warning' ? 'text-yellow-700 dark:text-yellow-300' : '',
+              (row as Alert).severity === 'info' ? 'text-blue-700 dark:text-blue-300' : ''
+            ]"
           >
             {{ (row as Alert).severity }}
           </UBadge>
@@ -313,6 +330,9 @@ const alertStats = computed(() => ({
           <UBadge 
             :color="(row as Alert).acknowledged ? 'success' : 'warning'" 
             variant="subtle"
+            :class="[
+              (row as Alert).acknowledged ? 'text-green-700 dark:text-green-300' : 'text-yellow-700 dark:text-yellow-300'
+            ]"
           >
             {{ (row as Alert).acknowledged ? 'Acknowledged' : 'Active' }}
           </UBadge>
@@ -327,6 +347,7 @@ const alertStats = computed(() => ({
               variant="ghost" 
               size="sm"
               icon="i-heroicons-check-20-solid"
+              class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
               @click="acknowledgeAlert((row as Alert).id)"
             >
               Acknowledge
@@ -336,6 +357,7 @@ const alertStats = computed(() => ({
               variant="ghost" 
               size="sm"
               icon="i-heroicons-x-mark-20-solid"
+              class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200"
               @click="dismissAlert((row as Alert).id)"
             >
               Dismiss
@@ -343,6 +365,19 @@ const alertStats = computed(() => ({
           </div>
         </template>
       </UTable>
+
+      <!-- Empty state -->
+      <div v-if="filteredAlerts.length === 0" class="text-center py-12">
+        <UIcon name="i-heroicons-bell-slash-20-solid" class="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+          {{ searchQuery || selectedSeverity !== 'all' || selectedStatus !== 'all' ? 'No alerts found' : 'No active alerts' }}
+        </h3>
+        <p class="text-gray-500 dark:text-gray-400">
+          {{ searchQuery || selectedSeverity !== 'all' || selectedStatus !== 'all' 
+            ? 'Try adjusting your search or filters' 
+            : 'All systems are running smoothly' }}
+        </p>
+      </div>
     </UCard>
   </div>
 </template> 

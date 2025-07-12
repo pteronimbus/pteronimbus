@@ -84,24 +84,24 @@ const tabs = [
 ]
 
 // Helper functions
-const getStatusColor = (status) => {
+const getStatusColor = (status: string) => {
   switch (status) {
-    case 'online': return 'green'
-    case 'offline': return 'red'
-    case 'starting': return 'yellow'
-    case 'stopping': return 'orange'
-    case 'error': return 'red'
-    default: return 'gray'
+    case 'online': return 'success'
+    case 'offline': return 'error'
+    case 'starting': return 'warning'
+    case 'stopping': return 'warning'
+    case 'error': return 'error'
+    default: return 'neutral'
   }
 }
 
-const getLogLevelColor = (level) => {
+const getLogLevelColor = (level: string) => {
   switch (level) {
-    case 'INFO': return 'blue'
-    case 'WARN': return 'yellow'
-    case 'ERROR': return 'red'
-    case 'DEBUG': return 'gray'
-    default: return 'gray'
+    case 'INFO': return 'info'
+    case 'WARN': return 'warning'
+    case 'ERROR': return 'error'
+    case 'DEBUG': return 'neutral'
+    default: return 'neutral'
   }
 }
 
@@ -205,9 +205,10 @@ watch(consoleOutput, () => {
     <div class="mb-6">
       <div class="flex items-center mb-4">
         <UButton 
-          color="gray" 
+          color="neutral" 
           variant="ghost" 
           icon="i-heroicons-arrow-left-20-solid"
+          class="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
           @click="goBack"
         />
         <h1 class="ml-4 text-3xl font-bold text-gray-800 dark:text-gray-100">{{ t('servers.details.title') }}</h1>
@@ -228,6 +229,13 @@ watch(consoleOutput, () => {
                   :color="getStatusColor(server.status)" 
                   variant="subtle"
                   class="capitalize"
+                  :class="[
+                    server.status === 'online' ? 'text-green-700 dark:text-green-300' : '',
+                    server.status === 'offline' ? 'text-red-700 dark:text-red-300' : '',
+                    server.status === 'starting' ? 'text-yellow-700 dark:text-yellow-300' : '',
+                    server.status === 'stopping' ? 'text-orange-700 dark:text-orange-300' : '',
+                    server.status === 'error' ? 'text-red-700 dark:text-red-300' : ''
+                  ]"
                 >
                   {{ t(`servers.status.${server.status}`) }}
                 </UBadge>
@@ -240,7 +248,7 @@ watch(consoleOutput, () => {
           <div class="flex items-center gap-2">
             <UButton 
               v-if="server.status === 'offline'" 
-              color="green" 
+              color="success" 
               icon="i-heroicons-play-20-solid"
               @click="startServer"
             >
@@ -248,7 +256,7 @@ watch(consoleOutput, () => {
             </UButton>
             <UButton 
               v-if="server.status === 'online'" 
-              color="red" 
+              color="error" 
               icon="i-heroicons-stop-20-solid"
               @click="stopServer"
             >
@@ -256,7 +264,7 @@ watch(consoleOutput, () => {
             </UButton>
             <UButton 
               v-if="server.status === 'online'" 
-              color="orange" 
+              color="warning" 
               icon="i-heroicons-arrow-path-20-solid"
               @click="restartServer"
             >
@@ -280,9 +288,10 @@ watch(consoleOutput, () => {
               }]
             ]">
               <UButton 
-                color="gray" 
+                color="neutral" 
                 variant="ghost" 
                 icon="i-heroicons-ellipsis-horizontal-20-solid"
+                class="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
               />
             </UDropdown>
           </div>
@@ -461,8 +470,9 @@ watch(consoleOutput, () => {
                 @keyup.enter="sendConsoleCommand"
               />
               <UButton 
-                color="green" 
+                color="success" 
                 icon="i-heroicons-paper-airplane-20-solid"
+                class="text-green-700 dark:text-green-300"
                 @click="sendConsoleCommand"
               >
                 Send
@@ -478,7 +488,13 @@ watch(consoleOutput, () => {
           <template #header>
             <div class="flex items-center justify-between">
               <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ t('servers.details.players') }}</h3>
-              <UBadge color="blue" variant="subtle">{{ server.players.current }}/{{ server.players.max }}</UBadge>
+              <UBadge 
+                color="primary" 
+                variant="subtle"
+                class="text-blue-700 dark:text-blue-300"
+              >
+                {{ server.players.current }}/{{ server.players.max }}
+              </UBadge>
             </div>
           </template>
           <div class="space-y-4">
@@ -489,7 +505,7 @@ watch(consoleOutput, () => {
             >
               <div class="flex items-center gap-4">
                 <UAvatar :alt="player.name" size="sm">
-                  <span class="text-xs font-medium">{{ player.name.charAt(0) }}</span>
+                  <span class="text-xs font-medium text-primary-600 dark:text-primary-400">{{ player.name.charAt(0) }}</span>
                 </UAvatar>
                 <div>
                   <p class="font-medium text-gray-900 dark:text-gray-100">{{ player.name }}</p>
@@ -500,17 +516,19 @@ watch(consoleOutput, () => {
               </div>
               <div class="flex items-center gap-2">
                 <UButton 
-                  color="yellow" 
+                  color="warning" 
                   variant="ghost" 
                   icon="i-heroicons-user-minus-20-solid"
                   size="sm"
+                  class="text-yellow-600 dark:text-yellow-400 hover:text-yellow-800 dark:hover:text-yellow-200"
                   @click="kickPlayer(player)"
                 />
                 <UButton 
-                  color="red" 
+                  color="error" 
                   variant="ghost" 
                   icon="i-heroicons-no-symbol-20-solid"
                   size="sm"
+                  class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200"
                   @click="banPlayer(player)"
                 />
               </div>
@@ -600,7 +618,12 @@ watch(consoleOutput, () => {
             </div>
             
             <div class="flex justify-end">
-              <UButton color="blue">Save Settings</UButton>
+              <UButton 
+                color="primary"
+                class="text-blue-700 dark:text-blue-300"
+              >
+                Save Settings
+              </UButton>
             </div>
           </div>
         </UCard>
@@ -612,7 +635,12 @@ watch(consoleOutput, () => {
           <template #header>
             <div class="flex items-center justify-between">
               <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ t('servers.details.backups') }}</h3>
-              <UButton color="blue" icon="i-heroicons-plus-circle-20-solid" @click="createBackup">
+              <UButton 
+                color="primary" 
+                icon="i-heroicons-plus-circle-20-solid" 
+                class="text-blue-700 dark:text-blue-300"
+                @click="createBackup"
+              >
                 Create Backup
               </UButton>
             </div>
@@ -630,30 +658,35 @@ watch(consoleOutput, () => {
                 <div>
                   <p class="font-medium text-gray-900 dark:text-gray-100">{{ backup.name }}</p>
                   <p class="text-sm text-gray-500 dark:text-gray-400">
-                    {{ backup.size }} • {{ backup.createdAt }} • {{ backup.type }}
+                    <span class="text-gray-700 dark:text-gray-300">{{ backup.size }}</span> • 
+                    <span class="text-gray-700 dark:text-gray-300">{{ backup.createdAt }}</span> • 
+                    <span class="text-gray-700 dark:text-gray-300 capitalize">{{ backup.type }}</span>
                   </p>
                 </div>
               </div>
               <div class="flex items-center gap-2">
                 <UButton 
-                  color="blue" 
+                  color="primary" 
                   variant="ghost" 
                   icon="i-heroicons-arrow-down-tray-20-solid"
                   size="sm"
+                  class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
                   @click="downloadBackup(backup)"
                 />
                 <UButton 
-                  color="green" 
+                  color="success" 
                   variant="ghost" 
                   icon="i-heroicons-arrow-uturn-left-20-solid"
                   size="sm"
+                  class="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-200"
                   @click="restoreBackup(backup)"
                 />
                 <UButton 
-                  color="red" 
+                  color="error" 
                   variant="ghost" 
                   icon="i-heroicons-trash-20-solid"
                   size="sm"
+                  class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200"
                   @click="deleteBackup(backup)"
                 />
               </div>
@@ -678,6 +711,12 @@ watch(consoleOutput, () => {
                 :color="getLogLevelColor(log.level)" 
                 variant="subtle"
                 size="xs"
+                :class="[
+                  log.level === 'INFO' ? 'text-blue-700 dark:text-blue-300' : '',
+                  log.level === 'WARN' ? 'text-yellow-700 dark:text-yellow-300' : '',
+                  log.level === 'ERROR' ? 'text-red-700 dark:text-red-300' : '',
+                  log.level === 'DEBUG' ? 'text-gray-700 dark:text-gray-300' : ''
+                ]"
               >
                 {{ log.level }}
               </UBadge>

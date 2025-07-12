@@ -54,22 +54,22 @@ const tabs = [
 ]
 
 // Helper functions
-const getStatusColor = (status) => {
+const getStatusColor = (status: string) => {
   switch (status) {
-    case 'online': return 'green'
-    case 'offline': return 'gray'
-    case 'banned': return 'red'
-    case 'suspended': return 'yellow'
-    default: return 'gray'
+    case 'online': return 'success'
+    case 'offline': return 'neutral'
+    case 'banned': return 'error'
+    case 'suspended': return 'warning'
+    default: return 'neutral'
   }
 }
 
-const getRoleColor = (role) => {
+const getRoleColor = (role: string) => {
   switch (role) {
-    case 'admin': return 'red'
-    case 'moderator': return 'blue'
-    case 'user': return 'gray'
-    default: return 'gray'
+    case 'admin': return 'error'
+    case 'moderator': return 'primary'
+    case 'user': return 'neutral'
+    default: return 'neutral'
   }
 }
 
@@ -111,9 +111,10 @@ const goBack = () => {
     <div class="mb-6">
       <div class="flex items-center mb-4">
         <UButton 
-          color="gray" 
+          color="neutral" 
           variant="ghost" 
           icon="i-heroicons-arrow-left-20-solid"
+          class="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
           @click="goBack"
         />
         <h1 class="ml-4 text-3xl font-bold text-gray-800 dark:text-gray-100">{{ t('users.details.title') }}</h1>
@@ -141,6 +142,11 @@ const goBack = () => {
                   :color="getRoleColor(user.role)" 
                   variant="subtle"
                   class="capitalize"
+                  :class="[
+                    user.role === 'admin' ? 'text-red-700 dark:text-red-300' : '',
+                    user.role === 'moderator' ? 'text-blue-700 dark:text-blue-300' : '',
+                    user.role === 'user' ? 'text-gray-700 dark:text-gray-300' : ''
+                  ]"
                 >
                   {{ t(`users.roles.${user.role}`) }}
                 </UBadge>
@@ -148,6 +154,12 @@ const goBack = () => {
                   :color="getStatusColor(user.status)" 
                   variant="subtle"
                   class="capitalize"
+                  :class="[
+                    user.status === 'online' ? 'text-green-700 dark:text-green-300' : '',
+                    user.status === 'offline' ? 'text-gray-700 dark:text-gray-300' : '',
+                    user.status === 'banned' ? 'text-red-700 dark:text-red-300' : '',
+                    user.status === 'suspended' ? 'text-yellow-700 dark:text-yellow-300' : ''
+                  ]"
                 >
                   {{ t(`users.status.${user.status}`) }}
                 </UBadge>
@@ -158,9 +170,10 @@ const goBack = () => {
           <!-- Action buttons -->
           <div class="flex items-center gap-2">
             <UButton 
-              color="blue" 
+              color="primary" 
               variant="soft" 
               icon="i-heroicons-pencil-square-20-solid"
+              class="text-blue-700 dark:text-blue-300"
               @click="editUser"
             >
               {{ t('users.actions.edit') }}
@@ -191,7 +204,7 @@ const goBack = () => {
               }]
             ]">
               <UButton 
-                color="gray" 
+                color="neutral" 
                 variant="ghost" 
                 icon="i-heroicons-ellipsis-horizontal-20-solid"
               />
@@ -309,10 +322,11 @@ const goBack = () => {
                   <span class="font-medium text-gray-900 dark:text-gray-100">{{ server }}</span>
                 </div>
                 <UButton 
-                  color="gray" 
+                  color="neutral" 
                   variant="ghost" 
                   icon="i-heroicons-arrow-top-right-on-square-20-solid"
                   size="sm"
+                  class="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
                   @click="router.push(`/servers/${server.toLowerCase().replace(/\s+/g, '-')}`)"
                 />
               </div>

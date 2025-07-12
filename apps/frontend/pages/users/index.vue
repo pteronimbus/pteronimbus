@@ -170,28 +170,28 @@ const deleteUser = (user) => {
 }
 
 // Get status color
-const getStatusColor = (status) => {
+const getStatusColor = (status: string) => {
   switch (status) {
-    case 'online': return 'green'
-    case 'offline': return 'gray'
-    case 'banned': return 'red'
-    case 'suspended': return 'yellow'
-    default: return 'gray'
+    case 'online': return 'success'
+    case 'offline': return 'neutral'
+    case 'banned': return 'error'
+    case 'suspended': return 'warning'
+    default: return 'neutral'
   }
 }
 
 // Get role color
-const getRoleColor = (role) => {
+const getRoleColor = (role: string) => {
   switch (role) {
-    case 'admin': return 'red'
-    case 'moderator': return 'blue'
-    case 'user': return 'gray'
-    default: return 'gray'
+    case 'admin': return 'error'
+    case 'moderator': return 'primary'
+    case 'user': return 'neutral'
+    default: return 'neutral'
   }
 }
 
 // Navigation functions
-const viewUser = (user) => {
+const viewUser = (user: any) => {
   router.push(`/users/${user.id}`)
 }
 
@@ -285,6 +285,11 @@ const createUser = () => {
             :color="getRoleColor(row.role)" 
             variant="subtle"
             class="capitalize"
+            :class="[
+              row.role === 'admin' ? 'text-red-700 dark:text-red-300' : '',
+              row.role === 'moderator' ? 'text-blue-700 dark:text-blue-300' : '',
+              row.role === 'user' ? 'text-gray-700 dark:text-gray-300' : ''
+            ]"
           >
             {{ t(`users.roles.${row.role}`) }}
           </UBadge>
@@ -296,6 +301,12 @@ const createUser = () => {
             :color="getStatusColor(row.status)" 
             variant="subtle"
             class="capitalize"
+            :class="[
+              row.status === 'online' ? 'text-green-700 dark:text-green-300' : '',
+              row.status === 'offline' ? 'text-gray-700 dark:text-gray-300' : '',
+              row.status === 'banned' ? 'text-red-700 dark:text-red-300' : '',
+              row.status === 'suspended' ? 'text-yellow-700 dark:text-yellow-300' : ''
+            ]"
           >
             {{ t(`users.status.${row.status}`) }}
           </UBadge>
@@ -318,18 +329,20 @@ const createUser = () => {
         <template #actions-data="{ row }">
           <div class="flex items-center gap-2">
             <UButton 
-              color="blue" 
+              color="primary" 
               variant="ghost" 
               icon="i-heroicons-eye-20-solid"
               size="sm"
+              class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
               @click="viewUser(row)"
             />
             <UDropdown :items="getActionItems(row)">
               <UButton 
-                color="gray" 
+                color="neutral" 
                 variant="ghost" 
                 icon="i-heroicons-ellipsis-horizontal-20-solid"
                 size="sm"
+                class="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
               />
             </UDropdown>
           </div>
@@ -351,6 +364,7 @@ const createUser = () => {
           v-if="!searchQuery && selectedStatus === 'all' && selectedRole === 'all'"
           @click="createUser"
           icon="i-heroicons-plus-circle"
+          class="text-blue-700 dark:text-blue-300"
         >
           {{ t('users.createUser') }}
         </UButton>

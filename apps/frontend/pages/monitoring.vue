@@ -73,7 +73,13 @@ const getUsageColor = (usage: number) => {
           <UIcon name="i-heroicons-check-circle-20-solid" class="w-4 h-4 mr-1" />
           System Healthy
         </UBadge>
-        <UButton color="neutral" variant="ghost" icon="i-heroicons-arrow-path-20-solid" size="sm">
+        <UButton 
+          color="neutral" 
+          variant="ghost" 
+          icon="i-heroicons-arrow-path-20-solid" 
+          size="sm"
+          class="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+        >
           Refresh
         </UButton>
       </div>
@@ -171,7 +177,13 @@ const getUsageColor = (usage: number) => {
         <template #header>
           <div class="flex items-center justify-between">
             <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100">Resource Usage Over Time</h3>
-            <UButton color="neutral" variant="ghost" icon="i-heroicons-arrow-path-20-solid" size="sm" />
+            <UButton 
+              color="neutral" 
+              variant="ghost" 
+              icon="i-heroicons-arrow-path-20-solid" 
+              size="sm"
+              class="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+            />
           </div>
         </template>
         <div class="h-64 bg-gray-100 dark:bg-gray-800 rounded-md flex items-center justify-center">
@@ -188,7 +200,14 @@ const getUsageColor = (usage: number) => {
         <template #header>
           <div class="flex items-center justify-between">
             <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100">Top Processes</h3>
-            <UButton color="neutral" variant="ghost" size="sm">View All</UButton>
+            <UButton 
+              color="neutral" 
+              variant="ghost" 
+              size="sm"
+              class="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+            >
+              View All
+            </UButton>
           </div>
         </template>
         <div class="space-y-4">
