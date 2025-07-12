@@ -102,13 +102,13 @@ const gameOptions = computed(() => {
 })
 
 const columns = [
-  { key: 'server', label: t('servers.columns.name') },
-  { key: 'game', label: t('servers.columns.game') },
-  { key: 'status', label: t('servers.columns.status') },
-  { key: 'players', label: t('servers.columns.players') },
-  { key: 'performance', label: 'Performance' },
-  { key: 'uptime', label: t('servers.columns.uptime') },
-  { key: 'actions', label: t('servers.columns.actions') }
+  { key: 'server', label: t('servers.columns.name'), id: 'server' },
+  { key: 'game', label: t('servers.columns.game'), id: 'game' },
+  { key: 'status', label: t('servers.columns.status'), id: 'status' },
+  { key: 'players', label: t('servers.columns.players'), id: 'players' },
+  { key: 'performance', label: 'Performance', id: 'performance' },
+  { key: 'uptime', label: t('servers.columns.uptime'), id: 'uptime' },
+  { key: 'actions', label: t('servers.columns.actions'), id: 'actions' }
 ]
 
 // Filtered servers based on search and filters

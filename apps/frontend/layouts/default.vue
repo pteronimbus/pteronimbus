@@ -1,26 +1,19 @@
 <template>
-  <div class="min-h-screen flex">
-    <!-- Sidebar -->
-    <aside class="w-64 bg-gray-100 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex-shrink-0">
-      <nav class="mt-8 px-2">
-        <ULink to="/dashboard" class="flex items-center px-4 py-2 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700" active-class="bg-gray-200 dark:bg-gray-700 font-semibold">
-          <UIcon name="i-heroicons-home" class="mr-3 h-6 w-6" />
-          <span>Dashboard</span>
-        </ULink>
-        <ULink to="/servers" class="flex items-center px-4 py-2 mt-2 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700" active-class="bg-gray-200 dark:bg-gray-700 font-semibold">
-          <UIcon name="i-heroicons-server" class="mr-3 h-6 w-6" />
-          <span>Servers</span>
-        </ULink>
-      </nav>
-    </aside>
-
-    <div class="flex-1 flex flex-col">
-      <!-- User Menu Area -->
-      <div class="flex justify-end p-4">
+  <div>
+    <header class="flex justify-between items-center p-4 mb-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+      <button 
+        @click="router.push('/')"
+        class="text-2xl font-bold text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-colors cursor-pointer"
+      >
+        Pteronimbus
+      </button>
+      <div class="flex items-center gap-4">
         <UserMenu />
+        <ThemeSwitcher />
       </div>
-      <!-- Main Content -->
-      <main class="p-6 flex-1">
+    </header>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <main class="py-6">
         <slot />
       </main>
     </div>
@@ -28,5 +21,8 @@
 </template>
 
 <script setup lang="ts">
-import UserMenu from '~/components/UserMenu.vue';
+import UserMenu from '~/components/UserMenu.vue'
+import ThemeSwitcher from '~/components/ThemeSwitcher.vue'
+
+const router = useRouter()
 </script> 

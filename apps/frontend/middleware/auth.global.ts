@@ -1,5 +1,5 @@
 export default defineNuxtRouteMiddleware((to, from) => {
-  const user = useUser()
+  const { user } = useUser()
 
   if (to.meta.auth === false) {
     return

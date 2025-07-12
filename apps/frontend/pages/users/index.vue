@@ -80,13 +80,13 @@ const roleOptions = [
 ]
 
 const columns = [
-  { key: 'user', label: t('users.columns.name') },
-  { key: 'email', label: t('users.columns.email') },
-  { key: 'role', label: t('users.columns.role') },
-  { key: 'status', label: t('users.columns.status') },
-  { key: 'lastSeen', label: t('users.columns.lastSeen') },
-  { key: 'serversAccess', label: t('users.columns.serversAccess') },
-  { key: 'actions', label: t('users.columns.actions') }
+  { key: 'user', label: t('users.columns.name'), id: 'user' },
+  { key: 'email', label: t('users.columns.email'), id: 'email' },
+  { key: 'role', label: t('users.columns.role'), id: 'role' },
+  { key: 'status', label: t('users.columns.status'), id: 'status' },
+  { key: 'lastSeen', label: t('users.columns.lastSeen'), id: 'lastSeen' },
+  { key: 'serversAccess', label: t('users.columns.serversAccess'), id: 'serversAccess' },
+  { key: 'actions', label: t('users.columns.actions'), id: 'actions' }
 ]
 
 // Filtered users based on search and filters

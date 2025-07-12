@@ -7,7 +7,7 @@ definePageMeta({
 })
 
 const router = useRouter()
-const user = useUser()
+const { saveUser } = useUser()
 
 const state = reactive({
   email: '',
@@ -15,8 +15,8 @@ const state = reactive({
 })
 
 function login() {
-  // Mock login
-  user.value = { email: state.email, name: 'Test User' }
+  // Mock login with persistence
+  saveUser({ email: state.email, name: 'Test User' })
   router.push('/dashboard')
 }
 </script>
@@ -30,11 +30,11 @@ function login() {
 
       <UForm :state="state" @submit="login">
         <UFormField label="Email" name="email" class="mb-4">
-          <UInput v-model="state.email" type="email" placeholder="you@example.com" icon="i-heroicons-envelope" />
+          <UInput v-model="state.email" type="email" placeholder="you@example.com" icon="i-heroicons-envelope" class="w-full" />
         </UFormField>
 
         <UFormField label="Password" name="password" class="mb-4">
-          <UInput v-model="state.password" type="password" placeholder="********" icon="i-heroicons-lock-closed" />
+          <UInput v-model="state.password" type="password" placeholder="********" icon="i-heroicons-lock-closed" class="w-full" />
         </UFormField>
 
         <UButton type="submit" block>Login</UButton>

@@ -4,7 +4,7 @@ definePageMeta({
 })
 
 const { t } = useI18n()
-const user = useUser()
+const { user } = useUser()
 const router = useRouter()
 
 // Enhanced stats with more comprehensive data
@@ -260,6 +260,54 @@ const resourceData = computed(() => ({
 
     <!-- Content Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <!-- Quick Actions -->
+      <UCard>
+        <template #header>
+          <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100">Quick Actions</h3>
+        </template>
+        <div class="grid grid-cols-2 gap-4">
+          <UButton 
+            color="blue" 
+            variant="soft" 
+            size="lg" 
+            icon="i-heroicons-plus-circle-20-solid"
+            class="justify-start"
+            @click="router.push('/servers/create')"
+          >
+            {{ t('servers.createServer') }}
+          </UButton>
+          <UButton 
+            color="purple" 
+            variant="soft" 
+            size="lg" 
+            icon="i-heroicons-user-plus-20-solid"
+            class="justify-start"
+            @click="router.push('/users/create')"
+          >
+            {{ t('users.createUser') }}
+          </UButton>
+          <UButton 
+            color="green" 
+            variant="soft" 
+            size="lg" 
+            icon="i-heroicons-arrow-path-20-solid"
+            class="justify-start"
+          >
+            {{ t('common.refresh') }}
+          </UButton>
+          <UButton 
+            color="orange" 
+            variant="soft" 
+            size="lg" 
+            icon="i-heroicons-cog-6-tooth-20-solid"
+            class="justify-start"
+            @click="router.push('/settings')"
+          >
+            Settings
+          </UButton>
+        </div>
+      </UCard>
+
       <!-- Resource Monitoring Chart -->
       <UCard>
         <template #header>
@@ -362,54 +410,6 @@ const resourceData = computed(() => ({
             <UIcon name="i-heroicons-check-circle-20-solid" class="w-12 h-12 text-green-400 dark:text-green-500 mx-auto mb-2" />
             <p class="text-gray-500 dark:text-gray-400">{{ t('dashboard.alerts.noAlerts') }}</p>
           </div>
-        </div>
-      </UCard>
-
-      <!-- Quick Actions -->
-      <UCard>
-        <template #header>
-          <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100">Quick Actions</h3>
-        </template>
-        <div class="grid grid-cols-2 gap-4">
-          <UButton 
-            color="blue" 
-            variant="soft" 
-            size="lg" 
-            icon="i-heroicons-plus-circle-20-solid"
-            class="justify-start"
-            @click="router.push('/servers/create')"
-          >
-            {{ t('servers.createServer') }}
-          </UButton>
-          <UButton 
-            color="purple" 
-            variant="soft" 
-            size="lg" 
-            icon="i-heroicons-user-plus-20-solid"
-            class="justify-start"
-            @click="router.push('/users/create')"
-          >
-            {{ t('users.createUser') }}
-          </UButton>
-          <UButton 
-            color="green" 
-            variant="soft" 
-            size="lg" 
-            icon="i-heroicons-arrow-path-20-solid"
-            class="justify-start"
-          >
-            {{ t('common.refresh') }}
-          </UButton>
-          <UButton 
-            color="orange" 
-            variant="soft" 
-            size="lg" 
-            icon="i-heroicons-cog-6-tooth-20-solid"
-            class="justify-start"
-            @click="router.push('/settings')"
-          >
-            Settings
-          </UButton>
         </div>
       </UCard>
     </div>

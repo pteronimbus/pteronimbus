@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const user = useUser()
+const { user, clearUser } = useUser()
 const router = useRouter()
 
 const items = [
@@ -16,7 +16,7 @@ const items = [
     label: 'Sign out',
     icon: 'i-heroicons-arrow-left-on-rectangle',
     click: () => {
-      user.value = null
+      clearUser()
       router.push('/login')
     }
   }]
