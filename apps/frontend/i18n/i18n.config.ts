@@ -11,7 +11,7 @@ export default defineI18nConfig(() => ({
         settings: 'Settings'
       },
       dashboard: {
-        welcome: 'Welcome, {name}!',
+        welcome: 'Welcome, {name}',
         overview: 'Here\'s a quick overview of your game server environment.',
         stats: {
           activeServers: 'Active Servers',
