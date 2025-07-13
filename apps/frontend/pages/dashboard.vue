@@ -237,7 +237,8 @@ const resourceData = computed(() => ({
         :color="stat.color"
         :trend="stat.trend"
         :trend-color="stat.trendColor"
-        :route="stat.route"
+        :to="stat.route"
+        :clickable="!!stat.route"
         class="cursor-pointer"
       />
     </div>

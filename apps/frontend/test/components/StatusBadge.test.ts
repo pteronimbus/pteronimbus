@@ -1,27 +1,60 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { createI18n } from 'vue-i18n'
 import StatusBadge from '~/components/StatusBadge.vue'
+import { defineComponent } from 'vue'
+import type { App } from 'vue'
 
-// Create a complete mock for the component's setup
-const mockUseI18n = vi.fn(() => ({
-  t: (key: string) => {
-    // Simple mock that returns a predictable translation
-    const translations: Record<string, string> = {
-      'servers.status.online': 'Online',
-      'servers.status.offline': 'Offline',
-      'users.status.banned': 'Banned',
-      'users.status.active': 'Active',
-      'alerts.severity.critical': 'Critical',
-      'alerts.severity.warning': 'Warning'
+// Create a proper i18n instance for testing
+const i18n = createI18n({
+  legacy: false, // Use Composition API
+  locale: 'en',
+  messages: {
+    en: {
+      servers: {
+        status: {
+          online: 'Online',
+          offline: 'Offline',
+          starting: 'Starting',
+          stopping: 'Stopping',
+          error: 'Error'
+        }
+      },
+      users: {
+        status: {
+          online: 'Online',
+          offline: 'Offline',
+          banned: 'Banned',
+          suspended: 'Suspended',
+          active: 'Active'
+        }
+      },
+      alerts: {
+        severity: {
+          critical: 'Critical',
+          error: 'Error',
+          warning: 'Warning',
+          info: 'Info'
+        }
+      }
     }
-    return translations[key] || key
   }
+})
+
+// Mock Nuxt auto-imports
+vi.mock('#imports', () => ({
+  useI18n: () => i18n.global
 }))
 
-// Mock the auto-imports
-vi.mock('#imports', () => ({
-  useI18n: mockUseI18n
-}))
+// UBadge stub plugin
+const UBadgeStubPlugin = {
+  install(app: App) {
+    app.component('UBadge', defineComponent({
+      props: ['color', 'variant', 'class'],
+      template: '<span data-testid="badge" :color="color" :variant="variant" :class="class"><slot /></span>'
+    }))
+  }
+}
 
 describe('StatusBadge Component', () => {
   const createWrapper = (props = {}) => {
@@ -32,19 +65,17 @@ describe('StatusBadge Component', () => {
         ...props
       },
       global: {
+        plugins: [i18n],
         stubs: {
-          UBadge: {
-            template: '<span class="test-badge" v-bind="$attrs"><slot /></span>',
-            props: ['color', 'variant', 'class']
-          }
+          UBadge: true
         }
       }
     })
   }
 
-  it('renders the component successfully', () => {
-    const wrapper = createWrapper()
-    expect(wrapper.find('.test-badge').exists()).toBe(true)
+  beforeEach(() => {
+    // Reset any mocks between tests
+    vi.clearAllMocks()
   })
 
   it('displays translated text for server status', () => {
@@ -132,9 +163,6 @@ describe('StatusBadge Component', () => {
       type: 'server'
     })
     
-    // Verify that useI18n was called (ensuring i18n integration works)
-    expect(mockUseI18n).toHaveBeenCalled()
-    
     // Verify translated content appears
     expect(wrapper.text()).toContain('Online')
   })
@@ -151,14 +179,16 @@ describe('StatusBadge Component', () => {
     })
   })
 
-  it('maintains proper component structure', () => {
-    const wrapper = createWrapper({
-      status: 'online',
-      type: 'server'
-    })
+  it('handles multiple status types correctly', () => {
+    const testCases = [
+      { status: 'online', type: 'server', expectedText: 'Online' },
+      { status: 'banned', type: 'user', expectedText: 'Banned' },
+      { status: 'critical', type: 'alert', expectedText: 'Critical' }
+    ]
     
-    expect(wrapper.vm).toBeTruthy()
-    expect(wrapper.html()).toBeTruthy()
-    expect(wrapper.find('.test-badge').exists()).toBe(true)
+    testCases.forEach(({ status, type, expectedText }) => {
+      const wrapper = createWrapper({ status, type })
+      expect(wrapper.text()).toContain(expectedText)
+    })
   })
 }) 
