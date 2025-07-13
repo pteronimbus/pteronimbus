@@ -1,23 +1,16 @@
 <script setup lang="ts">
-import { reactive } from 'vue'
+const { signIn } = useAuth()
 
 definePageMeta({
   layout: 'login',
-  auth: false
+  auth: {
+    unauthenticatedOnly: true,
+    navigateAuthenticatedTo: '/dashboard'
+  }
 })
 
-const router = useRouter()
-const { saveUser } = useUser()
-
-const state = reactive({
-  email: '',
-  password: ''
-})
-
-function login() {
-  // Mock login with persistence
-  saveUser({ email: state.email, name: 'Test User' })
-  router.push('/dashboard')
+const loginWithDiscord = async () => {
+  await signIn('discord', { callbackUrl: '/dashboard' })
 }
 </script>
 
@@ -28,17 +21,11 @@ function login() {
         <h2 class="text-xl font-bold text-center text-gray-900 dark:text-gray-100">Login</h2>
       </template>
 
-      <UForm :state="state" @submit="login">
-        <UFormField label="Email" name="email" class="mb-4">
-          <UInput v-model="state.email" type="email" placeholder="you@example.com" icon="i-heroicons-envelope" class="w-full" />
-        </UFormField>
-
-        <UFormField label="Password" name="password" class="mb-4">
-          <UInput v-model="state.password" type="password" placeholder="********" icon="i-heroicons-lock-closed" class="w-full" />
-        </UFormField>
-
-        <UButton type="submit" block>Login</UButton>
-      </UForm>
+      <div class="space-y-4">
+        <UButton @click="loginWithDiscord" block color="primary">
+          Login with Discord
+        </UButton>
+      </div>
     </UCard>
   </div>
 </template> 

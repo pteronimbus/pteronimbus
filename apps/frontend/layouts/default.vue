@@ -8,7 +8,15 @@
         Pteronimbus
       </button>
       <div class="flex items-center gap-4">
-        <UserMenu />
+        <UDropdownMenu :items="userMenuItems" class=" dark:text-white" :ui="{ content: 'dark:bg-gray-800 dark:border-gray-700 dark:text-white' }">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            icon="i-heroicons-user-circle"
+            size="sm"
+            class="text-xl"
+          />
+        </UDropdownMenu>
         <ThemeSwitcher />
       </div>
     </header>
@@ -21,8 +29,22 @@
 </template>
 
 <script setup lang="ts">
-import UserMenu from '~/components/UserMenu.vue'
 import ThemeSwitcher from '~/components/ThemeSwitcher.vue'
 
 const router = useRouter()
+const { data: session, signOut } = useAuth()
+
+const userMenuItems = computed(() => [
+  [{
+    label: session.value?.user?.email || 'User',
+    disabled: true
+  }],
+  [{
+    label: 'Sign out',
+    icon: 'i-heroicons-arrow-left-on-rectangle',
+    click: async () => {
+      await signOut({ callbackUrl: '/login' })
+    }
+  }]
+])
 </script> 

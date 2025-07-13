@@ -4,7 +4,7 @@ definePageMeta({
 })
 
 const { t } = useI18n()
-const { user } = useUser()
+const { data: session } = useAuth()
 const router = useRouter()
 
 // Enhanced stats with more comprehensive data
@@ -221,7 +221,7 @@ const resourceData = computed(() => ({
   <div>
     <!-- Page Header -->
     <PageHeader 
-      :title="t('dashboard.welcome', { name: (user as any)?.name || 'User' })"
+      :title="t('dashboard.welcome', { name: (session as any)?.user?.name || 'User' })"
       :description="t('dashboard.overview')"
     />
 
