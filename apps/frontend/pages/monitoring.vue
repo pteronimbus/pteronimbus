@@ -51,123 +51,119 @@ const activeProcesses = ref([
   { name: 'nginx', cpu: 2.1, memory: 128, pid: 1238 }
 ])
 
+// Page header actions
+const headerActions = computed(() => [
+  {
+    label: 'Refresh',
+    icon: 'i-heroicons-arrow-path-20-solid',
+    color: 'neutral' as const,
+    variant: 'ghost' as const,
+    onClick: () => window.location.reload()
+  }
+])
+
+// System overview stats for StatsCard components
+const monitoringStats = computed(() => [
+  {
+    key: 'cpu',
+    label: 'CPU Usage',
+    value: `${systemStats.value.cpu.usage}%`,
+    total: '100%',
+    icon: 'i-heroicons-cpu-chip-20-solid',
+    color: getUsageColor(systemStats.value.cpu.usage),
+    description: `${systemStats.value.cpu.cores} cores • ${systemStats.value.cpu.temperature}°C`
+  },
+  {
+    key: 'memory',
+    label: 'Memory Usage',
+    value: `${systemStats.value.memory.usage}%`,
+    total: '100%',
+    icon: 'i-heroicons-circle-stack-20-solid',
+    color: getUsageColor(systemStats.value.memory.usage),
+    description: `${systemStats.value.memory.used}GB / ${systemStats.value.memory.total}GB`
+  },
+  {
+    key: 'disk',
+    label: 'Disk Usage',
+    value: `${systemStats.value.disk.usage}%`,
+    total: '100%',
+    icon: 'i-heroicons-archive-box-20-solid',
+    color: getUsageColor(systemStats.value.disk.usage),
+    description: `${systemStats.value.disk.used}GB / ${systemStats.value.disk.total}GB`
+  },
+  {
+    key: 'network',
+    label: 'Network I/O',
+    value: `↑${systemStats.value.network.upload}MB/s`,
+    icon: 'i-heroicons-signal-20-solid',
+    color: 'purple',
+    description: `↓${systemStats.value.network.download}MB/s`
+  }
+])
+
+// Quick actions configuration
+const quickActions = computed(() => [
+  {
+    label: 'Restart All Services',
+    icon: 'i-heroicons-arrow-path-20-solid',
+    color: 'primary' as const,
+    onClick: () => console.log('Restart all services')
+  },
+  {
+    label: 'Clear System Cache',
+    icon: 'i-heroicons-trash-20-solid',
+    color: 'warning' as const,
+    onClick: () => console.log('Clear system cache')
+  },
+  {
+    label: 'Download System Report',
+    icon: 'i-heroicons-document-arrow-down-20-solid',
+    color: 'success' as const,
+    onClick: () => console.log('Download system report')
+  },
+  {
+    label: 'System Settings',
+    icon: 'i-heroicons-cog-6-tooth-20-solid',
+    color: 'secondary' as const,
+    onClick: () => console.log('Open system settings')
+  }
+])
+
 const getUsageColor = (usage: number) => {
-  if (usage > 80) return 'error'
-  if (usage > 60) return 'warning'
-  return 'success'
+  if (usage > 80) return 'red'
+  if (usage > 60) return 'yellow'
+  return 'green'
 }
 </script>
 
 <template>
   <div>
-    <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-      <div>
-        <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100">System Monitoring</h1>
-        <p class="mt-1 text-gray-500 dark:text-gray-400">
-          Monitor system resources and performance metrics
-        </p>
-      </div>
-      <div class="mt-4 sm:mt-0 flex items-center gap-2">
+    <!-- Page Header -->
+    <PageHeader 
+      title="System Monitoring"
+      description="Monitor system resources and performance metrics"
+      :actions="headerActions"
+    >
+      <template #extra>
         <UBadge color="success" variant="subtle">
           <UIcon name="i-heroicons-check-circle-20-solid" class="w-4 h-4 mr-1" />
           System Healthy
         </UBadge>
-        <UButton 
-          color="neutral" 
-          variant="ghost" 
-          icon="i-heroicons-arrow-path-20-solid" 
-          size="sm"
-          class="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
-        >
-          Refresh
-        </UButton>
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
     <!-- System Overview Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      <!-- CPU Usage -->
-      <UCard>
-        <div class="flex items-center justify-between">
-          <div class="flex-1">
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">CPU Usage</p>
-            <div class="flex items-baseline mt-1">
-              <p class="text-2xl font-bold text-gray-800 dark:text-gray-100">{{ systemStats.cpu.usage }}%</p>
-            </div>
-            <div class="mt-2">
-              <UProgress :value="systemStats.cpu.usage" :color="getUsageColor(systemStats.cpu.usage)" size="sm" />
-            </div>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ systemStats.cpu.cores }} cores • {{ systemStats.cpu.temperature }}°C</p>
-          </div>
-          <div class="flex-shrink-0">
-            <div class="p-3 bg-blue-100 dark:bg-blue-900 rounded-full">
-              <UIcon name="i-heroicons-cpu-chip-20-solid" class="w-6 h-6 text-blue-600 dark:text-blue-400" />
-            </div>
-          </div>
-        </div>
-      </UCard>
-
-      <!-- Memory Usage -->
-      <UCard>
-        <div class="flex items-center justify-between">
-          <div class="flex-1">
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Memory Usage</p>
-            <div class="flex items-baseline mt-1">
-              <p class="text-2xl font-bold text-gray-800 dark:text-gray-100">{{ systemStats.memory.usage }}%</p>
-            </div>
-            <div class="mt-2">
-              <UProgress :value="systemStats.memory.usage" :color="getUsageColor(systemStats.memory.usage)" size="sm" />
-            </div>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ systemStats.memory.used }}GB / {{ systemStats.memory.total }}GB</p>
-          </div>
-          <div class="flex-shrink-0">
-            <div class="p-3 bg-green-100 dark:bg-green-900 rounded-full">
-              <UIcon name="i-heroicons-circle-stack-20-solid" class="w-6 h-6 text-green-600 dark:text-green-400" />
-            </div>
-          </div>
-        </div>
-      </UCard>
-
-      <!-- Disk Usage -->
-      <UCard>
-        <div class="flex items-center justify-between">
-          <div class="flex-1">
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Disk Usage</p>
-            <div class="flex items-baseline mt-1">
-              <p class="text-2xl font-bold text-gray-800 dark:text-gray-100">{{ systemStats.disk.usage }}%</p>
-            </div>
-            <div class="mt-2">
-              <UProgress :value="systemStats.disk.usage" :color="getUsageColor(systemStats.disk.usage)" size="sm" />
-            </div>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ systemStats.disk.used }}GB / {{ systemStats.disk.total }}GB</p>
-          </div>
-          <div class="flex-shrink-0">
-            <div class="p-3 bg-orange-100 dark:bg-orange-900 rounded-full">
-              <UIcon name="i-heroicons-archive-box-20-solid" class="w-6 h-6 text-orange-600 dark:text-orange-400" />
-            </div>
-          </div>
-        </div>
-      </UCard>
-
-      <!-- Network I/O -->
-      <UCard>
-        <div class="flex items-center justify-between">
-          <div class="flex-1">
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Network I/O</p>
-            <div class="flex items-baseline mt-1">
-              <p class="text-lg font-bold text-gray-800 dark:text-gray-100">↑{{ systemStats.network.upload }}MB/s</p>
-              <p class="text-lg font-bold text-gray-800 dark:text-gray-100 ml-2">↓{{ systemStats.network.download }}MB/s</p>
-            </div>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Total: ↑{{ systemStats.network.totalUpload }}GB ↓{{ systemStats.network.totalDownload }}GB</p>
-          </div>
-          <div class="flex-shrink-0">
-            <div class="p-3 bg-purple-100 dark:bg-purple-900 rounded-full">
-              <UIcon name="i-heroicons-signal-20-solid" class="w-6 h-6 text-purple-600 dark:text-purple-400" />
-            </div>
-          </div>
-        </div>
-      </UCard>
+      <StatsCard
+        v-for="stat in monitoringStats"
+        :key="stat.key"
+        :label="stat.label"
+        :value="stat.value"
+        :total="stat.total"
+        :icon="stat.icon"
+        :color="stat.color"
+        :description="stat.description"
+      />
     </div>
 
     <!-- Charts and Details -->
@@ -231,6 +227,15 @@ const getUsageColor = (usage: number) => {
             </div>
           </div>
         </div>
+        
+        <!-- Empty state for processes -->
+        <EmptyState
+          v-if="activeProcesses.length === 0"
+          icon="i-heroicons-command-line-20-solid"
+          title="No active processes"
+          description="No processes are currently running on the system."
+          size="sm"
+        />
       </UCard>
 
       <!-- System Information -->
@@ -263,25 +268,11 @@ const getUsageColor = (usage: number) => {
       </UCard>
 
       <!-- Quick Actions -->
-      <UCard>
-        <template #header>
-          <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100">Quick Actions</h3>
-        </template>
-        <div class="grid grid-cols-1 gap-3">
-          <UButton color="primary" variant="soft" icon="i-heroicons-arrow-path-20-solid" class="justify-start">
-            Restart All Services
-          </UButton>
-          <UButton color="warning" variant="soft" icon="i-heroicons-trash-20-solid" class="justify-start">
-            Clear System Cache
-          </UButton>
-          <UButton color="success" variant="soft" icon="i-heroicons-document-arrow-down-20-solid" class="justify-start">
-            Download System Report
-          </UButton>
-          <UButton color="primary" variant="soft" icon="i-heroicons-cog-6-tooth-20-solid" class="justify-start">
-            System Settings
-          </UButton>
-        </div>
-      </UCard>
+      <QuickActions 
+        title="Quick Actions"
+        :actions="quickActions"
+        :grid-cols="1"
+      />
     </div>
   </div>
 </template> 

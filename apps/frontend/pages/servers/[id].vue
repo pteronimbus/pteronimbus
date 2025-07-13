@@ -100,18 +100,70 @@ const tabs = [
   { key: 'logs', label: t('servers.details.logs'), icon: 'i-heroicons-document-text-20-solid' }
 ]
 
-// Helper functions
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'online': return 'success'
-    case 'offline': return 'error'
-    case 'starting': return 'warning'
-    case 'stopping': return 'warning'
-    case 'error': return 'error'
-    default: return 'neutral'
+// Stats configuration for StatsCard components
+const serverStats = computed(() => [
+  {
+    key: 'players',
+    label: t('servers.columns.players'),
+    value: `${server.value.players.current}/${server.value.players.max}`,
+    icon: 'i-heroicons-users-20-solid',
+    color: 'blue'
+  },
+  {
+    key: 'uptime',
+    label: t('servers.columns.uptime'),
+    value: server.value.uptime,
+    icon: 'i-heroicons-clock-20-solid',
+    color: 'green'
+  },
+  {
+    key: 'cpu',
+    label: 'CPU Usage',
+    value: `${server.value.performance.cpu}%`,
+    icon: 'i-heroicons-cpu-chip-20-solid',
+    color: server.value.performance.cpu > 80 ? 'red' : server.value.performance.cpu > 60 ? 'yellow' : 'green'
+  },
+  {
+    key: 'memory',
+    label: 'Memory Usage',
+    value: `${server.value.performance.memory}%`,
+    icon: 'i-heroicons-circle-stack-20-solid',
+    color: server.value.performance.memory > 80 ? 'red' : server.value.performance.memory > 60 ? 'yellow' : 'green'
   }
-}
+])
 
+// Page header actions
+const headerActions = computed(() => {
+  const actions = []
+  
+  if (server.value.status === 'offline') {
+    actions.push({
+      label: t('servers.actions.start'),
+      icon: 'i-heroicons-play-20-solid',
+      color: 'success' as const,
+      onClick: startServer
+    })
+  }
+  
+  if (server.value.status === 'online') {
+    actions.push({
+      label: t('servers.actions.stop'),
+      icon: 'i-heroicons-stop-20-solid',
+      color: 'error' as const,
+      onClick: stopServer
+    })
+    actions.push({
+      label: t('servers.actions.restart'),
+      icon: 'i-heroicons-arrow-path-20-solid',
+      color: 'warning' as const,
+      onClick: restartServer
+    })
+  }
+  
+  return actions
+})
+
+// Helper functions
 const getLogLevelColor = (level: string) => {
   switch (level) {
     case 'INFO': return 'info'
@@ -218,130 +270,72 @@ watch(consoleOutput, () => {
 
 <template>
   <div>
-    <!-- Header -->
-    <div class="mb-6">
-      <div class="flex items-center mb-4">
-        <UButton 
-          color="neutral" 
-          variant="ghost" 
-          icon="i-heroicons-arrow-left-20-solid"
-          class="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
-          @click="goBack"
-        />
-        <h1 class="ml-4 text-3xl font-bold text-gray-800 dark:text-gray-100">{{ t('servers.details.title') }}</h1>
-      </div>
-      
-      <!-- Server Info Card -->
-      <UCard>
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-6">
-            <div class="flex-shrink-0 w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-              <UIcon name="i-heroicons-server-20-solid" class="w-8 h-8 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div>
-              <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ server.name }}</h2>
-              <p class="text-gray-600 dark:text-gray-400">{{ server.game }} {{ server.version }}</p>
-              <div class="flex items-center gap-3 mt-2">
-                <UBadge 
-                  :color="getStatusColor(server.status)" 
-                  variant="subtle"
-                  class="capitalize"
-                  :class="[
-                    server.status === 'online' ? 'text-green-700 dark:text-green-300' : '',
-                    server.status === 'offline' ? 'text-red-700 dark:text-red-300' : '',
-                    server.status === 'starting' ? 'text-yellow-700 dark:text-yellow-300' : '',
-                    server.status === 'stopping' ? 'text-orange-700 dark:text-orange-300' : '',
-                    server.status === 'error' ? 'text-red-700 dark:text-red-300' : ''
-                  ]"
-                >
-                  {{ t(`servers.status.${server.status}`) }}
-                </UBadge>
-                <span class="text-sm text-gray-500 dark:text-gray-400">{{ server.ip }}:{{ server.port }}</span>
-              </div>
-            </div>
+    <!-- Page Header -->
+    <PageHeader 
+      :title="t('servers.details.title')"
+      :description="`${server.name} - ${server.game} ${server.version}`"
+      :actions="headerActions"
+      show-back-button
+      @back="goBack"
+    />
+
+    <!-- Server Info Card -->
+    <UCard class="mb-6">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-6">
+          <div class="flex-shrink-0 w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+            <UIcon name="i-heroicons-server-20-solid" class="w-8 h-8 text-blue-600 dark:text-blue-400" />
           </div>
-          
-          <!-- Action buttons -->
-          <div class="flex items-center gap-2">
-            <UButton 
-              v-if="server.status === 'offline'" 
-              color="success" 
-              icon="i-heroicons-play-20-solid"
-              @click="startServer"
-            >
-              {{ t('servers.actions.start') }}
-            </UButton>
-            <UButton 
-              v-if="server.status === 'online'" 
-              color="error" 
-              icon="i-heroicons-stop-20-solid"
-              @click="stopServer"
-            >
-              {{ t('servers.actions.stop') }}
-            </UButton>
-            <UButton 
-              v-if="server.status === 'online'" 
-              color="warning" 
-              icon="i-heroicons-arrow-path-20-solid"
-              @click="restartServer"
-            >
-              {{ t('servers.actions.restart') }}
-            </UButton>
-            <UDropdownMenu :items="[
-              [{
-                label: t('servers.actions.edit'),
-                icon: 'i-heroicons-pencil-square-20-solid',
-                click: () => router.push(`/servers/${serverId}/edit`)
-              }],
-              [{
-                label: 'Create Backup',
-                icon: 'i-heroicons-archive-box-20-solid',
-                click: createBackup
-              }],
-              [{
-                label: t('servers.actions.delete'),
-                icon: 'i-heroicons-trash-20-solid',
-                click: () => console.log('Delete server')
-              }]
-            ]">
-              <UButton 
-                color="neutral" 
-                variant="ghost" 
-                icon="i-heroicons-ellipsis-horizontal-20-solid"
-                class="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
-              />
-            </UDropdownMenu>
+          <div>
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ server.name }}</h2>
+            <p class="text-gray-600 dark:text-gray-400">{{ server.game }} {{ server.version }}</p>
+            <div class="flex items-center gap-3 mt-2">
+              <StatusBadge :status="server.status" type="server" />
+              <span class="text-sm text-gray-500 dark:text-gray-400">{{ server.ip }}:{{ server.port }}</span>
+            </div>
           </div>
         </div>
-      </UCard>
-    </div>
+        
+        <!-- Additional action dropdown -->
+        <div class="flex items-center gap-2">
+          <UDropdownMenu :items="[
+            [{
+              label: t('servers.actions.edit'),
+              icon: 'i-heroicons-pencil-square-20-solid',
+              click: () => router.push(`/servers/${serverId}/edit`)
+            }],
+            [{
+              label: 'Create Backup',
+              icon: 'i-heroicons-archive-box-20-solid',
+              click: createBackup
+            }],
+            [{
+              label: t('servers.actions.delete'),
+              icon: 'i-heroicons-trash-20-solid',
+              click: () => console.log('Delete server')
+            }]
+          ]">
+            <UButton 
+              color="neutral" 
+              variant="ghost" 
+              icon="i-heroicons-ellipsis-horizontal-20-solid"
+              class="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+            />
+          </UDropdownMenu>
+        </div>
+      </div>
+    </UCard>
 
     <!-- Stats Cards -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      <UCard>
-        <div class="text-center">
-          <div class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ server.players.current }}/{{ server.players.max }}</div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">{{ t('servers.columns.players') }}</div>
-        </div>
-      </UCard>
-      <UCard>
-        <div class="text-center">
-          <div class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ server.uptime }}</div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">{{ t('servers.columns.uptime') }}</div>
-        </div>
-      </UCard>
-      <UCard>
-        <div class="text-center">
-          <div class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ server.performance.cpu }}%</div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">CPU Usage</div>
-        </div>
-      </UCard>
-      <UCard>
-        <div class="text-center">
-          <div class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ server.performance.memory }}%</div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">Memory Usage</div>
-        </div>
-      </UCard>
+      <StatsCard
+        v-for="stat in serverStats"
+        :key="stat.key"
+        :label="stat.label"
+        :value="stat.value"
+        :icon="stat.icon"
+        :color="stat.color"
+      />
     </div>
 
     <!-- Tabs -->
@@ -387,9 +381,7 @@ watch(consoleOutput, () => {
               </div>
               <div class="flex justify-between">
                 <span class="text-gray-600 dark:text-gray-400">Status:</span>
-                <UBadge :color="getStatusColor(server.status)" variant="subtle" class="capitalize">
-                  {{ t(`servers.status.${server.status}`) }}
-                </UBadge>
+                <StatusBadge :status="server.status" type="server" />
               </div>
               <div class="flex justify-between">
                 <span class="text-gray-600 dark:text-gray-400">Address:</span>

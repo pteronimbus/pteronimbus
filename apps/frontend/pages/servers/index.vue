@@ -102,41 +102,89 @@ const searchQuery = ref('')
 const selectedStatus = ref('all')
 const selectedGame = ref('all')
 
-const statusOptions = [
-  { value: 'all', label: 'All Status' },
-  { value: 'online', label: t('servers.status.online') },
-  { value: 'offline', label: t('servers.status.offline') },
-  { value: 'starting', label: t('servers.status.starting') },
-  { value: 'stopping', label: t('servers.status.stopping') },
-  { value: 'error', label: t('servers.status.error') }
-]
+// Filter configurations for SearchAndFilters component
+const filters = computed(() => [
+  {
+    key: 'status',
+    value: selectedStatus.value,
+    options: [
+      { value: 'all', label: 'All Status' },
+      { value: 'online', label: t('servers.status.online') },
+      { value: 'offline', label: t('servers.status.offline') },
+      { value: 'starting', label: t('servers.status.starting') },
+      { value: 'stopping', label: t('servers.status.stopping') },
+      { value: 'error', label: t('servers.status.error') }
+    ],
+    class: 'w-40'
+  },
+  {
+    key: 'game',
+    value: selectedGame.value,
+    options: computed(() => {
+      const games = ['all', ...new Set(servers.value.map(s => s.game))]
+      return games.map(game => ({
+        value: game,
+        label: game === 'all' ? 'All Games' : game
+      }))
+    }).value,
+    class: 'w-40'
+  }
+])
 
-const gameOptions = computed(() => {
-  const games = ['all', ...new Set(servers.value.map(s => s.game))]
-  return games.map(game => ({
-    value: game,
-    label: game === 'all' ? 'All Games' : game
-  }))
-})
+// Page header actions
+const headerActions = computed(() => [
+  {
+    label: t('servers.createServer'),
+    icon: 'i-heroicons-plus-circle',
+    color: 'primary' as const,
+    onClick: () => router.push('/servers/create')
+  }
+])
+
+// Server stats for StatsCard components
+const serverStats = computed(() => [
+  {
+    key: 'total',
+    label: 'Total Servers',
+    value: servers.value.length.toString(),
+    icon: 'i-heroicons-server-20-solid',
+    color: 'blue',
+    onClick: () => selectedStatus.value = 'all'
+  },
+  {
+    key: 'online',
+    label: 'Online',
+    value: servers.value.filter(s => s.status === 'online').length.toString(),
+    icon: 'i-heroicons-check-circle-20-solid',
+    color: 'green',
+    onClick: () => selectedStatus.value = 'online'
+  },
+  {
+    key: 'offline',
+    label: 'Offline',
+    value: servers.value.filter(s => s.status === 'offline').length.toString(),
+    icon: 'i-heroicons-x-circle-20-solid',
+    color: 'gray',
+    onClick: () => selectedStatus.value = 'offline'
+  },
+  {
+    key: 'error',
+    label: 'Errors',
+    value: servers.value.filter(s => s.status === 'error').length.toString(),
+    icon: 'i-heroicons-exclamation-triangle-20-solid',
+    color: 'red',
+    onClick: () => selectedStatus.value = 'error'
+  }
+])
 
 // Resolve components for use in cell renderers
 const UIcon = resolveComponent('UIcon')
 const UBadge = resolveComponent('UBadge')
 const UButton = resolveComponent('UButton')
 const UDropdownMenu = resolveComponent('UDropdownMenu')
+const StatusBadge = resolveComponent('StatusBadge')
 
 // Helper functions
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'online': return 'success'
-    case 'offline': return 'error'
-    case 'starting': return 'warning'
-    case 'stopping': return 'warning'
-    case 'error': return 'error'
-    default: return 'neutral'
-  }
-}
-
 const getPerformanceColor = (cpu: number, memory: number) => {
   const maxUsage = Math.max(cpu, memory)
   if (maxUsage > 80) return 'error'
@@ -232,10 +280,6 @@ const viewServer = (server: Server) => {
   router.push(`/servers/${server.id}`)
 }
 
-const createServer = () => {
-  router.push('/servers/create')
-}
-
 const columns: any[] = [
   {
     accessorKey: 'name',
@@ -273,11 +317,10 @@ const columns: any[] = [
     cell: ({ row }: any) => {
       const server = row.original
       return h('div', { class: 'space-y-1' }, [
-        h(UBadge, { 
-          color: getStatusColor(server.status), 
-          variant: 'subtle', 
-          class: 'capitalize' 
-        }, () => t(`servers.status.${server.status}`)),
+        h(StatusBadge, {
+          status: server.status,
+          type: 'server'
+        }),
         server.status === 'online' ? h('div', { class: 'flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400' }, [
           h(UIcon, { name: 'i-heroicons-clock-20-solid', class: 'w-3 h-3' }),
           server.uptime
@@ -337,137 +380,69 @@ const filteredServers = computed(() => {
   })
 })
 
-// Stats
-const serverStats = computed(() => ({
-  total: servers.value.length,
-  online: servers.value.filter(s => s.status === 'online').length,
-  offline: servers.value.filter(s => s.status === 'offline').length,
-  error: servers.value.filter(s => s.status === 'error').length
-}))
+// Handle filter updates
+const handleFilterUpdate = (key: string, value: string) => {
+  if (key === 'status') {
+    selectedStatus.value = value
+  } else if (key === 'game') {
+    selectedGame.value = value
+  }
+}
+
+// Check if filters are active
+const hasActiveFilters = computed(() => {
+  return searchQuery.value !== '' || selectedStatus.value !== 'all' || selectedGame.value !== 'all'
+})
 </script>
 
 <template>
   <div>
-    <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-      <div>
-        <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100">{{ t('servers.title') }}</h1>
-        <p class="mt-1 text-gray-500 dark:text-gray-400">
-          Manage and monitor your game servers
-        </p>
-      </div>
-      <div class="mt-4 sm:mt-0">
-        <UButton 
-          icon="i-heroicons-plus-circle" 
-          size="lg"
-          @click="createServer"
-        >
-          {{ t('servers.createServer') }}
-        </UButton>
-      </div>
-    </div>
+    <!-- Page Header -->
+    <PageHeader 
+      :title="t('servers.title')"
+      description="Manage and monitor your game servers"
+      :actions="headerActions"
+    />
 
     <!-- Stats Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-      <UCard class="cursor-pointer hover:shadow-lg transition-shadow" @click="selectedStatus = 'all'">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Servers</p>
-            <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ serverStats.total }}</p>
-          </div>
-          <div class="p-3 bg-blue-100 dark:bg-blue-900 rounded-full">
-            <UIcon name="i-heroicons-server-20-solid" class="w-6 h-6 text-blue-600 dark:text-blue-400" />
-          </div>
-        </div>
-      </UCard>
-      
-      <UCard class="cursor-pointer hover:shadow-lg transition-shadow" @click="selectedStatus = 'online'">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Online</p>
-            <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ serverStats.online }}</p>
-          </div>
-          <div class="p-3 bg-green-100 dark:bg-green-900 rounded-full">
-            <UIcon name="i-heroicons-check-circle-20-solid" class="w-6 h-6 text-green-600 dark:text-green-400" />
-          </div>
-        </div>
-      </UCard>
-      
-      <UCard class="cursor-pointer hover:shadow-lg transition-shadow" @click="selectedStatus = 'offline'">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Offline</p>
-            <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ serverStats.offline }}</p>
-          </div>
-          <div class="p-3 bg-gray-100 dark:bg-gray-900 rounded-full">
-            <UIcon name="i-heroicons-x-circle-20-solid" class="w-6 h-6 text-gray-600 dark:text-gray-400" />
-          </div>
-        </div>
-      </UCard>
-      
-      <UCard class="cursor-pointer hover:shadow-lg transition-shadow" @click="selectedStatus = 'error'">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Errors</p>
-            <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ serverStats.error }}</p>
-          </div>
-          <div class="p-3 bg-red-100 dark:bg-red-900 rounded-full">
-            <UIcon name="i-heroicons-exclamation-triangle-20-solid" class="w-6 h-6 text-red-600 dark:text-red-400" />
-          </div>
-        </div>
-      </UCard>
+      <StatsCard
+        v-for="stat in serverStats"
+        :key="stat.key"
+        :label="stat.label"
+        :value="stat.value"
+        :icon="stat.icon"
+        :color="stat.color"
+        class="cursor-pointer"
+        @click="stat.onClick"
+      />
     </div>
 
-    <!-- Filters -->
-    <div class="mb-6 flex flex-col sm:flex-row gap-4">
-      <div class="flex-1">
-        <UInput
-          v-model="searchQuery"
-          :placeholder="t('common.search') + ' servers...'"
-          icon="i-heroicons-magnifying-glass-20-solid"
-          size="md"
-        />
-      </div>
-      <div class="flex gap-2">
-        <USelect
-          v-model="selectedStatus"
-          :options="statusOptions"
-          size="md"
-          class="w-40"
-        />
-        <USelect
-          v-model="selectedGame"
-          :options="gameOptions"
-          size="md"
-          class="w-40"
-        />
-      </div>
-    </div>
+    <!-- Search and Filters -->
+    <SearchAndFilters
+      v-model:search-query="searchQuery"
+      :filters="filters"
+      search-placeholder="Search servers..."
+      @update:filter="handleFilterUpdate"
+      class="mb-6"
+    />
 
     <!-- Servers Table -->
     <UCard>
       <UTable :data="filteredServers" :columns="columns" />
 
       <!-- Empty state -->
-      <div v-if="filteredServers.length === 0" class="text-center py-12">
-        <UIcon name="i-heroicons-server-20-solid" class="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
-        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-          {{ searchQuery || selectedStatus !== 'all' || selectedGame !== 'all' ? 'No servers found' : t('servers.noServers') }}
-        </h3>
-        <p class="text-gray-500 dark:text-gray-400 mb-6">
-          {{ searchQuery || selectedStatus !== 'all' || selectedGame !== 'all' 
-            ? 'Try adjusting your search or filters' 
-            : 'Get started by creating your first server' }}
-        </p>
-        <UButton 
-          v-if="!searchQuery && selectedStatus === 'all' && selectedGame === 'all'"
-          @click="createServer"
-          icon="i-heroicons-plus-circle"
-          class="text-blue-700 dark:text-blue-300"
-        >
-          {{ t('servers.createServer') }}
-        </UButton>
-      </div>
+      <EmptyState
+        v-if="filteredServers.length === 0"
+        icon="i-heroicons-server-20-solid"
+        :title="hasActiveFilters ? 'No servers found' : t('servers.noServers')"
+        :description="hasActiveFilters 
+          ? 'Try adjusting your search or filters' 
+          : 'Get started by creating your first server'"
+        :action-label="!hasActiveFilters ? t('servers.createServer') : undefined"
+        action-icon="i-heroicons-plus-circle"
+        @action="router.push('/servers/create')"
+      />
     </UCard>
   </div>
 </template> 

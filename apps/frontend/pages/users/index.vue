@@ -78,20 +78,42 @@ const searchQuery = ref('')
 const selectedStatus = ref('all')
 const selectedRole = ref('all')
 
-const statusOptions = [
-  { value: 'all', label: 'All Status' },
-  { value: 'online', label: t('users.status.online') },
-  { value: 'offline', label: t('users.status.offline') },
-  { value: 'banned', label: t('users.status.banned') },
-  { value: 'suspended', label: t('users.status.suspended') }
-]
+// Filter configurations for SearchAndFilters component
+const filters = computed(() => [
+  {
+    key: 'status',
+    value: selectedStatus.value,
+    options: [
+      { value: 'all', label: 'All Status' },
+      { value: 'online', label: t('users.status.online') },
+      { value: 'offline', label: t('users.status.offline') },
+      { value: 'banned', label: t('users.status.banned') },
+      { value: 'suspended', label: t('users.status.suspended') }
+    ],
+    class: 'w-40'
+  },
+  {
+    key: 'role',
+    value: selectedRole.value,
+    options: [
+      { value: 'all', label: 'All Roles' },
+      { value: 'admin', label: t('users.roles.admin') },
+      { value: 'moderator', label: t('users.roles.moderator') },
+      { value: 'user', label: t('users.roles.user') }
+    ],
+    class: 'w-40'
+  }
+])
 
-const roleOptions = [
-  { value: 'all', label: 'All Roles' },
-  { value: 'admin', label: t('users.roles.admin') },
-  { value: 'moderator', label: t('users.roles.moderator') },
-  { value: 'user', label: t('users.roles.user') }
-]
+// Page header actions
+const headerActions = computed(() => [
+  {
+    label: t('users.createUser'),
+    icon: 'i-heroicons-plus-circle',
+    color: 'primary' as const,
+    onClick: () => router.push('/users/create')
+  }
+])
 
 // Resolve components for use in cell renderers
 const UAvatar = resolveComponent('UAvatar')
@@ -99,6 +121,7 @@ const UBadge = resolveComponent('UBadge')
 const UButton = resolveComponent('UButton')
 const UDropdownMenu = resolveComponent('UDropdownMenu')
 const UIcon = resolveComponent('UIcon')
+const StatusBadge = resolveComponent('StatusBadge')
 
 // Helper functions for user actions
 const resetPassword = (user: User) => {
@@ -128,17 +151,6 @@ const toggleSuspend = (user: User) => {
 const deleteUser = (user: User) => {
   // Implementation for user deletion
   console.log('Delete user:', user.name)
-}
-
-// Get status color
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'online': return 'success'
-    case 'offline': return 'neutral'
-    case 'banned': return 'error'
-    case 'suspended': return 'warning'
-    default: return 'neutral'
-  }
 }
 
 // Get role color
@@ -240,17 +252,10 @@ const columns: any[] = [
     header: t('users.columns.status'),
     cell: ({ row }: any) => {
       const user = row.original
-      return h(UBadge, {
-        color: getStatusColor(user.status),
-        variant: 'subtle',
-        class: [
-          'capitalize',
-          user.status === 'online' ? 'text-green-700 dark:text-green-300' : '',
-          user.status === 'offline' ? 'text-gray-700 dark:text-gray-300' : '',
-          user.status === 'banned' ? 'text-red-700 dark:text-red-300' : '',
-          user.status === 'suspended' ? 'text-yellow-700 dark:text-yellow-300' : ''
-        ]
-      }, () => t(`users.status.${user.status}`))
+      return h(StatusBadge, {
+        status: user.status,
+        type: 'user'
+      })
     }
   },
   {
@@ -319,82 +324,55 @@ const viewUser = (user: User) => {
   router.push(`/users/${user.id}`)
 }
 
-const createUser = () => {
-  router.push('/users/create')
+// Handle filter updates
+const handleFilterUpdate = (key: string, value: string) => {
+  if (key === 'status') {
+    selectedStatus.value = value
+  } else if (key === 'role') {
+    selectedRole.value = value
+  }
 }
+
+// Check if filters are active
+const hasActiveFilters = computed(() => {
+  return searchQuery.value !== '' || selectedStatus.value !== 'all' || selectedRole.value !== 'all'
+})
 </script>
 
 <template>
   <div>
-    <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-      <div>
-        <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100">{{ t('users.title') }}</h1>
-        <p class="mt-1 text-gray-500 dark:text-gray-400">
-          Manage users and their permissions
-        </p>
-      </div>
-      <div class="mt-4 sm:mt-0">
-        <UButton 
-          icon="i-heroicons-plus-circle" 
-          size="lg"
-          @click="createUser"
-        >
-          {{ t('users.createUser') }}
-        </UButton>
-      </div>
-    </div>
+    <!-- Page Header -->
+    <PageHeader 
+      :title="t('users.title')"
+      description="Manage users and their permissions"
+      :actions="headerActions"
+    />
 
-    <!-- Filters -->
-    <div class="mb-6 flex flex-col sm:flex-row gap-4">
-      <div class="flex-1">
-        <UInput
-          v-model="searchQuery"
-          :placeholder="t('common.search') + ' users...'"
-          icon="i-heroicons-magnifying-glass-20-solid"
-          size="md"
-        />
-      </div>
-      <div class="flex gap-2">
-        <USelect
-          v-model="selectedStatus"
-          :options="statusOptions"
-          size="md"
-          class="w-40"
-        />
-        <USelect
-          v-model="selectedRole"
-          :options="roleOptions"
-          size="md"
-          class="w-40"
-        />
-      </div>
-    </div>
+    <!-- Search and Filters -->
+    <SearchAndFilters
+      v-model:search-query="searchQuery"
+      :filters="filters"
+      search-placeholder="Search users..."
+      @update:filter="handleFilterUpdate"
+      class="mb-6"
+    />
 
     <!-- Users Table -->
     <UCard>
       <UTable :data="filteredUsers" :columns="columns" />
 
       <!-- Empty state -->
-      <div v-if="filteredUsers.length === 0" class="text-center py-12">
-        <UIcon name="i-heroicons-users-20-solid" class="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
-        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-          {{ searchQuery || selectedStatus !== 'all' || selectedRole !== 'all' ? 'No users found' : t('users.noUsers') }}
-        </h3>
-        <p class="text-gray-500 dark:text-gray-400 mb-6">
-          {{ searchQuery || selectedStatus !== 'all' || selectedRole !== 'all' 
-            ? 'Try adjusting your search or filters' 
-            : 'Get started by creating your first user' }}
-        </p>
-        <UButton 
-          v-if="!searchQuery && selectedStatus === 'all' && selectedRole === 'all'"
-          @click="createUser"
-          icon="i-heroicons-plus-circle"
-          class="text-blue-700 dark:text-blue-300"
-        >
-          {{ t('users.createUser') }}
-        </UButton>
-      </div>
+      <EmptyState
+        v-if="filteredUsers.length === 0"
+        icon="i-heroicons-users-20-solid"
+        :title="hasActiveFilters ? 'No users found' : t('users.noUsers')"
+        :description="hasActiveFilters 
+          ? 'Try adjusting your search or filters' 
+          : 'Get started by creating your first user'"
+        :action-label="!hasActiveFilters ? t('users.createUser') : undefined"
+        action-icon="i-heroicons-plus-circle"
+        @action="router.push('/users/create')"
+      />
     </UCard>
   </div>
 </template> 

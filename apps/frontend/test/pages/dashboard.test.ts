@@ -176,25 +176,29 @@ describe('Dashboard Page', () => {
   })
 
   describe('Navigation Behavior', () => {
-    it('should navigate when handleStatClick is called with route', () => {
+    it('should have stats with navigation routes', () => {
       const vm = wrapper.vm as any
-      const statWithRoute = { route: '/servers' }
+      const statsWithRoutes = vm.stats.filter((s: any) => s.route)
       
-      // Test that the function works correctly by calling it and ensuring it doesn't error
-      // The actual routing will be handled by the real router in integration
-      expect(() => vm.handleStatClick(statWithRoute)).not.toThrow()
-      
-      // Verify the stat has the expected route property
-      expect(statWithRoute.route).toBe('/servers')
+      expect(statsWithRoutes.length).toBeGreaterThan(0)
+      expect(statsWithRoutes.some((s: any) => s.route === '/servers')).toBe(true)
+      expect(statsWithRoutes.some((s: any) => s.route === '/players')).toBe(true)
+      expect(statsWithRoutes.some((s: any) => s.route === '/users')).toBe(true)
     })
 
-    it('should not navigate when stat has no route', () => {
+    it('should have quick actions configured', () => {
       const vm = wrapper.vm as any
-      const statWithoutRoute = { value: '50%' }
+      const quickActions = vm.quickActions
       
-      // Test that the function handles missing route gracefully
-      expect(() => vm.handleStatClick(statWithoutRoute)).not.toThrow()
-      expect(mockRouterPush).not.toHaveBeenCalled()
+      expect(quickActions).toBeDefined()
+      expect(Array.isArray(quickActions)).toBe(true)
+      expect(quickActions.length).toBeGreaterThan(0)
+      
+      // Check that actions have onClick handlers
+      quickActions.forEach((action: any) => {
+        expect(action).toHaveProperty('onClick')
+        expect(typeof action.onClick).toBe('function')
+      })
     })
   })
 

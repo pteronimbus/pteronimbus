@@ -167,12 +167,33 @@ const activeAlerts = computed(() => [
   }
 ])
 
-// Handle stat card clicks
-const handleStatClick = (stat) => {
-  if (stat.route) {
-    router.push(stat.route)
+// Quick actions configuration
+const quickActions = computed(() => [
+  {
+    label: t('servers.createServer'),
+    icon: 'i-heroicons-plus-circle-20-solid',
+    color: 'primary' as const,
+    onClick: () => router.push('/servers/create')
+  },
+  {
+    label: t('users.createUser'),
+    icon: 'i-heroicons-user-plus-20-solid',
+    color: 'secondary' as const,
+    onClick: () => router.push('/users/create')
+  },
+  {
+    label: t('common.refresh'),
+    icon: 'i-heroicons-arrow-path-20-solid',
+    color: 'success' as const,
+    onClick: () => window.location.reload()
+  },
+  {
+    label: 'Settings',
+    icon: 'i-heroicons-cog-6-tooth-20-solid',
+    color: 'warning' as const,
+    onClick: () => router.push('/settings')
   }
-}
+])
 
 // Resource usage for chart
 const resourceData = computed(() => ({
@@ -198,115 +219,37 @@ const resourceData = computed(() => ({
 
 <template>
   <div>
-    <div class="mb-8">
-      <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100">{{ t('dashboard.welcome', { name: user?.name || 'User' }) }}</h1>
-      <p class="mt-1 text-gray-500 dark:text-gray-400">{{ t('dashboard.overview') }}</p>
-    </div>
+    <!-- Page Header -->
+    <PageHeader 
+      :title="t('dashboard.welcome', { name: (user as any)?.name || 'User' })"
+      :description="t('dashboard.overview')"
+    />
 
     <!-- Stats Grid -->
     <div class="mb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-      <UCard 
-        v-for="stat in stats" 
+      <StatsCard
+        v-for="stat in stats"
         :key="stat.key"
-        :class="[
-          'cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-105',
-          stat.route ? 'hover:bg-gray-50 dark:hover:bg-gray-800' : ''
-        ]"
-        @click="handleStatClick(stat)"
-      >
-        <div class="flex items-center justify-between">
-          <div class="flex-1">
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ stat.label }}</p>
-            <div class="flex items-baseline mt-1">
-              <p class="text-2xl font-bold text-gray-800 dark:text-gray-100">{{ stat.value }}</p>
-              <p v-if="stat.total" class="ml-2 text-sm text-gray-500 dark:text-gray-400">/ {{ stat.total }}</p>
-            </div>
-            <div v-if="stat.trend" class="flex items-center mt-2">
-              <span :class="[stat.trendColor, 'text-xs font-medium']">{{ stat.trend }}</span>
-              <span class="ml-1 text-xs text-gray-500 dark:text-gray-400">from last hour</span>
-            </div>
-          </div>
-          <div class="flex-shrink-0">
-            <div :class="[
-              'p-3 rounded-full',
-              stat.color === 'emerald' ? 'bg-emerald-100 dark:bg-emerald-900' : '',
-              stat.color === 'blue' ? 'bg-blue-100 dark:bg-blue-900' : '',
-              stat.color === 'purple' ? 'bg-purple-100 dark:bg-purple-900' : '',
-              stat.color === 'green' ? 'bg-green-100 dark:bg-green-900' : '',
-              stat.color === 'yellow' ? 'bg-yellow-100 dark:bg-yellow-900' : '',
-              stat.color === 'cyan' ? 'bg-cyan-100 dark:bg-cyan-900' : '',
-              stat.color === 'orange' ? 'bg-orange-100 dark:bg-orange-900' : '',
-              stat.color === 'red' ? 'bg-red-100 dark:bg-red-900' : ''
-            ]">
-              <UIcon 
-                :name="stat.icon" 
-                :class="[
-                  'w-6 h-6',
-                  stat.color === 'emerald' ? 'text-emerald-600 dark:text-emerald-400' : '',
-                  stat.color === 'blue' ? 'text-blue-600 dark:text-blue-400' : '',
-                  stat.color === 'purple' ? 'text-purple-600 dark:text-purple-400' : '',
-                  stat.color === 'green' ? 'text-green-600 dark:text-green-400' : '',
-                  stat.color === 'yellow' ? 'text-yellow-600 dark:text-yellow-400' : '',
-                  stat.color === 'cyan' ? 'text-cyan-600 dark:text-cyan-400' : '',
-                  stat.color === 'orange' ? 'text-orange-600 dark:text-orange-400' : '',
-                  stat.color === 'red' ? 'text-red-600 dark:text-red-400' : ''
-                ]"
-              />
-            </div>
-          </div>
-        </div>
-      </UCard>
+        :label="stat.label"
+        :value="stat.value"
+        :total="stat.total"
+        :icon="stat.icon"
+        :color="stat.color"
+        :trend="stat.trend"
+        :trend-color="stat.trendColor"
+        :route="stat.route"
+        class="cursor-pointer"
+      />
     </div>
 
     <!-- Content Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
       <!-- Quick Actions -->
-      <UCard>
-        <template #header>
-          <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100">Quick Actions</h3>
-        </template>
-        <div class="grid grid-cols-2 gap-4">
-          <UButton 
-            color="primary" 
-            variant="soft" 
-            size="lg" 
-            icon="i-heroicons-plus-circle-20-solid"
-            class="justify-start text-blue-700 dark:text-blue-300"
-            @click="router.push('/servers/create')"
-          >
-            {{ t('servers.createServer') }}
-          </UButton>
-          <UButton 
-            color="secondary" 
-            variant="soft" 
-            size="lg" 
-            icon="i-heroicons-user-plus-20-solid"
-            class="justify-start text-purple-700 dark:text-purple-300"
-            @click="router.push('/users/create')"
-          >
-            {{ t('users.createUser') }}
-          </UButton>
-          <UButton 
-            color="success" 
-            variant="soft" 
-            size="lg" 
-            icon="i-heroicons-arrow-path-20-solid"
-            class="justify-start text-green-700 dark:text-green-300"
-          >
-            {{ t('common.refresh') }}
-          </UButton>
-          <UButton 
-            color="warning" 
-            variant="soft" 
-            size="lg" 
-            icon="i-heroicons-cog-6-tooth-20-solid"
-            class="justify-start text-orange-700 dark:text-orange-300"
-            @click="router.push('/settings')"
-          >
-            Settings
-          </UButton>
-        </div>
-      </UCard>
+      <QuickActions 
+        title="Quick Actions"
+        :actions="quickActions"
+        :grid-cols="2"
+      />
 
       <!-- Resource Monitoring Chart -->
       <UCard>
@@ -383,10 +326,12 @@ const resourceData = computed(() => ({
               <p class="text-xs text-gray-500 dark:text-gray-400">{{ activity.timestamp }}</p>
             </div>
           </div>
-          <div v-if="recentActivity.length === 0" class="text-center py-8">
-            <UIcon name="i-heroicons-clock-20-solid" class="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-2" />
-            <p class="text-gray-500 dark:text-gray-400">{{ t('dashboard.activity.noActivity') }}</p>
-          </div>
+          <EmptyState
+            v-if="recentActivity.length === 0"
+            icon="i-heroicons-clock-20-solid"
+            :title="t('dashboard.activity.noActivity')"
+            description="No recent activity to display."
+          />
         </div>
       </UCard>
 
@@ -432,10 +377,13 @@ const resourceData = computed(() => ({
               class="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
             />
           </div>
-          <div v-if="activeAlerts.length === 0" class="text-center py-8">
-            <UIcon name="i-heroicons-check-circle-20-solid" class="w-12 h-12 text-green-400 dark:text-green-500 mx-auto mb-2" />
-            <p class="text-gray-500 dark:text-gray-400">{{ t('dashboard.alerts.noAlerts') }}</p>
-          </div>
+          <EmptyState
+            v-if="activeAlerts.length === 0"
+            icon="i-heroicons-check-circle-20-solid"
+            :title="t('dashboard.alerts.noAlerts')"
+            description="No active alerts to display."
+            size="sm"
+          />
         </div>
       </UCard>
     </div>

@@ -112,13 +112,15 @@ describe('Players Page', () => {
     })
   })
 
-  describe('Status Color Logic', () => {
-    it('should return correct status colors', () => {
+  describe('Component Structure', () => {
+    it('should use StatusBadge component for status display', () => {
       const vm = wrapper.vm as any
+      const columns = vm.columns
       
-      expect(vm.getStatusColor('online')).toBe('success')
-      expect(vm.getStatusColor('offline')).toBe('neutral')
-      expect(vm.getStatusColor('unknown')).toBe('neutral')
+      const statusColumn = columns.find((col: any) => col.accessorKey === 'status')
+      expect(statusColumn).toBeDefined()
+      expect(statusColumn.cell).toBeDefined()
+      expect(typeof statusColumn.cell).toBe('function')
     })
   })
 
@@ -128,21 +130,35 @@ describe('Players Page', () => {
       const stats = vm.playerStats
       
       expect(stats).toBeDefined()
-      expect(stats.total).toBe(vm.players.length)
-      expect(stats.online).toBe(vm.players.filter((p: any) => p.status === 'online').length)
-      expect(stats.offline).toBe(vm.players.filter((p: any) => p.status === 'offline').length)
+      expect(Array.isArray(stats)).toBe(true)
+      expect(stats.length).toBe(3) // total, online, offline
+      
+      const totalStat = stats.find((s: any) => s.key === 'total')
+      const onlineStat = stats.find((s: any) => s.key === 'online')
+      const offlineStat = stats.find((s: any) => s.key === 'offline')
+      
+      expect(totalStat).toBeDefined()
+      expect(onlineStat).toBeDefined()
+      expect(offlineStat).toBeDefined()
+      expect(parseInt(totalStat.value)).toBe(vm.players.length)
     })
 
     it('should have total equal to online plus offline', () => {
       const vm = wrapper.vm as any
       const stats = vm.playerStats
       
-      expect(stats.total).toBe(stats.online + stats.offline)
+      const totalStat = stats.find((s: any) => s.key === 'total')
+      const onlineStat = stats.find((s: any) => s.key === 'online')
+      const offlineStat = stats.find((s: any) => s.key === 'offline')
+      
+      expect(parseInt(totalStat.value)).toBe(parseInt(onlineStat.value) + parseInt(offlineStat.value))
     })
 
     it('should update statistics when player status changes', async () => {
       const vm = wrapper.vm as any
-      const initialStats = { ...vm.playerStats }
+      const initialStats = vm.playerStats
+      const initialOnlineCount = parseInt(initialStats.find((s: any) => s.key === 'online').value)
+      const initialOfflineCount = parseInt(initialStats.find((s: any) => s.key === 'offline').value)
       
       // Change a player status
       const onlinePlayer = vm.players.find((p: any) => p.status === 'online')
@@ -151,9 +167,13 @@ describe('Players Page', () => {
         await wrapper.vm.$nextTick()
         
         const newStats = vm.playerStats
-        expect(newStats.online).toBe(initialStats.online - 1)
-        expect(newStats.offline).toBe(initialStats.offline + 1)
-        expect(newStats.total).toBe(initialStats.total) // total unchanged
+        const newOnlineCount = parseInt(newStats.find((s: any) => s.key === 'online').value)
+        const newOfflineCount = parseInt(newStats.find((s: any) => s.key === 'offline').value)
+        const newTotalCount = parseInt(newStats.find((s: any) => s.key === 'total').value)
+        
+        expect(newOnlineCount).toBe(initialOnlineCount - 1)
+        expect(newOfflineCount).toBe(initialOfflineCount + 1)
+        expect(newTotalCount).toBe(vm.players.length) // total unchanged
       }
     })
   })
@@ -226,19 +246,27 @@ describe('Players Page', () => {
     })
   })
 
-  describe('Status Options', () => {
-    it('should have correct status options', () => {
+  describe('Filter Configuration', () => {
+    it('should have filters with status options', () => {
       const vm = wrapper.vm as any
+      const filters = vm.filters
       
-      expect(vm.statusOptions).toBeDefined()
-      expect(Array.isArray(vm.statusOptions)).toBe(true)
-      expect(vm.statusOptions.length).toBe(3)
-      expect(vm.statusOptions[0].value).toBe('all')
+      expect(filters).toBeDefined()
+      expect(Array.isArray(filters)).toBe(true)
+      expect(filters.length).toBe(1) // only status filter
+      
+      const statusFilter = filters.find((f: any) => f.key === 'status')
+      expect(statusFilter).toBeDefined()
+      expect(Array.isArray(statusFilter.options)).toBe(true)
+      expect(statusFilter.options.length).toBe(3) // all, online, offline
+      expect(statusFilter.options[0].value).toBe('all')
     })
 
     it('should include all valid status values', () => {
       const vm = wrapper.vm as any
-      const statusValues = vm.statusOptions.map((opt: any) => opt.value)
+      const filters = vm.filters
+      const statusFilter = filters.find((f: any) => f.key === 'status')
+      const statusValues = statusFilter.options.map((opt: any) => opt.value)
       
       expect(statusValues).toContain('all')
       expect(statusValues).toContain('online')

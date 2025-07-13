@@ -83,24 +83,86 @@ const searchQuery = ref('')
 const selectedSeverity = ref('all')
 const selectedStatus = ref('all')
 
-const severityOptions = [
-  { label: 'All Severities', value: 'all' },
-  { label: 'Critical', value: 'critical' },
-  { label: 'Error', value: 'error' },
-  { label: 'Warning', value: 'warning' },
-  { label: 'Info', value: 'info' }
-]
+// Filter configurations for SearchAndFilters component
+const filters = computed(() => [
+  {
+    key: 'severity',
+    value: selectedSeverity.value,
+    options: [
+      { label: 'All Severities', value: 'all' },
+      { label: 'Critical', value: 'critical' },
+      { label: 'Error', value: 'error' },
+      { label: 'Warning', value: 'warning' },
+      { label: 'Info', value: 'info' }
+    ],
+    class: 'w-40'
+  },
+  {
+    key: 'status',
+    value: selectedStatus.value,
+    options: [
+      { label: 'All Status', value: 'all' },
+      { label: 'Active', value: 'active' },
+      { label: 'Acknowledged', value: 'acknowledged' }
+    ],
+    class: 'w-40'
+  }
+])
 
-const statusOptions = [
-  { label: 'All Status', value: 'all' },
-  { label: 'Active', value: 'active' },
-  { label: 'Acknowledged', value: 'acknowledged' }
-]
+// Page header actions
+const headerActions = computed(() => [
+  {
+    label: 'Acknowledge All',
+    icon: 'i-heroicons-check-20-solid',
+    color: 'primary' as const,
+    onClick: () => acknowledgeAll()
+  },
+  {
+    label: 'Refresh',
+    icon: 'i-heroicons-arrow-path-20-solid',
+    color: 'neutral' as const,
+    variant: 'ghost' as const,
+    onClick: () => window.location.reload()
+  }
+])
+
+// Alert stats for StatsCard components
+const alertStats = computed(() => [
+  {
+    key: 'total',
+    label: 'Total Alerts',
+    value: alerts.value.length.toString(),
+    icon: 'i-heroicons-bell-20-solid',
+    color: 'blue'
+  },
+  {
+    key: 'active',
+    label: 'Active Alerts',
+    value: alerts.value.filter(a => !a.acknowledged).length.toString(),
+    icon: 'i-heroicons-exclamation-triangle-20-solid',
+    color: 'red'
+  },
+  {
+    key: 'critical',
+    label: 'Critical',
+    value: alerts.value.filter(a => a.severity === 'critical').length.toString(),
+    icon: 'i-heroicons-fire-20-solid',
+    color: 'red'
+  },
+  {
+    key: 'warnings',
+    label: 'Warnings',
+    value: alerts.value.filter(a => a.severity === 'warning').length.toString(),
+    icon: 'i-heroicons-exclamation-circle-20-solid',
+    color: 'yellow'
+  }
+])
 
 // Resolve components for use in cell renderers
 const UIcon = resolveComponent('UIcon')
 const UBadge = resolveComponent('UBadge')
 const UButton = resolveComponent('UButton')
+const StatusBadge = resolveComponent('StatusBadge')
 
 const getSeverityColor = (severity: string) => {
   switch (severity) {
@@ -124,6 +186,12 @@ const dismissAlert = (alertId: number) => {
   if (index !== -1) {
     alerts.value.splice(index, 1)
   }
+}
+
+const acknowledgeAll = () => {
+  alerts.value.forEach(alert => {
+    alert.acknowledged = true
+  })
 }
 
 const columns: any[] = [
@@ -197,13 +265,9 @@ const columns: any[] = [
     header: 'Status',
     cell: ({ row }: any) => {
       const alert = row.original
-      return h(UBadge, {
-        color: alert.acknowledged ? 'success' : 'warning',
-        variant: 'subtle',
-        class: [
-          alert.acknowledged ? 'text-green-700 dark:text-green-300' : 'text-yellow-700 dark:text-yellow-300'
-        ]
-      }, () => alert.acknowledged ? 'Acknowledged' : 'Active')
+      return h(StatusBadge, {
+        status: alert.acknowledged ? 'acknowledged' : 'active'
+      })
     }
   },
   {
@@ -259,138 +323,59 @@ const filteredAlerts = computed(() => {
   return filtered
 })
 
-const alertStats = computed(() => ({
-  total: alerts.value.length,
-  active: alerts.value.filter(a => !a.acknowledged).length,
-  critical: alerts.value.filter(a => a.severity === 'critical').length,
-  warnings: alerts.value.filter(a => a.severity === 'warning').length
-}))
+const handleFilterUpdate = (newFilters: any) => {
+  selectedSeverity.value = newFilters.severity
+  selectedStatus.value = newFilters.status
+}
+
+const hasActiveFilters = computed(() => {
+  return searchQuery.value || selectedSeverity.value !== 'all' || selectedStatus.value !== 'all'
+})
 </script>
 
 <template>
   <div>
-    <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-      <div>
-        <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100">System Alerts</h1>
-        <p class="mt-1 text-gray-500 dark:text-gray-400">
-          Monitor and manage system alerts and notifications
-        </p>
-      </div>
-      <div class="mt-4 sm:mt-0 flex items-center gap-2">
-        <UButton 
-          color="primary" 
-          icon="i-heroicons-check-20-solid" 
-          size="sm"
-          class="text-primary-700 dark:text-primary-300"
-        >
-          Acknowledge All
-        </UButton>
-        <UButton 
-          color="neutral" 
-          variant="ghost" 
-          icon="i-heroicons-arrow-path-20-solid" 
-          size="sm"
-          class="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
-        >
-          Refresh
-        </UButton>
-      </div>
-    </div>
+    <!-- Page Header -->
+    <PageHeader 
+      title="System Alerts"
+      description="Monitor and manage system alerts and notifications"
+      :actions="headerActions"
+    />
 
     <!-- Stats Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-      <UCard>
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Alerts</p>
-            <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ alertStats.total }}</p>
-          </div>
-          <div class="p-3 bg-blue-100 dark:bg-blue-900 rounded-full">
-            <UIcon name="i-heroicons-bell-20-solid" class="w-6 h-6 text-blue-600 dark:text-blue-400" />
-          </div>
-        </div>
-      </UCard>
-      
-      <UCard>
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Active Alerts</p>
-            <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ alertStats.active }}</p>
-          </div>
-          <div class="p-3 bg-red-100 dark:bg-red-900 rounded-full">
-            <UIcon name="i-heroicons-exclamation-triangle-20-solid" class="w-6 h-6 text-red-600 dark:text-red-400" />
-          </div>
-        </div>
-      </UCard>
-      
-      <UCard>
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Critical</p>
-            <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ alertStats.critical }}</p>
-          </div>
-          <div class="p-3 bg-red-100 dark:bg-red-900 rounded-full">
-            <UIcon name="i-heroicons-fire-20-solid" class="w-6 h-6 text-red-600 dark:text-red-400" />
-          </div>
-        </div>
-      </UCard>
-      
-      <UCard>
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Warnings</p>
-            <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ alertStats.warnings }}</p>
-          </div>
-          <div class="p-3 bg-yellow-100 dark:bg-yellow-900 rounded-full">
-            <UIcon name="i-heroicons-exclamation-circle-20-solid" class="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
-          </div>
-        </div>
-      </UCard>
+      <StatsCard
+        v-for="stat in alertStats"
+        :key="stat.key"
+        :label="stat.label"
+        :value="stat.value"
+        :icon="stat.icon"
+        :color="stat.color"
+      />
     </div>
 
-    <!-- Filters -->
-    <div class="mb-6 flex flex-col sm:flex-row gap-4">
-      <div class="flex-1">
-        <UInput
-          v-model="searchQuery"
-          placeholder="Search alerts..."
-          icon="i-heroicons-magnifying-glass-20-solid"
-          size="md"
-        />
-      </div>
-      <div class="flex gap-2">
-        <USelect
-          v-model="selectedSeverity"
-          :options="severityOptions"
-          size="md"
-          class="w-40"
-        />
-        <USelect
-          v-model="selectedStatus"
-          :options="statusOptions"
-          size="md"
-          class="w-40"
-        />
-      </div>
-    </div>
+    <!-- Search and Filters -->
+    <SearchAndFilters
+      v-model:search-query="searchQuery"
+      :filters="filters"
+      search-placeholder="Search alerts..."
+      @update:filter="handleFilterUpdate"
+      class="mb-6"
+    />
 
     <!-- Alerts Table -->
     <UCard>
       <UTable :data="filteredAlerts" :columns="columns" />
 
       <!-- Empty state -->
-      <div v-if="filteredAlerts.length === 0" class="text-center py-12">
-        <UIcon name="i-heroicons-bell-slash-20-solid" class="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
-        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-          {{ searchQuery || selectedSeverity !== 'all' || selectedStatus !== 'all' ? 'No alerts found' : 'No active alerts' }}
-        </h3>
-        <p class="text-gray-500 dark:text-gray-400">
-          {{ searchQuery || selectedSeverity !== 'all' || selectedStatus !== 'all' 
-            ? 'Try adjusting your search or filters' 
-            : 'All systems are running smoothly' }}
-        </p>
-      </div>
+      <EmptyState
+        v-if="filteredAlerts.length === 0"
+        icon="i-heroicons-bell-slash-20-solid"
+        :title="hasActiveFilters ? 'No alerts found' : 'No active alerts'"
+        :description="hasActiveFilters 
+          ? 'Try adjusting your search or filters' 
+          : 'All systems are running smoothly'"
+      />
     </UCard>
   </div>
 </template> 

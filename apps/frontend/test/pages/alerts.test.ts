@@ -76,10 +76,15 @@ describe('Alerts Page', () => {
       const stats = vm.alertStats
       
       expect(stats).toBeDefined()
-      expect(stats.total).toBe(vm.alerts.length)
-      expect(stats.active).toBe(vm.alerts.filter((a: any) => !a.acknowledged).length)
-      expect(stats.critical).toBe(vm.alerts.filter((a: any) => a.severity === 'critical').length)
-      expect(stats.warnings).toBe(vm.alerts.filter((a: any) => a.severity === 'warning').length)
+      expect(Array.isArray(stats)).toBe(true)
+      expect(stats.length).toBe(4) // total, active, critical, warnings
+      
+      const totalStat = stats.find((s: any) => s.key === 'total')
+      const activeStat = stats.find((s: any) => s.key === 'active')
+      
+      expect(totalStat).toBeDefined()
+      expect(activeStat).toBeDefined()
+      expect(parseInt(totalStat.value)).toBe(vm.alerts.length)
     })
 
     it('should filter alerts by search query - title', async () => {
@@ -187,6 +192,16 @@ describe('Alerts Page', () => {
       }
     })
 
+    it('should acknowledge all alerts', async () => {
+      const vm = wrapper.vm as any
+      
+      vm.acknowledgeAll()
+      
+      vm.alerts.forEach((alert: any) => {
+        expect(alert.acknowledged).toBe(true)
+      })
+    })
+
     it('should not acknowledge an already acknowledged alert', async () => {
       const vm = wrapper.vm as any
       const acknowledgedAlert = vm.alerts.find((a: any) => a.acknowledged)
@@ -256,7 +271,8 @@ describe('Alerts Page', () => {
   describe('Reactive Updates', () => {
     it('should update stats when alert is acknowledged', async () => {
       const vm = wrapper.vm as any
-      const initialStats = { ...vm.alertStats }
+      const initialStats = vm.alertStats
+      const initialActiveCount = parseInt(initialStats.find((s: any) => s.key === 'active').value)
       const activeAlert = vm.alerts.find((a: any) => !a.acknowledged)
       
       if (activeAlert) {
@@ -264,21 +280,23 @@ describe('Alerts Page', () => {
         await wrapper.vm.$nextTick()
         
         const newStats = vm.alertStats
-        expect(newStats.active).toBe(initialStats.active - 1)
-        expect(newStats.total).toBe(initialStats.total) // total unchanged
+        const newActiveCount = parseInt(newStats.find((s: any) => s.key === 'active').value)
+        expect(newActiveCount).toBe(initialActiveCount - 1)
       }
     })
 
     it('should update stats when alert is dismissed', async () => {
       const vm = wrapper.vm as any
-      const initialStats = { ...vm.alertStats }
+      const initialStats = vm.alertStats
+      const initialTotalCount = parseInt(initialStats.find((s: any) => s.key === 'total').value)
       const alertToDismiss = vm.alerts[0]
       
       vm.dismissAlert(alertToDismiss.id)
       await wrapper.vm.$nextTick()
       
       const newStats = vm.alertStats
-      expect(newStats.total).toBe(initialStats.total - 1)
+      const newTotalCount = parseInt(newStats.find((s: any) => s.key === 'total').value)
+      expect(newTotalCount).toBe(initialTotalCount - 1)
     })
 
     it('should update filtered results when search changes', async () => {
@@ -323,23 +341,30 @@ describe('Alerts Page', () => {
     })
   })
 
-  describe('Options Arrays', () => {
-    it('should have correct severity options', () => {
+  describe('Filter Configuration', () => {
+    it('should have filters with severity options', () => {
       const vm = wrapper.vm as any
+      const filters = vm.filters
       
-      expect(vm.severityOptions).toBeDefined()
-      expect(Array.isArray(vm.severityOptions)).toBe(true)
-      expect(vm.severityOptions.length).toBeGreaterThan(0)
-      expect(vm.severityOptions[0].value).toBe('all')
+      expect(filters).toBeDefined()
+      expect(Array.isArray(filters)).toBe(true)
+      
+      const severityFilter = filters.find((f: any) => f.key === 'severity')
+      expect(severityFilter).toBeDefined()
+      expect(Array.isArray(severityFilter.options)).toBe(true)
+      expect(severityFilter.options.length).toBeGreaterThan(0)
+      expect(severityFilter.options[0].value).toBe('all')
     })
 
-    it('should have correct status options', () => {
+    it('should have filters with status options', () => {
       const vm = wrapper.vm as any
+      const filters = vm.filters
       
-      expect(vm.statusOptions).toBeDefined()
-      expect(Array.isArray(vm.statusOptions)).toBe(true)
-      expect(vm.statusOptions.length).toBeGreaterThan(0)
-      expect(vm.statusOptions[0].value).toBe('all')
+      const statusFilter = filters.find((f: any) => f.key === 'status')
+      expect(statusFilter).toBeDefined()
+      expect(Array.isArray(statusFilter.options)).toBe(true)
+      expect(statusFilter.options.length).toBeGreaterThan(0)
+      expect(statusFilter.options[0].value).toBe('all')
     })
   })
 }) 

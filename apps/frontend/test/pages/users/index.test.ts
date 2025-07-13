@@ -181,14 +181,13 @@ describe('Users Index Page', () => {
   })
 
   describe('Helper Functions', () => {
-    it('should return correct status colors', () => {
+    it('should generate correct filter configurations', () => {
       const vm = wrapper.vm as any
+      const filters = vm.filters
       
-      expect(vm.getStatusColor('online')).toBe('success')
-      expect(vm.getStatusColor('offline')).toBe('neutral')
-      expect(vm.getStatusColor('banned')).toBe('error')
-      expect(vm.getStatusColor('suspended')).toBe('warning')
-      expect(vm.getStatusColor('unknown')).toBe('neutral')
+      expect(filters).toBeDefined()
+      expect(Array.isArray(filters)).toBe(true)
+      expect(filters.length).toBe(2) // status and role filters
     })
 
     it('should return correct role colors', () => {
@@ -202,12 +201,21 @@ describe('Users Index Page', () => {
 
     it('should generate action items correctly', () => {
       const vm = wrapper.vm as any
-      const user = vm.users[0]
-      const actions = vm.getActionItems(user)
+      const mockUser = { id: 1, name: 'Test User', status: 'online' }
+      const actions = vm.getActionItems(mockUser)
       
-      expect(actions).toBeDefined()
       expect(Array.isArray(actions)).toBe(true)
       expect(actions.length).toBeGreaterThan(0)
+      
+      // Check structure of action groups
+      actions.forEach((group: any) => {
+        expect(Array.isArray(group)).toBe(true)
+        group.forEach((action: any) => {
+          expect(action).toHaveProperty('label')
+          expect(action).toHaveProperty('icon')
+          expect(action).toHaveProperty('click')
+        })
+      })
     })
   })
 
@@ -340,23 +348,27 @@ describe('Users Index Page', () => {
     })
   })
 
-  describe('Options Arrays', () => {
-    it('should have correct status options', () => {
+  describe('Filter Configuration', () => {
+    it('should have filters with status options', () => {
       const vm = wrapper.vm as any
+      const filters = vm.filters
       
-      expect(vm.statusOptions).toBeDefined()
-      expect(Array.isArray(vm.statusOptions)).toBe(true)
-      expect(vm.statusOptions.length).toBeGreaterThan(0)
-      expect(vm.statusOptions[0].value).toBe('all')
+      const statusFilter = filters.find((f: any) => f.key === 'status')
+      expect(statusFilter).toBeDefined()
+      expect(Array.isArray(statusFilter.options)).toBe(true)
+      expect(statusFilter.options.length).toBeGreaterThan(0)
+      expect(statusFilter.options[0].value).toBe('all')
     })
 
-    it('should have correct role options', () => {
+    it('should have filters with role options', () => {
       const vm = wrapper.vm as any
+      const filters = vm.filters
       
-      expect(vm.roleOptions).toBeDefined()
-      expect(Array.isArray(vm.roleOptions)).toBe(true)
-      expect(vm.roleOptions.length).toBeGreaterThan(0)
-      expect(vm.roleOptions[0].value).toBe('all')
+      const roleFilter = filters.find((f: any) => f.key === 'role')
+      expect(roleFilter).toBeDefined()
+      expect(Array.isArray(roleFilter.options)).toBe(true)
+      expect(roleFilter.options.length).toBeGreaterThan(0)
+      expect(roleFilter.options[0].value).toBe('all')
     })
   })
 }) 

@@ -53,17 +53,49 @@ const tabs = [
   { key: 'sessions', label: t('users.details.sessions'), icon: 'i-heroicons-computer-desktop-20-solid' }
 ]
 
-// Helper functions
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'online': return 'success'
-    case 'offline': return 'neutral'
-    case 'banned': return 'error'
-    case 'suspended': return 'warning'
-    default: return 'neutral'
+// Stats configuration for StatsCard components
+const userStats = computed(() => [
+  {
+    key: 'serversAccess',
+    label: t('users.columns.serversAccess'),
+    value: user.value.serversAccess.toString(),
+    icon: 'i-heroicons-server-20-solid',
+    color: 'blue'
+  },
+  {
+    key: 'totalPlaytime',
+    label: 'Total Playtime',
+    value: user.value.totalPlaytime,
+    icon: 'i-heroicons-clock-20-solid',
+    color: 'green'
+  },
+  {
+    key: 'totalSessions',
+    label: 'Total Sessions',
+    value: user.value.totalSessions.toString(),
+    icon: 'i-heroicons-computer-desktop-20-solid',
+    color: 'purple'
+  },
+  {
+    key: 'lastSeen',
+    label: t('users.columns.lastSeen'),
+    value: user.value.lastSeen,
+    icon: 'i-heroicons-eye-20-solid',
+    color: 'gray'
   }
-}
+])
 
+// Page header actions
+const headerActions = computed(() => [
+  {
+    label: t('users.actions.edit'),
+    icon: 'i-heroicons-pencil-square-20-solid',
+    color: 'primary' as const,
+    onClick: editUser
+  }
+])
+
+// Helper functions
 const getRoleColor = (role: string) => {
   switch (role) {
     case 'admin': return 'error'
@@ -107,138 +139,96 @@ const goBack = () => {
 
 <template>
   <div>
-    <!-- Header -->
-    <div class="mb-6">
-      <div class="flex items-center mb-4">
-        <UButton 
-          color="neutral" 
-          variant="ghost" 
-          icon="i-heroicons-arrow-left-20-solid"
-          class="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
-          @click="goBack"
-        />
-        <h1 class="ml-4 text-3xl font-bold text-gray-800 dark:text-gray-100">{{ t('users.details.title') }}</h1>
-      </div>
-      
-      <!-- User Info Card -->
-      <UCard>
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-6">
-            <UAvatar
-              :src="user.avatar || undefined"
-              :alt="user.name"
-              size="lg"
-            >
-              <span class="text-xl font-medium text-primary-600 dark:text-primary-400">
-                {{ user.name.split(' ').map(n => n[0]).join('') }}
-              </span>
-            </UAvatar>
-            <div>
-              <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ user.name }}</h2>
-              <p class="text-gray-600 dark:text-gray-400">{{ user.email }}</p>
-              <div class="flex items-center gap-3 mt-2">
-                <UBadge 
-                  :color="getRoleColor(user.role)" 
-                  variant="subtle"
-                  class="capitalize"
-                  :class="[
-                    user.role === 'admin' ? 'text-red-700 dark:text-red-300' : '',
-                    user.role === 'moderator' ? 'text-blue-700 dark:text-blue-300' : '',
-                    user.role === 'user' ? 'text-gray-700 dark:text-gray-300' : ''
-                  ]"
-                >
-                  {{ t(`users.roles.${user.role}`) }}
-                </UBadge>
-                <UBadge 
-                  :color="getStatusColor(user.status)" 
-                  variant="subtle"
-                  class="capitalize"
-                  :class="[
-                    user.status === 'online' ? 'text-green-700 dark:text-green-300' : '',
-                    user.status === 'offline' ? 'text-gray-700 dark:text-gray-300' : '',
-                    user.status === 'banned' ? 'text-red-700 dark:text-red-300' : '',
-                    user.status === 'suspended' ? 'text-yellow-700 dark:text-yellow-300' : ''
-                  ]"
-                >
-                  {{ t(`users.status.${user.status}`) }}
-                </UBadge>
-              </div>
+    <!-- Page Header -->
+    <PageHeader 
+      :title="t('users.details.title')"
+      :description="`${user.name} - ${user.email}`"
+      :actions="headerActions"
+      show-back-button
+      @back="goBack"
+    />
+    
+    <!-- User Info Card -->
+    <UCard class="mb-6">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-6">
+          <UAvatar
+            :src="user.avatar || undefined"
+            :alt="user.name"
+            size="lg"
+          >
+            <span class="text-xl font-medium text-primary-600 dark:text-primary-400">
+              {{ user.name.split(' ').map(n => n[0]).join('') }}
+            </span>
+          </UAvatar>
+          <div>
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ user.name }}</h2>
+            <p class="text-gray-600 dark:text-gray-400">{{ user.email }}</p>
+            <div class="flex items-center gap-3 mt-2">
+              <UBadge 
+                :color="getRoleColor(user.role)" 
+                variant="subtle"
+                class="capitalize"
+                :class="[
+                  user.role === 'admin' ? 'text-red-700 dark:text-red-300' : '',
+                  user.role === 'moderator' ? 'text-blue-700 dark:text-blue-300' : '',
+                  user.role === 'user' ? 'text-gray-700 dark:text-gray-300' : ''
+                ]"
+              >
+                {{ t(`users.roles.${user.role}`) }}
+              </UBadge>
+              <StatusBadge :status="user.status" type="user" />
             </div>
           </div>
-          
-          <!-- Action buttons -->
-          <div class="flex items-center gap-2">
-            <UButton 
-              color="primary" 
-              variant="soft" 
-              icon="i-heroicons-pencil-square-20-solid"
-              class="text-blue-700 dark:text-blue-300"
-              @click="editUser"
-            >
-              {{ t('users.actions.edit') }}
-            </UButton>
-            <UDropdownMenu :items="[
-              [{
-                label: t('users.actions.resetPassword'),
-                icon: 'i-heroicons-key-20-solid',
-                click: resetPassword
-              }, {
-                label: t('users.actions.changeRole'),
-                icon: 'i-heroicons-shield-check-20-solid',
-                click: changeRole
-              }],
-              [{
-                label: user.status === 'banned' ? t('users.actions.unban') : t('users.actions.ban'),
-                icon: user.status === 'banned' ? 'i-heroicons-check-circle-20-solid' : 'i-heroicons-no-symbol-20-solid',
-                click: toggleBan
-              }, {
-                label: user.status === 'suspended' ? 'Unsuspend' : t('users.actions.suspend'),
-                icon: user.status === 'suspended' ? 'i-heroicons-play-20-solid' : 'i-heroicons-pause-20-solid',
-                click: toggleSuspend
-              }],
-              [{
-                label: t('users.actions.delete'),
-                icon: 'i-heroicons-trash-20-solid',
-                click: deleteUser
-              }]
-            ]">
-              <UButton 
-                color="neutral" 
-                variant="ghost" 
-                icon="i-heroicons-ellipsis-horizontal-20-solid"
-              />
-            </UDropdownMenu>
-          </div>
         </div>
-      </UCard>
-    </div>
+        
+        <!-- Action buttons -->
+        <div class="flex items-center gap-2">
+          <UDropdownMenu :items="[
+            [{
+              label: t('users.actions.resetPassword'),
+              icon: 'i-heroicons-key-20-solid',
+              click: resetPassword
+            }, {
+              label: t('users.actions.changeRole'),
+              icon: 'i-heroicons-shield-check-20-solid',
+              click: changeRole
+            }],
+            [{
+              label: user.status === 'banned' ? t('users.actions.unban') : t('users.actions.ban'),
+              icon: user.status === 'banned' ? 'i-heroicons-check-circle-20-solid' : 'i-heroicons-no-symbol-20-solid',
+              click: toggleBan
+            }, {
+              label: user.status === 'suspended' ? 'Unsuspend' : t('users.actions.suspend'),
+              icon: user.status === 'suspended' ? 'i-heroicons-play-20-solid' : 'i-heroicons-pause-20-solid',
+              click: toggleSuspend
+            }],
+            [{
+              label: t('users.actions.delete'),
+              icon: 'i-heroicons-trash-20-solid',
+              click: deleteUser
+            }]
+          ]">
+            <UButton 
+              color="neutral" 
+              variant="ghost" 
+              icon="i-heroicons-ellipsis-horizontal-20-solid"
+            />
+          </UDropdownMenu>
+        </div>
+      </div>
+    </UCard>
 
     <!-- Stats Cards -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      <UCard>
-        <div class="text-center">
-          <div class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ user.serversAccess }}</div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">{{ t('users.columns.serversAccess') }}</div>
-        </div>
-      </UCard>
-      <UCard>
-        <div class="text-center">
-          <div class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ user.totalPlaytime }}</div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">Total Playtime</div>
-        </div>
-      </UCard>
-      <UCard>
-        <div class="text-center">
-          <div class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ user.totalSessions }}</div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">Total Sessions</div>
-        </div>
-      </UCard>
-      <UCard>
-        <div class="text-center">
-          <div class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ user.lastSeen }}</div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">{{ t('users.columns.lastSeen') }}</div>
-        </div>
-      </UCard>
+      <StatsCard
+        v-for="stat in userStats"
+        :key="stat.key"
+        :label="stat.label"
+        :value="stat.value"
+        :icon="stat.icon"
+        :color="stat.color"
+      />
     </div>
 
     <!-- Tabs -->
@@ -290,9 +280,7 @@ const goBack = () => {
               </div>
               <div class="flex justify-between">
                 <span class="text-gray-600 dark:text-gray-400">Status:</span>
-                <UBadge :color="getStatusColor(user.status)" variant="subtle" class="capitalize">
-                  {{ t(`users.status.${user.status}`) }}
-                </UBadge>
+                <StatusBadge :status="user.status" type="user" />
               </div>
               <div class="flex justify-between">
                 <span class="text-gray-600 dark:text-gray-400">Joined:</span>
@@ -330,6 +318,15 @@ const goBack = () => {
                 />
               </div>
             </div>
+            
+            <!-- Empty state for preferred servers -->
+            <EmptyState
+              v-if="user.preferredServers.length === 0"
+              icon="i-heroicons-server-20-solid"
+              title="No preferred servers"
+              description="This user hasn't marked any servers as preferred yet."
+              size="sm"
+            />
           </UCard>
         </div>
       </div>
@@ -380,6 +377,15 @@ const goBack = () => {
               </div>
             </div>
           </div>
+          
+          <!-- Empty state for activity -->
+          <EmptyState
+            v-if="user.recentActivity.length === 0"
+            icon="i-heroicons-clock-20-solid"
+            title="No recent activity"
+            description="This user hasn't performed any actions recently."
+            size="sm"
+          />
         </UCard>
       </div>
 
@@ -410,6 +416,15 @@ const goBack = () => {
               </div>
             </div>
           </div>
+          
+          <!-- Empty state for sessions -->
+          <EmptyState
+            v-if="user.sessions.length === 0"
+            icon="i-heroicons-computer-desktop-20-solid"
+            title="No session history"
+            description="This user hasn't connected to any servers yet."
+            size="sm"
+          />
         </UCard>
       </div>
     </div>
