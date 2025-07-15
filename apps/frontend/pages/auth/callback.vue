@@ -1,16 +1,20 @@
 <script setup lang="ts">
-const { handleCallback } = useAuth()
+const { handleCallback, error: authError, clearError } = useAuth()
 const route = useRoute()
 
 definePageMeta({
   layout: 'login'
 })
 
-const error = ref<string | null>(null)
+const localError = ref<string | null>(null)
 const isProcessing = ref(true)
+
+// Computed error that combines local and auth errors
+const error = computed(() => localError.value || authError.value)
 
 onMounted(async () => {
   try {
+    clearError()
     const code = route.query.code as string
     const state = route.query.state as string
     const errorParam = route.query.error as string
@@ -26,7 +30,7 @@ onMounted(async () => {
     await handleCallback(code, state)
   } catch (err: any) {
     console.error('OAuth callback error:', err)
-    error.value = err.message || 'Authentication failed'
+    localError.value = err.message || 'Authentication failed'
     isProcessing.value = false
   }
 })

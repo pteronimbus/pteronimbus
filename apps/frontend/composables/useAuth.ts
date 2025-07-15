@@ -23,7 +23,10 @@ interface AuthState {
   refreshToken: string | null
   isAuthenticated: boolean
   isLoading: boolean
+  error: string | null
 }
+
+
 
 // Global auth state
 const authState = ref<AuthState>({
@@ -31,7 +34,8 @@ const authState = ref<AuthState>({
   accessToken: null,
   refreshToken: null,
   isAuthenticated: false,
-  isLoading: false
+  isLoading: false,
+  error: null
 })
 
 export const useAuth = () => {
@@ -42,10 +46,11 @@ export const useAuth = () => {
   const user = computed(() => authState.value.user)
   const isAuthenticated = computed(() => authState.value.isAuthenticated)
   const isLoading = computed(() => authState.value.isLoading)
+  const error = computed(() => authState.value.error)
 
   // Initialize auth state from localStorage
   const initializeAuth = () => {
-    if (process.client) {
+    if (import.meta.client) {
       const accessToken = localStorage.getItem('access_token')
       const refreshToken = localStorage.getItem('refresh_token')
       const userData = localStorage.getItem('user_data')
@@ -58,7 +63,8 @@ export const useAuth = () => {
             accessToken,
             refreshToken,
             isAuthenticated: true,
-            isLoading: false
+            isLoading: false,
+            error: null
           }
         } catch (error) {
           console.error('Failed to parse stored user data:', error)
@@ -75,10 +81,11 @@ export const useAuth = () => {
       accessToken: null,
       refreshToken: null,
       isAuthenticated: false,
-      isLoading: false
+      isLoading: false,
+      error: null
     }
 
-    if (process.client) {
+    if (import.meta.client) {
       localStorage.removeItem('access_token')
       localStorage.removeItem('refresh_token')
       localStorage.removeItem('user_data')
@@ -92,47 +99,64 @@ export const useAuth = () => {
       accessToken: authResponse.access_token,
       refreshToken: authResponse.refresh_token,
       isAuthenticated: true,
-      isLoading: false
+      isLoading: false,
+      error: null
     }
 
-    if (process.client) {
+    if (import.meta.client) {
       localStorage.setItem('access_token', authResponse.access_token)
       localStorage.setItem('refresh_token', authResponse.refresh_token)
       localStorage.setItem('user_data', JSON.stringify(authResponse.user))
     }
   }
 
+  // Set error state
+  const setError = (errorMessage: string) => {
+    authState.value.error = errorMessage
+    authState.value.isLoading = false
+  }
+
+  // Clear error state
+  const clearError = () => {
+    authState.value.error = null
+  }
+
   // Login with Discord
   const signIn = async (provider: string = 'discord', options?: { callbackUrl?: string }) => {
     if (provider !== 'discord') {
-      throw new Error('Only Discord authentication is supported')
+      const errorMsg = 'Only Discord authentication is supported'
+      setError(errorMsg)
+      throw new Error(errorMsg)
     }
 
     authState.value.isLoading = true
+    clearError()
 
     try {
       // Get Discord auth URL from backend
       const response = await $fetch<{ auth_url: string; state: string }>(`${config.public.backendUrl}/auth/login`)
       
       // Store callback URL for after authentication
-      if (options?.callbackUrl && process.client) {
+      if (options?.callbackUrl && import.meta.client) {
         localStorage.setItem('auth_callback_url', options.callbackUrl)
       }
 
       // Redirect to Discord OAuth
-      if (process.client) {
+      if (import.meta.client) {
         window.location.href = response.auth_url
       }
-    } catch (error) {
+    } catch (error: any) {
+      const errorMsg = error?.data?.message || 'Failed to initiate Discord login'
       console.error('Failed to initiate Discord login:', error)
-      authState.value.isLoading = false
-      throw error
+      setError(errorMsg)
+      throw new Error(errorMsg)
     }
   }
 
   // Handle OAuth callback
   const handleCallback = async (code: string, state: string) => {
     authState.value.isLoading = true
+    clearError()
 
     try {
       const authResponse = await $fetch<AuthResponse>(`${config.public.backendUrl}/auth/callback`, {
@@ -143,23 +167,26 @@ export const useAuth = () => {
       storeAuth(authResponse)
 
       // Redirect to callback URL or dashboard
-      const callbackUrl = process.client ? localStorage.getItem('auth_callback_url') : null
-      if (process.client) {
+      const callbackUrl = import.meta.client ? localStorage.getItem('auth_callback_url') : null
+      if (import.meta.client) {
         localStorage.removeItem('auth_callback_url')
       }
 
       await router.push(callbackUrl || '/dashboard')
-    } catch (error) {
+    } catch (error: any) {
+      const errorMsg = error?.data?.message || 'Failed to handle OAuth callback'
       console.error('Failed to handle OAuth callback:', error)
-      authState.value.isLoading = false
-      throw error
+      setError(errorMsg)
+      throw new Error(errorMsg)
     }
   }
 
   // Refresh access token
   const refreshAccessToken = async () => {
     if (!authState.value.refreshToken) {
-      throw new Error('No refresh token available')
+      const errorMsg = 'No refresh token available'
+      setError(errorMsg)
+      throw new Error(errorMsg)
     }
 
     try {
@@ -172,16 +199,19 @@ export const useAuth = () => {
 
       storeAuth(authResponse)
       return authResponse.access_token
-    } catch (error) {
+    } catch (error: any) {
+      const errorMsg = error?.data?.message || 'Failed to refresh token'
       console.error('Failed to refresh token:', error)
       clearAuth()
-      throw error
+      setError(errorMsg)
+      throw new Error(errorMsg)
     }
   }
 
   // Sign out
   const signOut = async () => {
     authState.value.isLoading = true
+    clearError()
 
     try {
       if (authState.value.accessToken) {
@@ -192,8 +222,9 @@ export const useAuth = () => {
           }
         })
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to logout from backend:', error)
+      // Don't set error state for logout failures, just continue with local cleanup
     } finally {
       clearAuth()
       await router.push('/login')
@@ -203,7 +234,9 @@ export const useAuth = () => {
   // Get current user info
   const getCurrentUser = async () => {
     if (!authState.value.accessToken) {
-      throw new Error('No access token available')
+      const errorMsg = 'No access token available'
+      setError(errorMsg)
+      throw new Error(errorMsg)
     }
 
     try {
@@ -214,14 +247,16 @@ export const useAuth = () => {
       })
 
       authState.value.user = response.user
-      if (process.client) {
+      if (import.meta.client) {
         localStorage.setItem('user_data', JSON.stringify(response.user))
       }
 
       return response.user
-    } catch (error) {
+    } catch (error: any) {
+      const errorMsg = error?.data?.message || 'Failed to get current user'
       console.error('Failed to get current user:', error)
-      throw error
+      setError(errorMsg)
+      throw new Error(errorMsg)
     }
   }
 
@@ -265,6 +300,7 @@ export const useAuth = () => {
     user: readonly(user),
     isAuthenticated: readonly(isAuthenticated),
     isLoading: readonly(isLoading),
+    error: readonly(error),
 
     // Methods
     signIn,
@@ -274,6 +310,7 @@ export const useAuth = () => {
     getCurrentUser,
     apiRequest,
     initializeAuth,
-    clearAuth
+    clearAuth,
+    clearError
   }
 }
