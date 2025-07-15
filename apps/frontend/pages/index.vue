@@ -1,6 +1,6 @@
 <script setup lang="ts">
 definePageMeta({
-  auth: false
+  middleware: 'guest'
 })
 onMounted(() => {
   navigateTo('/login')

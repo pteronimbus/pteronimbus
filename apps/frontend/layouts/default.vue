@@ -32,18 +32,21 @@
 import ThemeSwitcher from '~/components/ThemeSwitcher.vue'
 
 const router = useRouter()
-const { data: session, signOut } = useAuth()
+const { user, signOut, initializeAuth } = useAuth()
+
+// Initialize auth state
+initializeAuth()
 
 const userMenuItems = computed(() => [
   [{
-    label: session.value?.user?.email || 'User',
+    label: user.value?.email || user.value?.username || 'User',
     disabled: true
   }],
   [{
     label: 'Sign out',
     icon: 'i-heroicons-arrow-left-on-rectangle',
     click: async () => {
-      await signOut({ callbackUrl: '/login' })
+      await signOut()
     }
   }]
 ])

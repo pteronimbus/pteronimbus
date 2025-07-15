@@ -1,16 +1,18 @@
 <script setup lang="ts">
-const { signIn } = useAuth()
+const { signIn, isLoading } = useAuth()
 
 definePageMeta({
   layout: 'login',
-  auth: {
-    unauthenticatedOnly: true,
-    navigateAuthenticatedTo: '/dashboard'
-  }
+  middleware: 'guest'
 })
 
 const loginWithDiscord = async () => {
-  await signIn('discord', { callbackUrl: '/dashboard' })
+  try {
+    await signIn('discord', { callbackUrl: '/dashboard' })
+  } catch (error) {
+    console.error('Login failed:', error)
+    // You could add a toast notification here
+  }
 }
 </script>
 
@@ -22,7 +24,7 @@ const loginWithDiscord = async () => {
       </template>
 
       <div class="space-y-4">
-        <UButton @click="loginWithDiscord" block color="primary">
+        <UButton @click="loginWithDiscord" block color="primary" :loading="isLoading">
           Login with Discord
         </UButton>
       </div>

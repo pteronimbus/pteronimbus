@@ -1,0 +1,114 @@
+package config
+
+import (
+	"os"
+	"strconv"
+	"time"
+)
+
+// Config holds all configuration for the application
+type Config struct {
+	Server   ServerConfig
+	Discord  DiscordConfig
+	JWT      JWTConfig
+	Redis    RedisConfig
+	Database DatabaseConfig
+}
+
+// ServerConfig holds server configuration
+type ServerConfig struct {
+	Port         string
+	Host         string
+	Environment  string
+	AllowOrigins []string
+}
+
+// DiscordConfig holds Discord OAuth2 configuration
+type DiscordConfig struct {
+	ClientID     string
+	ClientSecret string
+	RedirectURL  string
+	APIBaseURL   string
+}
+
+// JWTConfig holds JWT configuration
+type JWTConfig struct {
+	Secret           string
+	AccessTokenTTL   time.Duration
+	RefreshTokenTTL  time.Duration
+	Issuer           string
+}
+
+// RedisConfig holds Redis configuration
+type RedisConfig struct {
+	Host     string
+	Port     string
+	Password string
+	DB       int
+}
+
+// DatabaseConfig holds database configuration
+type DatabaseConfig struct {
+	Host     string
+	Port     string
+	User     string
+	Password string
+	DBName   string
+	SSLMode  string
+}
+
+// Load loads configuration from environment variables
+func Load() *Config {
+	return &Config{
+		Server: ServerConfig{
+			Port:         getEnv("PORT", "8080"),
+			Host:         getEnv("HOST", "0.0.0.0"),
+			Environment:  getEnv("ENVIRONMENT", "development"),
+			AllowOrigins: []string{getEnv("FRONTEND_URL", "http://localhost:3000")},
+		},
+		Discord: DiscordConfig{
+			ClientID:     getEnv("DISCORD_CLIENT_ID", ""),
+			ClientSecret: getEnv("DISCORD_CLIENT_SECRET", ""),
+			RedirectURL:  getEnv("DISCORD_REDIRECT_URL", "http://localhost:8080/auth/callback"),
+			APIBaseURL:   "https://discord.com/api/v10",
+		},
+		JWT: JWTConfig{
+			Secret:           getEnv("JWT_SECRET", "your-secret-key-change-in-production"),
+			AccessTokenTTL:   time.Hour,
+			RefreshTokenTTL:  time.Hour * 24 * 7, // 7 days
+			Issuer:           getEnv("JWT_ISSUER", "pteronimbus"),
+		},
+		Redis: RedisConfig{
+			Host:     getEnv("REDIS_HOST", "localhost"),
+			Port:     getEnv("REDIS_PORT", "6379"),
+			Password: getEnv("REDIS_PASSWORD", ""),
+			DB:       getEnvAsInt("REDIS_DB", 0),
+		},
+		Database: DatabaseConfig{
+			Host:     getEnv("DB_HOST", "localhost"),
+			Port:     getEnv("DB_PORT", "5432"),
+			User:     getEnv("DB_USER", "postgres"),
+			Password: getEnv("DB_PASSWORD", ""),
+			DBName:   getEnv("DB_NAME", "pteronimbus"),
+			SSLMode:  getEnv("DB_SSLMODE", "disable"),
+		},
+	}
+}
+
+// getEnv gets an environment variable with a fallback value
+func getEnv(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return fallback
+}
+
+// getEnvAsInt gets an environment variable as integer with a fallback value
+func getEnvAsInt(key string, fallback int) int {
+	if value := os.Getenv(key); value != "" {
+		if intVal, err := strconv.Atoi(value); err == nil {
+			return intVal
+		}
+	}
+	return fallback
+}

@@ -2,7 +2,8 @@
 import { h, resolveComponent } from 'vue'
 
 definePageMeta({
-  layout: 'default'
+  layout: 'default',
+  middleware: 'auth'
 })
 
 const { t } = useI18n()

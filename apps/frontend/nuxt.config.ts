@@ -11,14 +11,13 @@ export default defineNuxtConfig({
     '@nuxt/fonts',
     '@nuxt/test-utils/module',
     '@nuxt/ui',
-    '@nuxtjs/i18n',
-    '@sidebase/nuxt-auth'
+    '@nuxtjs/i18n'
   ],
 
-  auth: {
-    origin: 'http://localhost:3000',
-    baseUrl: '/api/auth',
-    enableGlobalAppMiddleware: true
+  runtimeConfig: {
+    public: {
+      backendUrl: process.env.BACKEND_URL || 'http://localhost:8080'
+    }
   },
 
   i18n: {
