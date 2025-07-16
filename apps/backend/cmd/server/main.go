@@ -29,7 +29,20 @@ func main() {
 	redisService := services.NewRedisService(cfg)
 	jwtService := services.NewJWTService(cfg)
 	discordService := services.NewDiscordService(cfg)
+	
+	// Initialize database service
+	dbService, err := services.NewDatabaseService(&cfg.Database)
+	if err != nil {
+		log.Fatalf("Failed to initialize database service: %v", err)
+	}
+	
+	// Run database migrations
+	if err := dbService.AutoMigrate(); err != nil {
+		log.Fatalf("Failed to run database migrations: %v", err)
+	}
+	
 	authService := services.NewAuthService(discordService, jwtService, redisService)
+	tenantService := services.NewTenantService(dbService.GetDB(), discordService)
 
 	// Test Redis connection
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -45,9 +58,11 @@ func main() {
 	// Initialize handlers
 	healthHandler := handlers.NewHealthHandler()
 	authHandler := handlers.NewAuthHandler(authService)
+	tenantHandler := handlers.NewTenantHandler(tenantService, discordService, authService)
 
 	// Initialize middleware
 	authMiddleware := middleware.NewAuthMiddleware(authService)
+	tenantMiddleware := middleware.NewTenantMiddleware(tenantService)
 
 	// Setup Gin router
 	router := gin.Default()
@@ -83,7 +98,32 @@ func main() {
 	apiRoutes := router.Group("/api")
 	apiRoutes.Use(authMiddleware.RequireAuth())
 	{
-		// Placeholder for future API endpoints
+		// Tenant management routes
+		tenantRoutes := apiRoutes.Group("/tenants")
+		{
+			tenantRoutes.GET("", tenantHandler.GetUserTenants)
+			tenantRoutes.GET("/available-guilds", tenantHandler.GetAvailableGuilds)
+			tenantRoutes.POST("", tenantHandler.CreateTenant)
+			tenantRoutes.GET("/:id", tenantHandler.GetTenant)
+			tenantRoutes.PUT("/:id/config", tenantHandler.UpdateTenantConfig)
+			tenantRoutes.POST("/:id/sync", tenantHandler.SyncTenantData)
+			tenantRoutes.DELETE("/:id", tenantHandler.DeleteTenant)
+		}
+
+		// Tenant-scoped routes (require tenant context)
+		tenantScopedRoutes := apiRoutes.Group("/tenant")
+		tenantScopedRoutes.Use(tenantMiddleware.RequireTenant())
+		{
+			// Game server routes will be added here later
+			tenantScopedRoutes.GET("/info", func(c *gin.Context) {
+				tenant, _ := c.Get("tenant")
+				c.JSON(http.StatusOK, gin.H{
+					"tenant": tenant,
+				})
+			})
+		}
+
+		// Test endpoint
 		apiRoutes.GET("/test", func(c *gin.Context) {
 			user, _ := middleware.GetUserFromContext(c)
 			c.JSON(http.StatusOK, gin.H{
@@ -126,6 +166,11 @@ func main() {
 	// Close Redis connection
 	if err := redisService.Close(); err != nil {
 		log.Printf("Error closing Redis connection: %v", err)
+	}
+
+	// Close database connection
+	if err := dbService.Close(); err != nil {
+		log.Printf("Error closing database connection: %v", err)
 	}
 
 	log.Println("Server exited")

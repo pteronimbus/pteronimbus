@@ -312,6 +312,55 @@ func (m *MockDiscordService) RefreshToken(ctx context.Context, refreshToken stri
 	}, nil
 }
 
+func (m *MockDiscordService) GetUserGuilds(ctx context.Context, accessToken string) ([]models.DiscordGuild, error) {
+	return []models.DiscordGuild{
+		{
+			ID:          "guild_123",
+			Name:        "Test Guild",
+			Icon:        "icon_hash",
+			Owner:       true,
+			Permissions: "2147483647",
+		},
+	}, nil
+}
+
+func (m *MockDiscordService) GetGuildRoles(ctx context.Context, botToken, guildID string) ([]models.DiscordRole, error) {
+	return []models.DiscordRole{
+		{
+			ID:       "role_123",
+			Name:     "Test Role",
+			Color:    16711680,
+			Position: 1,
+		},
+	}, nil
+}
+
+func (m *MockDiscordService) GetGuildMembers(ctx context.Context, botToken, guildID string, limit int) ([]models.DiscordMember, error) {
+	return []models.DiscordMember{
+		{
+			User: &models.DiscordUser{
+				ID:       "user_123",
+				Username: "testuser",
+			},
+			Nick:     "TestUser",
+			Roles:    []string{"role_123"},
+			JoinedAt: "2023-01-01T00:00:00Z",
+		},
+	}, nil
+}
+
+func (m *MockDiscordService) GetGuildMember(ctx context.Context, botToken, guildID, userID string) (*models.DiscordMember, error) {
+	return &models.DiscordMember{
+		User: &models.DiscordUser{
+			ID:       userID,
+			Username: "testuser",
+		},
+		Nick:     "TestUser",
+		Roles:    []string{"role_123"},
+		JoinedAt: "2023-01-01T00:00:00Z",
+	}, nil
+}
+
 type MockRedisService struct{}
 
 func (m *MockRedisService) StoreSession(ctx context.Context, session *models.Session) error {
