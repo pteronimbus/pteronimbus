@@ -193,25 +193,25 @@ export const useTenant = () => {
   }
 
   // Update tenant configuration
-  const updateTenantConfig = async (tenantId: string, config: TenantConfig) => {
+  const updateTenantConfig = async (tenantId: string, tenantConfig: TenantConfig) => {
     setLoading(true)
     clearError()
 
     try {
       await apiRequest(`${config.public.backendUrl}/api/tenants/${tenantId}/config`, {
         method: 'PUT',
-        body: config
+        body: tenantConfig
       })
 
       // Update the tenant in the list if it exists
       const tenantIndex = tenantState.value.tenants.findIndex(t => t.id === tenantId)
       if (tenantIndex !== -1) {
-        tenantState.value.tenants[tenantIndex].config = config
+        tenantState.value.tenants[tenantIndex].config = tenantConfig
       }
 
       // Update current tenant if it's the same
       if (tenantState.value.currentTenant?.id === tenantId) {
-        tenantState.value.currentTenant.config = config
+        tenantState.value.currentTenant.config = tenantConfig
         storeCurrentTenant(tenantState.value.currentTenant)
       }
     } catch (error: any) {

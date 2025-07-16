@@ -3,11 +3,12 @@ import { h, resolveComponent } from 'vue'
 
 definePageMeta({
   layout: 'default',
-  middleware: 'auth'
+  middleware: ['auth', 'tenant']
 })
 
 const { t } = useI18n()
 const router = useRouter()
+const { currentTenant, tenantApiRequest } = useTenant()
 
 // Define server interface for better type safety
 interface Server {
@@ -138,7 +139,7 @@ const headerActions = computed(() => [
     label: t('servers.createServer'),
     icon: 'i-heroicons-plus-circle',
     color: 'primary' as const,
-    onClick: () => router.push('/servers/create')
+    onClick: () => router.push(`/tenant/${currentTenant.value?.id}/servers/create`)
   }
 ])
 
@@ -198,11 +199,11 @@ const getActionItems = (server: Server) => [
   [{
     label: t('servers.actions.viewDetails'),
     icon: 'i-heroicons-eye-20-solid',
-    click: () => router.push(`/servers/${server.id}`)
+    click: () => router.push(`/tenant/${currentTenant.value?.id}/servers/${server.id}`)
   }, {
     label: t('servers.actions.console'),
     icon: 'i-heroicons-command-line-20-solid',
-    click: () => router.push(`/servers/${server.id}?tab=console`)
+    click: () => router.push(`/tenant/${currentTenant.value?.id}/servers/${server.id}?tab=console`)
   }],
   [{
     label: server.status === 'online' ? t('servers.actions.stop') : t('servers.actions.start'),
@@ -217,7 +218,7 @@ const getActionItems = (server: Server) => [
   [{
     label: t('servers.actions.edit'),
     icon: 'i-heroicons-pencil-square-20-solid',
-    click: () => router.push(`/servers/${server.id}/edit`)
+    click: () => router.push(`/tenant/${currentTenant.value?.id}/servers/${server.id}/edit`)
   }, {
     label: 'Create Backup',
     icon: 'i-heroicons-archive-box-20-solid',
@@ -278,7 +279,7 @@ const deleteServer = (server: Server) => {
 
 // Navigation functions
 const viewServer = (server: Server) => {
-  router.push(`/servers/${server.id}`)
+  router.push(`/tenant/${currentTenant.value?.id}/servers/${server.id}`)
 }
 
 const columns: any[] = [
@@ -442,7 +443,7 @@ const hasActiveFilters = computed(() => {
           : 'Get started by creating your first server'"
         :action-label="!hasActiveFilters ? t('servers.createServer') : undefined"
         action-icon="i-heroicons-plus-circle"
-        @action="router.push('/servers/create')"
+        @action="router.push(`/tenant/${currentTenant?.id}/servers/create`)"
       />
     </UCard>
   </div>

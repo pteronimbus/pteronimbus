@@ -320,6 +320,8 @@ watch(showCreateTenant, (newValue) => {
 </script>
 
 <style scoped>
+@reference "~/assets/css/main.css";
+
 .tenant-selector {
   @apply relative;
 }

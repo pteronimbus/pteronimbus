@@ -438,7 +438,5 @@ watch(showCreateModal, (newValue) => {
   @apply transition-all duration-200;
 }
 
-.guild-item:hover {
-  @apply shadow-sm;
-}
+
 </style>
