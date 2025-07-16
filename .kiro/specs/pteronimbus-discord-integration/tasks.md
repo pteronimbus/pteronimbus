@@ -3,11 +3,6 @@
 ## Phase 1: Authentication & Core Infrastructure
 
 - [x] 1. Complete Discord OAuth2 Backend Integration
-
-
-
-
-
   - Implement Discord OAuth2 flow in Go backend (replace frontend direct Discord auth)
   - Create backend authentication endpoints (/auth/login, /auth/callback, /auth/refresh)
   - Implement JWT token generation and validation middleware
@@ -18,17 +13,6 @@
   - _Requirements: 1.1, 1.2, 1.4, 1.5_
 
 - [x] 2. Refactor Frontend Authentication Architecture
-
-
-
-
-
-
-
-
-
-
-
   - Remove direct Discord OAuth2 integration from frontend (@sidebase/nuxt-auth)
   - Implement custom authentication composables for Go backend integration
   - Create login flow that redirects to Go backend auth endpoints
@@ -38,16 +22,6 @@
   - _Requirements: 1.1, 1.2, 1.5_
 
 - [x] 3. Implement Multi-Tenant Infrastructure
-
-
-
-
-
-
-
-
-
-
   - Create database schema for tenants, users, and Discord roles
   - Implement Discord server discovery via Discord API
   - Create tenant creation and configuration endpoints
@@ -59,7 +33,14 @@
   - Write unit and integration tests
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.6_
 
-- [ ] 4. Set up Kubernetes Controller Foundation
+- [x] 4. Fix Multi-Tenant Test Suite
+
+
+  - Fix failing dashboard tests that were testing wrong component behavior
+  - Test the moved dashboard functionaltiy under tenant/xxx/dashboard
+  - _Requirements: Testing Requirements 1, 3_
+
+- [ ] 5. Set up Kubernetes Controller Foundation
   - Implement GameTemplate and GameServer CRD definitions
   - Create controller reconciliation loop structure using controller-runtime
   - Implement secure communication between backend and controller
@@ -70,7 +51,7 @@
 
 ## Phase 2: RBAC & Permission System
 
-- [ ] 5. Implement Discord Role-Based Access Control
+- [ ] 6. Implement Discord Role-Based Access Control
   - Create Discord role synchronization service
   - Implement permission mapping system between Discord roles and Pteronimbus permissions
   - Add RBAC enforcement middleware for all API endpoints
@@ -79,7 +60,7 @@
   - Write unit and integration tests
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7_
 
-- [ ] 6. Build Fine-Grained Permission System
+- [ ] 7. Build Fine-Grained Permission System
   - Implement CRUD permission checks for game servers
   - Add permission validation for server control operations
   - Create read-only access controls for logs and metrics
@@ -90,7 +71,7 @@
 
 ## Phase 3: Game Server Management
 
-- [ ] 7. Implement Game Server Templates
+- [ ] 8. Implement Game Server Templates
   - Create GameTemplate CRD handling in controller
   - Implement Pterodactyl egg import and conversion functionality
   - Build template management API endpoints
@@ -99,7 +80,7 @@
   - Write unit and integration tests
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6_
 
-- [ ] 8. Build Game Server Lifecycle Management
+- [ ] 9. Build Game Server Lifecycle Management
   - Implement GameServer CRD creation and management
   - Create server deployment logic in Kubernetes controller
   - Build server management API endpoints (start, stop, restart, delete)
@@ -110,7 +91,7 @@
 
 ## Phase 4: Discord Bot Integration
 
-- [ ] 9. Develop Discord Bot Service
+- [ ] 10. Develop Discord Bot Service
   - Set up Discord bot application and register slash commands
   - Implement bot command handlers with RBAC integration
   - Create server management commands (start, stop, restart, status)
@@ -121,7 +102,7 @@
 
 ## Phase 5: Real-Time Features & Polish
 
-- [ ] 10. Implement Real-Time Updates
+- [ ] 11. Implement Real-Time Updates
   - Add WebSocket connections for live server status updates
   - Create event system for server state changes
   - Implement real-time log streaming functionality
@@ -130,7 +111,7 @@
   - Write unit and integration tests
   - _Requirements: 4.7, 7.3, 7.4_
 
-- [ ] 11. Add Advanced Game Server Features
+- [ ] 12. Add Advanced Game Server Features
   - Implement server resource usage monitoring
   - Create backup and restore functionality for game data
   - Add scheduled task system (automatic restarts, backups)
@@ -143,7 +124,7 @@
 
 Each implementation task must include:
 
-- [ ] 12. Backend API Testing
+- [ ] 13. Backend API Testing
   - Unit tests for all service functions (80% coverage minimum)
   - Integration tests for Discord API interactions
   - API endpoint testing with authentication scenarios
@@ -152,7 +133,7 @@ Each implementation task must include:
   - Write unit and integration tests
   - _Requirements: Testing Requirements 1, 2, 6_
 
-- [ ] 13. Frontend Component Testing
+- [ ] 14. Frontend Component Testing
   - Component tests for all UI components (70% coverage minimum)
   - Integration tests for authentication flows
   - End-to-end tests for critical user workflows
@@ -161,7 +142,7 @@ Each implementation task must include:
   - Write unit and integration tests
   - _Requirements: Testing Requirements 1, 3, 7_
 
-- [ ] 14. Controller Testing
+- [ ] 15. Controller Testing
   - Unit tests for reconciliation logic (80% coverage minimum)
   - Integration tests with test Kubernetes cluster
   - CRD validation and status update testing
@@ -171,8 +152,8 @@ Each implementation task must include:
   - _Requirements: Testing Requirements 1, 4, 9_
 
 ## Deployment & Infrastructure
-
-- [ ] 15. Production Deployment Setup
+3.1
+- [ ] 16. Production Deployment Setup
   - Create Helm charts for all components
   - Implement CI/CD pipeline with automated testing
   - Set up monitoring and observability stack

@@ -2,18 +2,9 @@
   <div class="tenant-selector">
     <!-- Current Tenant Display -->
     <div v-if="currentTenant" class="current-tenant">
-      <UButton
-        variant="ghost"
-        size="lg"
-        class="w-full justify-between"
-        @click="showSelector = !showSelector"
-      >
+      <UButton variant="ghost" size="lg" class="w-full justify-between" @click="showSelector = !showSelector">
         <div class="flex items-center space-x-3">
-          <UAvatar
-            :src="getTenantIcon(currentTenant)"
-            :alt="currentTenant.name"
-            size="sm"
-          />
+          <UAvatar :src="getTenantIcon(currentTenant)" :alt="currentTenant.name" size="sm" />
           <div class="text-left">
             <div class="font-medium">{{ currentTenant.name }}</div>
             <div class="text-xs text-gray-500">Current Server</div>
@@ -25,12 +16,7 @@
 
     <!-- No Tenant Selected -->
     <div v-else class="no-tenant">
-      <UButton
-        variant="outline"
-        size="lg"
-        class="w-full"
-        @click="showSelector = true"
-      >
+      <UButton variant="outline" size="lg" class="w-full" @click="showSelector = true">
         <UIcon name="heroicons:server" class="w-4 h-4 mr-2" />
         Select Server
       </UButton>
@@ -42,12 +28,7 @@
         <template #header>
           <div class="flex items-center justify-between">
             <h3 class="text-lg font-semibold">Select Server</h3>
-            <UButton
-              variant="ghost"
-              size="sm"
-              icon="heroicons:x-mark"
-              @click="showSelector = false"
-            />
+            <UButton variant="ghost" size="sm" icon="heroicons:x-mark" @click="showSelector = false" />
           </div>
         </template>
 
@@ -69,26 +50,12 @@
 
           <!-- Tenant List -->
           <div v-else-if="tenants.length > 0" class="space-y-2">
-            <div
-              v-for="tenant in tenants"
-              :key="tenant.id"
-              class="tenant-item"
-            >
-              <UButton
-                variant="ghost"
-                size="lg"
-                class="w-full justify-start"
-                :class="{
-                  'bg-primary-50 border-primary-200': currentTenant?.id === tenant.id
-                }"
-                @click="selectTenant(tenant)"
-              >
+            <div v-for="tenant in tenants" :key="tenant.id" class="tenant-item">
+              <UButton variant="ghost" size="lg" class="w-full justify-start" :class="{
+                'bg-primary-50 border-primary-200': currentTenant?.id === tenant.id
+              }" @click="selectTenant(tenant)">
                 <div class="flex items-center space-x-3">
-                  <UAvatar
-                    :src="getTenantIcon(tenant)"
-                    :alt="tenant.name"
-                    size="sm"
-                  />
+                  <UAvatar :src="getTenantIcon(tenant)" :alt="tenant.name" size="sm" />
                   <div class="text-left">
                     <div class="font-medium">{{ tenant.name }}</div>
                     <div class="text-xs text-gray-500">
@@ -96,11 +63,8 @@
                     </div>
                   </div>
                 </div>
-                <UIcon
-                  v-if="currentTenant?.id === tenant.id"
-                  name="heroicons:check-circle"
-                  class="w-4 h-4 text-primary-500 ml-auto"
-                />
+                <UIcon v-if="currentTenant?.id === tenant.id" name="heroicons:check-circle"
+                  class="w-4 h-4 text-primary-500 ml-auto" />
               </UButton>
             </div>
           </div>
@@ -120,11 +84,7 @@
 
           <!-- Create Tenant Button -->
           <div v-if="tenants.length > 0" class="border-t pt-4">
-            <UButton
-              variant="outline"
-              class="w-full"
-              @click="showCreateTenant = true"
-            >
+            <UButton variant="outline" class="w-full" @click="showCreateTenant = true">
               <UIcon name="heroicons:plus" class="w-4 h-4 mr-2" />
               Add New Server
             </UButton>
@@ -139,12 +99,7 @@
         <template #header>
           <div class="flex items-center justify-between">
             <h3 class="text-lg font-semibold">Add Discord Server</h3>
-            <UButton
-              variant="ghost"
-              size="sm"
-              icon="heroicons:x-mark"
-              @click="showCreateTenant = false"
-            />
+            <UButton variant="ghost" size="sm" icon="heroicons:x-mark" @click="showCreateTenant = false" />
           </div>
         </template>
 
@@ -160,24 +115,11 @@
             <p class="text-sm text-gray-600 mb-4">
               Select a Discord server where you have manage permissions:
             </p>
-            <div
-              v-for="guild in availableGuilds"
-              :key="guild.id"
-              class="guild-item"
-            >
-              <UButton
-                variant="ghost"
-                size="lg"
-                class="w-full justify-start"
-                @click="createTenantFromGuild(guild)"
-                :loading="creatingTenant"
-              >
+            <div v-for="guild in availableGuilds" :key="guild.id" class="guild-item">
+              <UButton variant="ghost" size="lg" class="w-full justify-start" @click="createTenantFromGuild(guild)"
+                :loading="creatingTenant">
                 <div class="flex items-center space-x-3">
-                  <UAvatar
-                    :src="getGuildIcon(guild)"
-                    :alt="guild.name"
-                    size="sm"
-                  />
+                  <UAvatar :src="getGuildIcon(guild)" :alt="guild.name" size="sm" />
                   <div class="text-left">
                     <div class="font-medium">{{ guild.name }}</div>
                     <div class="text-xs text-gray-500">
@@ -217,11 +159,11 @@ const props = withDefaults(defineProps<Props>(), {
   size: 'md'
 })
 
-const { 
-  tenants, 
-  currentTenant, 
-  availableGuilds, 
-  isLoading, 
+const {
+  tenants,
+  currentTenant,
+  availableGuilds,
+  isLoading,
   error,
   fetchUserTenants,
   fetchAvailableGuilds,
@@ -276,7 +218,7 @@ const createTenantFromGuild = async (guild: any) => {
     const newTenant = await createTenant(guild.id)
     showCreateTenant.value = false
     showSelector.value = false
-    
+
     // Show success notification
     const toast = useToast()
     toast.add({
