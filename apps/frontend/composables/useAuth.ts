@@ -66,10 +66,13 @@ export const useAuth = () => {
             isLoading: false,
             error: null
           }
+          console.log('Auth state initialized from localStorage:', { isAuthenticated: true, user: user.username })
         } catch (error) {
           console.error('Failed to parse stored user data:', error)
           clearAuth()
         }
+      } else {
+        console.log('No stored auth data found')
       }
     }
   }
@@ -165,6 +168,9 @@ export const useAuth = () => {
       })
 
       storeAuth(authResponse)
+
+      // Wait a tick to ensure state is properly set
+      await nextTick()
 
       // Redirect to callback URL or dashboard
       const callbackUrl = import.meta.client ? localStorage.getItem('auth_callback_url') : null
@@ -295,6 +301,22 @@ export const useAuth = () => {
     }
   }
 
+  // Handle tokens from URL parameters (for backend redirect flow)
+  const handleTokensFromUrl = async (accessToken: string, refreshToken: string, expiresIn: number) => {
+    const authResponse: AuthResponse = {
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      expires_in: expiresIn,
+      user: null as any // Will be set after getCurrentUser call
+    }
+
+    storeAuth(authResponse)
+    
+    // Get user info now that we have tokens
+    const user = await getCurrentUser()
+    return user
+  }
+
   return {
     // State
     user: readonly(user),
@@ -306,6 +328,7 @@ export const useAuth = () => {
     signIn,
     signOut,
     handleCallback,
+    handleTokensFromUrl,
     refreshAccessToken,
     getCurrentUser,
     apiRequest,

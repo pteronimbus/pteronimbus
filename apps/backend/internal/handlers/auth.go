@@ -1,8 +1,11 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -11,15 +14,46 @@ import (
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/services"
 )
 
+// stateEntry represents a stored OAuth state with expiration
+type stateEntry struct {
+	value     string
+	expiresAt time.Time
+}
+
 // AuthHandler handles authentication endpoints
 type AuthHandler struct {
 	authService services.AuthServiceInterface
+	stateStore  map[string]stateEntry
+	stateMutex  sync.RWMutex
 }
 
 // NewAuthHandler creates a new auth handler
 func NewAuthHandler(authService services.AuthServiceInterface) *AuthHandler {
-	return &AuthHandler{
+	h := &AuthHandler{
 		authService: authService,
+		stateStore:  make(map[string]stateEntry),
+	}
+	
+	// Start cleanup goroutine for expired states
+	go h.cleanupExpiredStates()
+	
+	return h
+}
+
+// cleanupExpiredStates periodically removes expired state entries
+func (h *AuthHandler) cleanupExpiredStates() {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+	
+	for range ticker.C {
+		h.stateMutex.Lock()
+		now := time.Now()
+		for state, entry := range h.stateStore {
+			if now.After(entry.expiresAt) {
+				delete(h.stateStore, state)
+			}
+		}
+		h.stateMutex.Unlock()
 	}
 }
 
@@ -28,8 +62,13 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	// Generate state parameter for CSRF protection
 	state := uuid.New().String()
 	
-	// Store state in session/cookie for validation (simplified for now)
-	c.SetCookie("oauth_state", state, 600, "/", "", false, true) // 10 minutes
+	// Store state in memory with expiration (10 minutes)
+	h.stateMutex.Lock()
+	h.stateStore[state] = stateEntry{
+		value:     state,
+		expiresAt: time.Now().Add(10 * time.Minute),
+	}
+	h.stateMutex.Unlock()
 
 	// Get Discord authorization URL
 	authURL := h.authService.GetAuthURL(state)
@@ -63,32 +102,62 @@ func (h *AuthHandler) Callback(c *gin.Context) {
 	}
 
 	// Validate state parameter (CSRF protection)
-	storedState, err := c.Cookie("oauth_state")
-	if err != nil || storedState != state {
+	h.stateMutex.RLock()
+	storedEntry, exists := h.stateStore[state]
+	h.stateMutex.RUnlock()
+	
+	if !exists {
 		c.JSON(http.StatusBadRequest, models.APIError{
 			Code:    "VALIDATION_ERROR",
 			Message: "Invalid state parameter",
-		})
-		return
-	}
-
-	// Clear the state cookie
-	c.SetCookie("oauth_state", "", -1, "/", "", false, true)
-
-	// Handle the callback
-	authResponse, err := h.authService.HandleCallback(c.Request.Context(), code)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.APIError{
-			Code:    "DISCORD_API_ERROR",
-			Message: "Failed to authenticate with Discord",
 			Details: map[string]interface{}{
-				"error": err.Error(),
+				"error": "State not found or expired",
+				"received_state": state,
 			},
 		})
 		return
 	}
+	
+	// Check if state has expired
+	if time.Now().After(storedEntry.expiresAt) {
+		// Clean up expired state
+		h.stateMutex.Lock()
+		delete(h.stateStore, state)
+		h.stateMutex.Unlock()
+		
+		c.JSON(http.StatusBadRequest, models.APIError{
+			Code:    "VALIDATION_ERROR",
+			Message: "Invalid state parameter",
+			Details: map[string]interface{}{
+				"error": "State expired",
+				"received_state": state,
+			},
+		})
+		return
+	}
+	
+	// Remove the used state to prevent replay attacks
+	h.stateMutex.Lock()
+	delete(h.stateStore, state)
+	h.stateMutex.Unlock()
 
-	c.JSON(http.StatusOK, authResponse)
+	// Handle the callback
+	authResponse, err := h.authService.HandleCallback(c.Request.Context(), code)
+	if err != nil {
+		// Redirect to login page with error message
+		frontendURL := h.getFrontendURL(c)
+		c.Redirect(http.StatusTemporaryRedirect, frontendURL+"/login?error=discord_auth_failed")
+		return
+	}
+
+	// Redirect to frontend callback with tokens as query parameters
+	frontendURL := h.getFrontendURL(c)
+	callbackURL := frontendURL + "/auth/callback" +
+		"?access_token=" + authResponse.AccessToken +
+		"&refresh_token=" + authResponse.RefreshToken +
+		"&expires_in=" + fmt.Sprintf("%d", authResponse.ExpiresIn)
+	
+	c.Redirect(http.StatusTemporaryRedirect, callbackURL)
 }
 
 // Refresh refreshes access token using refresh token
@@ -183,4 +252,10 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Successfully logged out",
 	})
+}
+
+// getFrontendURL returns the frontend URL from configuration
+func (h *AuthHandler) getFrontendURL(c *gin.Context) string {
+	// Default to localhost for development
+	return "http://localhost:3000"
 }

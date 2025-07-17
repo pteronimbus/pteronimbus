@@ -1,6 +1,7 @@
 <script setup lang="ts">
-const { handleCallback, error: authError, clearError } = useAuth()
+const { handleTokensFromUrl, error: authError, clearError } = useAuth()
 const route = useRoute()
+const router = useRouter()
 
 definePageMeta({
   layout: 'login'
@@ -15,19 +16,32 @@ const error = computed(() => localError.value || authError.value)
 onMounted(async () => {
   try {
     clearError()
-    const code = route.query.code as string
-    const state = route.query.state as string
+    
+    // Check for OAuth error from Discord
     const errorParam = route.query.error as string
-
     if (errorParam) {
       throw new Error(`OAuth error: ${errorParam}`)
     }
 
-    if (!code || !state) {
-      throw new Error('Missing authorization code or state parameter')
+    // Get tokens from query parameters (sent by backend)
+    const accessToken = route.query.access_token as string
+    const refreshToken = route.query.refresh_token as string
+    const expiresIn = route.query.expires_in as string
+
+    if (!accessToken || !refreshToken) {
+      throw new Error('Missing authentication tokens')
     }
 
-    await handleCallback(code, state)
+    // Handle tokens and get user info
+    await handleTokensFromUrl(accessToken, refreshToken, parseInt(expiresIn) || 3600)
+
+    // Redirect to callback URL or dashboard
+    const callbackUrl = import.meta.client ? localStorage.getItem('auth_callback_url') : null
+    if (import.meta.client) {
+      localStorage.removeItem('auth_callback_url')
+    }
+
+    await router.push(callbackUrl || '/dashboard')
   } catch (err: any) {
     console.error('OAuth callback error:', err)
     localError.value = err.message || 'Authentication failed'
