@@ -71,12 +71,14 @@ func (a *AuthService) HandleCallback(ctx context.Context, code string) (*models.
 
 	// Store session in Redis
 	session := &models.Session{
-		ID:           sessionID,
-		UserID:       user.ID,
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		ExpiresAt:    refreshExpiresAt, // Use refresh token expiry for session
-		CreatedAt:    time.Now(),
+		ID:                  sessionID,
+		UserID:              user.ID,
+		AccessToken:         accessToken,
+		RefreshToken:        refreshToken,
+		DiscordAccessToken:  discordToken.AccessToken,
+		DiscordRefreshToken: discordToken.RefreshToken,
+		ExpiresAt:           refreshExpiresAt, // Use refresh token expiry for session
+		CreatedAt:           time.Now(),
 	}
 
 	err = a.redisService.StoreSession(ctx, session)
@@ -127,7 +129,7 @@ func (a *AuthService) RefreshToken(ctx context.Context, refreshTokenString strin
 		return nil, fmt.Errorf("failed to generate new access token: %w", err)
 	}
 
-	// Update session with new access token
+	// Update session with new access token (keep Discord tokens unchanged)
 	session.AccessToken = newAccessToken
 	err = a.redisService.StoreSession(ctx, session)
 	if err != nil {
@@ -169,6 +171,11 @@ func (a *AuthService) ValidateAccessToken(ctx context.Context, accessToken strin
 		DiscordUserID: claims.DiscordUserID,
 		Username:      claims.Username,
 	}, nil
+}
+
+// ParseTokenClaims parses JWT token and returns claims without validation
+func (a *AuthService) ParseTokenClaims(accessToken string) (*models.JWTClaims, error) {
+	return a.jwtService.ValidateToken(accessToken)
 }
 
 // Logout invalidates a session

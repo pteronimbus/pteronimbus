@@ -150,19 +150,59 @@ func (m *MockAuthServiceForTenant) ValidateAccessToken(ctx context.Context, acce
 	return args.Get(0).(*models.User), args.Error(1)
 }
 
+func (m *MockAuthServiceForTenant) ParseTokenClaims(accessToken string) (*models.JWTClaims, error) {
+	args := m.Called(accessToken)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.JWTClaims), args.Error(1)
+}
+
 func (m *MockAuthServiceForTenant) Logout(ctx context.Context, accessToken string) error {
 	args := m.Called(ctx, accessToken)
 	return args.Error(0)
 }
 
-func setupTenantHandler() (*TenantHandler, *MockTenantService, *MockDiscordServiceForHandler, *MockAuthServiceForTenant) {
+// MockRedisServiceForTenant is a mock for the Redis service used in tenant handlers
+type MockRedisServiceForTenant struct {
+	mock.Mock
+}
+
+func (m *MockRedisServiceForTenant) StoreSession(ctx context.Context, session *models.Session) error {
+	args := m.Called(ctx, session)
+	return args.Error(0)
+}
+
+func (m *MockRedisServiceForTenant) GetSession(ctx context.Context, sessionID string) (*models.Session, error) {
+	args := m.Called(ctx, sessionID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.Session), args.Error(1)
+}
+
+func (m *MockRedisServiceForTenant) GetSessionByRefreshToken(ctx context.Context, refreshToken string) (*models.Session, error) {
+	args := m.Called(ctx, refreshToken)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.Session), args.Error(1)
+}
+
+func (m *MockRedisServiceForTenant) DeleteSession(ctx context.Context, sessionID string) error {
+	args := m.Called(ctx, sessionID)
+	return args.Error(0)
+}
+
+func setupTenantHandler() (*TenantHandler, *MockTenantService, *MockDiscordServiceForHandler, *MockAuthServiceForTenant, *MockRedisServiceForTenant) {
 	mockTenantService := new(MockTenantService)
 	mockDiscordService := new(MockDiscordServiceForHandler)
 	mockAuthService := new(MockAuthServiceForTenant)
+	mockRedisService := new(MockRedisServiceForTenant)
 	
-	handler := NewTenantHandler(mockTenantService, mockDiscordService, mockAuthService)
+	handler := NewTenantHandler(mockTenantService, mockDiscordService, mockAuthService, mockRedisService)
 	
-	return handler, mockTenantService, mockDiscordService, mockAuthService
+	return handler, mockTenantService, mockDiscordService, mockAuthService, mockRedisService
 }
 
 func setupGinContext(method, path string, body interface{}) (*gin.Context, *httptest.ResponseRecorder) {
@@ -184,7 +224,7 @@ func setupGinContext(method, path string, body interface{}) (*gin.Context, *http
 }
 
 func TestTenantHandler_GetUserTenants(t *testing.T) {
-	handler, mockTenantService, _, _ := setupTenantHandler()
+	handler, mockTenantService, _, _, _ := setupTenantHandler()
 	
 	// Setup test data
 	user := &models.User{
@@ -230,7 +270,7 @@ func TestTenantHandler_GetUserTenants(t *testing.T) {
 }
 
 func TestTenantHandler_GetUserTenants_Unauthorized(t *testing.T) {
-	handler, _, _, _ := setupTenantHandler()
+	handler, _, _, _, _ := setupTenantHandler()
 	
 	c, w := setupGinContext("GET", "/api/tenants", nil)
 	// Don't set user in context
@@ -248,7 +288,7 @@ func TestTenantHandler_GetUserTenants_Unauthorized(t *testing.T) {
 }
 
 func TestTenantHandler_CreateTenant(t *testing.T) {
-	handler, mockTenantService, mockDiscordService, _ := setupTenantHandler()
+	handler, mockTenantService, mockDiscordService, _, mockRedisService := setupTenantHandler()
 	
 	// Setup test data
 	user := &models.User{
@@ -284,8 +324,14 @@ func TestTenantHandler_CreateTenant(t *testing.T) {
 	c.Set("user", user)
 	c.Set("session_id", "session-123")
 	
-	// The handler uses a placeholder getSessionFromRedis that returns mock_access_token
-	mockDiscordService.On("GetUserGuilds", mock.Anything, "mock_access_token").Return(discordGuilds, nil)
+	// Mock Redis session retrieval
+	mockSession := &models.Session{
+		ID:                 "session-123",
+		AccessToken:        "jwt_access_token",
+		DiscordAccessToken: "discord_access_token",
+	}
+	mockRedisService.On("GetSession", mock.Anything, "session-123").Return(mockSession, nil)
+	mockDiscordService.On("GetUserGuilds", mock.Anything, "discord_access_token").Return(discordGuilds, nil)
 	mockTenantService.On("CheckManageServerPermission", &discordGuilds[0]).Return(true)
 	mockTenantService.On("CreateTenant", mock.Anything, &discordGuilds[0], user.ID).Return(expectedTenant, nil)
 	mockTenantService.On("AddUserToTenant", mock.Anything, user.ID, expectedTenant.ID, []string{"owner"}, []string{"*"}).Return(nil)
@@ -309,7 +355,7 @@ func TestTenantHandler_CreateTenant(t *testing.T) {
 }
 
 func TestTenantHandler_CreateTenant_InvalidGuild(t *testing.T) {
-	handler, _, mockDiscordService, _ := setupTenantHandler()
+	handler, _, mockDiscordService, _, mockRedisService := setupTenantHandler()
 	
 	user := &models.User{
 		ID:            "user-123",
@@ -332,8 +378,14 @@ func TestTenantHandler_CreateTenant_InvalidGuild(t *testing.T) {
 	c.Set("user", user)
 	c.Set("session_id", "session-123")
 	
-	// The handler uses a placeholder getSessionFromRedis that returns mock_access_token
-	mockDiscordService.On("GetUserGuilds", mock.Anything, "mock_access_token").Return(discordGuilds, nil)
+	// Mock Redis session retrieval
+	mockSession := &models.Session{
+		ID:                 "session-123",
+		AccessToken:        "jwt_access_token",
+		DiscordAccessToken: "discord_access_token",
+	}
+	mockRedisService.On("GetSession", mock.Anything, "session-123").Return(mockSession, nil)
+	mockDiscordService.On("GetUserGuilds", mock.Anything, "discord_access_token").Return(discordGuilds, nil)
 	
 	// Execute
 	handler.CreateTenant(c)
@@ -350,7 +402,7 @@ func TestTenantHandler_CreateTenant_InvalidGuild(t *testing.T) {
 }
 
 func TestTenantHandler_GetTenant(t *testing.T) {
-	handler, mockTenantService, _, _ := setupTenantHandler()
+	handler, mockTenantService, _, _, _ := setupTenantHandler()
 	
 	user := &models.User{
 		ID:            "user-123",
@@ -392,7 +444,7 @@ func TestTenantHandler_GetTenant(t *testing.T) {
 }
 
 func TestTenantHandler_GetTenant_Forbidden(t *testing.T) {
-	handler, mockTenantService, _, _ := setupTenantHandler()
+	handler, mockTenantService, _, _, _ := setupTenantHandler()
 	
 	user := &models.User{
 		ID:            "user-123",
@@ -423,7 +475,7 @@ func TestTenantHandler_GetTenant_Forbidden(t *testing.T) {
 }
 
 func TestTenantHandler_UpdateTenantConfig(t *testing.T) {
-	handler, mockTenantService, _, _ := setupTenantHandler()
+	handler, mockTenantService, _, _, _ := setupTenantHandler()
 	
 	user := &models.User{
 		ID:            "user-123",
@@ -467,7 +519,7 @@ func TestTenantHandler_UpdateTenantConfig(t *testing.T) {
 }
 
 func TestTenantHandler_DeleteTenant(t *testing.T) {
-	handler, mockTenantService, _, _ := setupTenantHandler()
+	handler, mockTenantService, _, _, _ := setupTenantHandler()
 	
 	user := &models.User{
 		ID:            "user-123",
@@ -506,7 +558,7 @@ func TestTenantHandler_DeleteTenant(t *testing.T) {
 }
 
 func TestTenantHandler_DeleteTenant_NotOwner(t *testing.T) {
-	handler, mockTenantService, _, _ := setupTenantHandler()
+	handler, mockTenantService, _, _, _ := setupTenantHandler()
 	
 	user := &models.User{
 		ID:            "user-123",

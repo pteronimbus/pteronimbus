@@ -1,5 +1,5 @@
-export default defineNuxtRouteMiddleware((to) => {
-  const { currentTenant, initializeTenant } = useTenant()
+export default defineNuxtRouteMiddleware(async (to) => {
+  const { currentTenant, initializeTenant, fetchTenant, storeCurrentTenant } = useTenant()
   
   // Initialize tenant state from localStorage
   initializeTenant()
@@ -19,15 +19,21 @@ export default defineNuxtRouteMiddleware((to) => {
     
     if (currentTenant.value && currentTenant.value.id !== tenantIdFromRoute) {
       // Tenant ID in URL doesn't match current tenant
-      // This could happen if user bookmarked a URL or shared a link
-      // We should either switch to the tenant or redirect to tenant selection
-      console.warn('Tenant ID mismatch:', {
+      console.log('Tenant ID mismatch, attempting to switch tenant:', {
         current: currentTenant.value.id,
         route: tenantIdFromRoute
       })
       
-      // For now, redirect to tenant selection
-      return navigateTo('/tenants')
+      try {
+        // Try to fetch and switch to the tenant from the route
+        const tenant = await fetchTenant(tenantIdFromRoute)
+        storeCurrentTenant(tenant)
+        console.log('Successfully switched to tenant:', tenant.name)
+      } catch (error) {
+        console.error('Failed to switch tenant:', error)
+        // If we can't fetch the tenant, redirect to tenant selection
+        return navigateTo('/tenants')
+      }
     }
   }
 })

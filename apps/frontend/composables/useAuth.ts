@@ -280,15 +280,31 @@ export const useAuth = () => {
       }
     }
 
+    console.log('Making API request:', {
+      url,
+      method: options.method || 'GET',
+      hasToken: !!authState.value.accessToken,
+      tokenLength: authState.value.accessToken?.length
+    })
+
     try {
       return await $fetch<T>(url, requestOptions)
     } catch (error: any) {
+      console.error('API request failed:', {
+        url,
+        status: error.status,
+        statusText: error.statusText,
+        data: error.data
+      })
+      
       // If token expired, try to refresh
       if (error.status === 401 && authState.value.refreshToken) {
+        console.log('Attempting token refresh...')
         try {
           await refreshAccessToken()
           // Retry the request with new token
           requestOptions.headers.Authorization = `Bearer ${authState.value.accessToken}`
+          console.log('Retrying request with new token...')
           return await $fetch<T>(url, requestOptions)
         } catch (refreshError) {
           console.error('Failed to refresh token:', refreshError)

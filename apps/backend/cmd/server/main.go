@@ -58,7 +58,7 @@ func main() {
 	// Initialize handlers
 	healthHandler := handlers.NewHealthHandler()
 	authHandler := handlers.NewAuthHandler(authService)
-	tenantHandler := handlers.NewTenantHandler(tenantService, discordService, authService)
+	tenantHandler := handlers.NewTenantHandler(tenantService, discordService, authService, redisService)
 
 	// Initialize middleware
 	authMiddleware := middleware.NewAuthMiddleware(authService)

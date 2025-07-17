@@ -13,14 +13,16 @@ type TenantHandler struct {
 	tenantService  services.TenantServiceInterface
 	discordService services.DiscordServiceInterface
 	authService    services.AuthServiceInterface
+	redisService   services.RedisServiceInterface
 }
 
 // NewTenantHandler creates a new tenant handler
-func NewTenantHandler(tenantService services.TenantServiceInterface, discordService services.DiscordServiceInterface, authService services.AuthServiceInterface) *TenantHandler {
+func NewTenantHandler(tenantService services.TenantServiceInterface, discordService services.DiscordServiceInterface, authService services.AuthServiceInterface, redisService services.RedisServiceInterface) *TenantHandler {
 	return &TenantHandler{
 		tenantService:  tenantService,
 		discordService: discordService,
 		authService:    authService,
+		redisService:   redisService,
 	}
 }
 
@@ -75,19 +77,31 @@ func (th *TenantHandler) GetAvailableGuilds(c *gin.Context) {
 		return
 	}
 
-	// For now, we'll need to get the access token from Redis
-	// This is a simplified approach - in production, you might want to store this differently
 	session, err := th.getSessionFromRedis(c, sessionID.(string))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, models.APIError{
 			Code:    "UNAUTHORIZED",
 			Message: "Failed to get session",
+			Details: map[string]interface{}{"error": err.Error()},
+		})
+		return
+	}
+
+	// Check if Discord access token exists
+	if session.DiscordAccessToken == "" {
+		c.JSON(http.StatusUnauthorized, models.APIError{
+			Code:    "DISCORD_TOKEN_MISSING",
+			Message: "Discord access token not found in session. Please log in again.",
+			Details: map[string]interface{}{
+				"session_id": sessionID,
+				"reason": "Session was created before Discord token integration. Please re-authenticate.",
+			},
 		})
 		return
 	}
 
 	// Get user's Discord guilds
-	guilds, err := th.discordService.GetUserGuilds(c.Request.Context(), session.AccessToken)
+	guilds, err := th.discordService.GetUserGuilds(c.Request.Context(), session.DiscordAccessToken)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.APIError{
 			Code:    "DISCORD_API_ERROR",
@@ -151,12 +165,26 @@ func (th *TenantHandler) CreateTenant(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, models.APIError{
 			Code:    "UNAUTHORIZED",
 			Message: "Failed to get session",
+			Details: map[string]interface{}{"error": err.Error()},
+		})
+		return
+	}
+
+	// Check if Discord access token exists
+	if session.DiscordAccessToken == "" {
+		c.JSON(http.StatusUnauthorized, models.APIError{
+			Code:    "DISCORD_TOKEN_MISSING",
+			Message: "Discord access token not found in session. Please log in again.",
+			Details: map[string]interface{}{
+				"session_id": sessionID,
+				"reason": "Session was created before Discord token integration. Please re-authenticate.",
+			},
 		})
 		return
 	}
 
 	// Get user's Discord guilds to verify they have access
-	guilds, err := th.discordService.GetUserGuilds(c.Request.Context(), session.AccessToken)
+	guilds, err := th.discordService.GetUserGuilds(c.Request.Context(), session.DiscordAccessToken)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.APIError{
 			Code:    "DISCORD_API_ERROR",
@@ -466,13 +494,7 @@ func (th *TenantHandler) DeleteTenant(c *gin.Context) {
 	})
 }
 
-// Helper function to get session from Redis (placeholder implementation)
+// Helper function to get session from Redis
 func (th *TenantHandler) getSessionFromRedis(c *gin.Context, sessionID string) (*models.Session, error) {
-	// This is a placeholder implementation
-	// In a real implementation, you would get the session from Redis
-	// For now, we'll return a mock session
-	return &models.Session{
-		ID:          sessionID,
-		AccessToken: "mock_access_token",
-	}, nil
+	return th.redisService.GetSession(c.Request.Context(), sessionID)
 }

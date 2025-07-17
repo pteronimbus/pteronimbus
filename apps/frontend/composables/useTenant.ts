@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 
 interface Tenant {
   id: string
@@ -135,6 +135,20 @@ export const useTenant = () => {
       tenantState.value.availableGuilds = response.guilds
       return response.guilds
     } catch (error: any) {
+      // Handle specific Discord token missing error
+      if (error?.data?.code === 'DISCORD_TOKEN_MISSING') {
+        const errorMsg = 'Please log in again to refresh your Discord connection'
+        console.error('Discord token missing, user needs to re-authenticate:', error)
+        setError(errorMsg)
+        
+        // Redirect to login after a short delay
+        setTimeout(() => {
+          window.location.href = '/login?reason=discord_token_expired'
+        }, 2000)
+        
+        throw new Error(errorMsg)
+      }
+      
       const errorMsg = error?.data?.message || 'Failed to fetch available guilds'
       console.error('Failed to fetch available guilds:', error)
       setError(errorMsg)
@@ -272,7 +286,11 @@ export const useTenant = () => {
 
   // Switch to a different tenant
   const switchTenant = async (tenant: Tenant) => {
+    // Store the tenant first
     storeCurrentTenant(tenant)
+    
+    // Wait a tick to ensure the state is updated
+    await nextTick()
     
     // Navigate to tenant dashboard
     await router.push(`/tenant/${tenant.id}/dashboard`)

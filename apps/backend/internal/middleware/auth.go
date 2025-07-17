@@ -49,7 +49,7 @@ func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 
 		token := parts[1]
 
-		// Validate token
+		// Validate token and get user
 		user, err := m.authService.ValidateAccessToken(context.Background(), token)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, models.APIError{
@@ -63,10 +63,26 @@ func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 			return
 		}
 
-		// Store user in context
+		// We need to parse the token again to get the session ID
+		// This is not ideal but necessary for the current architecture
+		claims, err := m.authService.ParseTokenClaims(token)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, models.APIError{
+				Code:    "UNAUTHORIZED",
+				Message: "Failed to parse token claims",
+				Details: map[string]interface{}{
+					"error": err.Error(),
+				},
+			})
+			c.Abort()
+			return
+		}
+
+		// Store user and session info in context
 		c.Set("user", user)
 		c.Set("user_id", user.ID)
 		c.Set("discord_user_id", user.DiscordUserID)
+		c.Set("session_id", claims.SessionID)
 
 		c.Next()
 	}

@@ -25,14 +25,16 @@ type User struct {
 
 // Session represents a user session
 type Session struct {
-	ID           string         `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
-	UserID       string         `json:"user_id" gorm:"not null;index"`
-	AccessToken  string         `json:"access_token" gorm:"not null"`
-	RefreshToken string         `json:"refresh_token" gorm:"not null;uniqueIndex"`
-	ExpiresAt    time.Time      `json:"expires_at" gorm:"not null"`
-	CreatedAt    time.Time      `json:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at"`
-	DeletedAt    gorm.DeletedAt `json:"-" gorm:"index"`
+	ID                  string         `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
+	UserID              string         `json:"user_id" gorm:"not null;index"`
+	AccessToken         string         `json:"access_token" gorm:"not null"`
+	RefreshToken        string         `json:"refresh_token" gorm:"not null;uniqueIndex"`
+	DiscordAccessToken  string         `json:"discord_access_token" gorm:"not null"`
+	DiscordRefreshToken string         `json:"discord_refresh_token" gorm:"not null"`
+	ExpiresAt           time.Time      `json:"expires_at" gorm:"not null"`
+	CreatedAt           time.Time      `json:"created_at"`
+	UpdatedAt           time.Time      `json:"updated_at"`
+	DeletedAt           gorm.DeletedAt `json:"-" gorm:"index"`
 
 	// Relationships
 	User User `json:"user,omitempty" gorm:"foreignKey:UserID"`

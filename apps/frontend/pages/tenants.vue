@@ -1,12 +1,12 @@
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
     <div class="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
       <!-- Header -->
       <div class="text-center mb-12">
-        <h1 class="text-3xl font-bold text-gray-900 mb-4">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4">
           Select Discord Server
         </h1>
-        <p class="text-lg text-gray-600 max-w-2xl mx-auto">
+        <p class="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
           Choose a Discord server to manage game servers for your community.
           You can switch between servers anytime.
         </p>
@@ -15,14 +15,14 @@
       <!-- Loading State -->
       <div v-if="isLoading" class="text-center py-12">
         <UIcon name="heroicons:arrow-path" class="w-8 h-8 animate-spin mx-auto mb-4 text-primary-500" />
-        <p class="text-gray-600">Loading your Discord servers...</p>
+        <p class="text-gray-600 dark:text-gray-400">Loading your Discord servers...</p>
       </div>
 
       <!-- Error State -->
       <div v-else-if="error" class="text-center py-12">
         <UIcon name="heroicons:exclamation-triangle" class="w-12 h-12 text-red-500 mx-auto mb-4" />
-        <h3 class="text-lg font-medium text-gray-900 mb-2">Failed to Load Servers</h3>
-        <p class="text-gray-600 mb-6">{{ error }}</p>
+        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Failed to Load Servers</h3>
+        <p class="text-gray-600 dark:text-gray-400 mb-6">{{ error }}</p>
         <UButton @click="loadTenants" variant="outline">
           <UIcon name="heroicons:arrow-path" class="w-4 h-4 mr-2" />
           Try Again
@@ -45,16 +45,16 @@
                   size="lg"
                 />
                 <div class="flex-1 min-w-0">
-                  <h3 class="text-lg font-medium text-gray-900 truncate">
+                  <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 truncate">
                     {{ tenant.name }}
                   </h3>
-                  <p class="text-sm text-gray-500">
+                  <p class="text-sm text-gray-500 dark:text-gray-400">
                     {{ isOwner(tenant) ? 'Owner' : 'Member' }}
                   </p>
                 </div>
               </div>
               
-              <div class="space-y-2 text-sm text-gray-600">
+              <div class="space-y-2 text-sm text-gray-600 dark:text-gray-400">
                 <div class="flex items-center">
                   <UIcon name="heroicons:calendar" class="w-4 h-4 mr-2" />
                   Added {{ formatDate(tenant.created_at) }}
@@ -104,11 +104,11 @@
 
       <!-- No Tenants State -->
       <div v-else class="text-center py-12">
-        <UIcon name="heroicons:server" class="w-16 h-16 text-gray-400 mx-auto mb-6" />
-        <h3 class="text-xl font-medium text-gray-900 mb-4">
+        <UIcon name="heroicons:server" class="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-6" />
+        <h3 class="text-xl font-medium text-gray-900 dark:text-gray-100 mb-4">
           No Discord Servers Found
         </h3>
-        <p class="text-gray-600 mb-8 max-w-md mx-auto">
+        <p class="text-gray-600 dark:text-gray-400 mb-8 max-w-md mx-auto">
           You haven't added any Discord servers to Pteronimbus yet. 
           Add your first server to start managing game servers for your community.
         </p>
@@ -138,15 +138,15 @@
         </template>
 
         <div class="space-y-6">
-          <div class="text-sm text-gray-600">
+          <div class="text-sm text-gray-600 dark:text-gray-400">
             <p class="mb-4">
               Select a Discord server where you have "Manage Server" permissions. 
               This will allow Pteronimbus to integrate with your Discord server for game server management.
             </p>
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
               <div class="flex items-start">
                 <UIcon name="heroicons:information-circle" class="w-5 h-5 text-blue-500 mr-2 mt-0.5" />
-                <div class="text-blue-700 text-sm">
+                <div class="text-blue-700 dark:text-blue-300 text-sm">
                   <p class="font-medium mb-1">What happens when you add a server?</p>
                   <ul class="list-disc list-inside space-y-1 text-xs">
                     <li>Your Discord roles will be synced for permission management</li>
@@ -161,7 +161,7 @@
           <!-- Loading Available Guilds -->
           <div v-if="loadingGuilds" class="text-center py-8">
             <UIcon name="heroicons:arrow-path" class="w-6 h-6 animate-spin mx-auto mb-2" />
-            <p class="text-sm text-gray-500">Loading your Discord servers...</p>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Loading your Discord servers...</p>
           </div>
 
           <!-- Available Guilds -->
@@ -169,7 +169,7 @@
             <div
               v-for="guild in availableGuilds"
               :key="guild.id"
-              class="guild-item border border-gray-200 rounded-lg p-4 hover:border-gray-300 hover:bg-gray-50 transition-colors cursor-pointer"
+              class="guild-item border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
               @click="createTenantFromGuild(guild)"
             >
               <div class="flex items-center space-x-3">
@@ -179,8 +179,8 @@
                   size="md"
                 />
                 <div class="flex-1 min-w-0">
-                  <h4 class="font-medium text-gray-900 truncate">{{ guild.name }}</h4>
-                  <p class="text-sm text-gray-500">
+                  <h4 class="font-medium text-gray-900 dark:text-gray-100 truncate">{{ guild.name }}</h4>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">
                     {{ guild.owner ? 'Owner' : 'Manager' }}
                   </p>
                 </div>
@@ -216,17 +216,17 @@
     <UModal v-model="showDeleteModal" :ui="{ width: 'sm:max-w-md' }">
       <UCard>
         <template #header>
-          <h3 class="text-lg font-semibold text-red-600">Delete Server</h3>
+          <h3 class="text-lg font-semibold text-red-600 dark:text-red-400">Delete Server</h3>
         </template>
 
         <div class="space-y-4">
           <div class="flex items-start space-x-3">
             <UIcon name="heroicons:exclamation-triangle" class="w-6 h-6 text-red-500 mt-1" />
             <div>
-              <p class="text-gray-900 font-medium mb-2">
+              <p class="text-gray-900 dark:text-gray-100 font-medium mb-2">
                 Are you sure you want to remove "{{ tenantToDelete?.name }}"?
               </p>
-              <p class="text-sm text-gray-600">
+              <p class="text-sm text-gray-600 dark:text-gray-400">
                 This will permanently delete all game servers, configurations, and data 
                 associated with this Discord server. This action cannot be undone.
               </p>

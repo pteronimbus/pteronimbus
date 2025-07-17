@@ -40,6 +40,7 @@ type AuthServiceInterface interface {
 	HandleCallback(ctx context.Context, code string) (*models.AuthResponse, error)
 	RefreshToken(ctx context.Context, refreshTokenString string) (*models.AuthResponse, error)
 	ValidateAccessToken(ctx context.Context, accessToken string) (*models.User, error)
+	ParseTokenClaims(accessToken string) (*models.JWTClaims, error)
 	Logout(ctx context.Context, accessToken string) error
 }
 

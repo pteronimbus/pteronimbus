@@ -26,6 +26,14 @@ func (m *MockAuthService) ValidateAccessToken(ctx context.Context, accessToken s
 	return args.Get(0).(*models.User), args.Error(1)
 }
 
+func (m *MockAuthService) ParseTokenClaims(accessToken string) (*models.JWTClaims, error) {
+	args := m.Called(accessToken)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.JWTClaims), args.Error(1)
+}
+
 func (m *MockAuthService) GetAuthURL(state string) string {
 	args := m.Called(state)
 	return args.String(0)
@@ -376,7 +384,15 @@ func TestAuthMiddleware_Integration(t *testing.T) {
 		Username:      "testuser",
 	}
 	
+	validClaims := &models.JWTClaims{
+		UserID:        "user_id",
+		DiscordUserID: "discord_user_id", 
+		Username:      "testuser",
+		SessionID:     "session_id",
+	}
+	
 	mockAuthService.On("ValidateAccessToken", mock.Anything, "valid_token").Return(validUser, nil)
+	mockAuthService.On("ParseTokenClaims", "valid_token").Return(validClaims, nil)
 	mockAuthService.On("ValidateAccessToken", mock.Anything, "invalid_token").Return(nil, errors.New("invalid token"))
 
 	middleware := NewAuthMiddleware(mockAuthService)

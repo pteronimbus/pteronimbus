@@ -49,6 +49,14 @@ func (m *MockAuthService) ValidateAccessToken(ctx context.Context, accessToken s
 	return args.Get(0).(*models.User), args.Error(1)
 }
 
+func (m *MockAuthService) ParseTokenClaims(accessToken string) (*models.JWTClaims, error) {
+	args := m.Called(accessToken)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.JWTClaims), args.Error(1)
+}
+
 func (m *MockAuthService) Logout(ctx context.Context, accessToken string) error {
 	args := m.Called(ctx, accessToken)
 	return args.Error(0)

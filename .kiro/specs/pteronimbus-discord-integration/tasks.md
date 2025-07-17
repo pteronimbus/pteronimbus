@@ -41,7 +41,10 @@
   - Test the moved dashboard functionaltiy under tenant/xxx/dashboard
   - _Requirements: Testing Requirements 1, 3_
 
-- [ ] 5. Set up Kubernetes Controller Foundation
+- [x] 5. Set up Kubernetes Controller Foundation
+
+
+
   - Implement GameTemplate and GameServer CRD definitions
   - Create controller reconciliation loop structure using controller-runtime
   - Implement secure communication between backend and controller
@@ -170,3 +173,4 @@ Each implementation task must include:
 - Security considerations must be addressed at every level
 - Performance testing should be conducted for multi-tenant scenarios
 - Documentation should be updated as features are implemented
+- Any changes to the frontend must respect the dark and light themes
