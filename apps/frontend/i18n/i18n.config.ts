@@ -13,6 +13,15 @@ export default defineI18nConfig(() => ({
       dashboard: {
         welcome: 'Welcome, {name}',
         overview: 'Here\'s a quick overview of your game server environment.',
+        quickActions: 'Quick Actions',
+        gameServers: 'Game Servers',
+        discordIntegration: 'Discord Integration',
+        manageRoles: 'Manage Roles',
+        viewLogs: 'View Logs',
+        settings: 'Settings',
+        sync: 'Sync',
+        noGameServers: 'No Game Servers',
+        noGameServersDesc: 'Create your first game server to get started',
         stats: {
           activeServers: 'Active Servers',
           totalPlayers: 'Total Players',
@@ -25,11 +34,14 @@ export default defineI18nConfig(() => ({
           onlineUsers: 'Online Users',
           alertsActive: 'Active Alerts',
           recentActivity: 'Recent Activity',
-          resourceMonitoring: 'Resource Monitoring'
+          resourceMonitoring: 'Resource Monitoring',
+          gameServers: 'Game Servers',
+          discordMembers: 'Discord Members'
         },
         activity: {
           title: 'Recent Activity',
           noActivity: 'No recent activity',
+          noActivityDesc: 'Activity will appear here once you start using the platform',
           serverStarted: 'Server {name} started',
           serverStopped: 'Server {name} stopped',
           userJoined: 'User {name} joined {server}',
@@ -243,6 +255,15 @@ export default defineI18nConfig(() => ({
       dashboard: {
         welcome: 'Bienvenue, {name}!',
         overview: 'Voici un aperçu rapide de votre environnement de serveur de jeu.',
+        quickActions: 'Actions rapides',
+        gameServers: 'Serveurs de jeu',
+        discordIntegration: 'Intégration Discord',
+        manageRoles: 'Gérer les rôles',
+        viewLogs: 'Voir les journaux',
+        settings: 'Paramètres',
+        sync: 'Synchroniser',
+        noGameServers: 'Aucun serveur de jeu',
+        noGameServersDesc: 'Créez votre premier serveur de jeu pour commencer',
         stats: {
           activeServers: 'Serveurs actifs',
           totalPlayers: 'Joueurs totaux',
@@ -255,7 +276,14 @@ export default defineI18nConfig(() => ({
           onlineUsers: 'Utilisateurs en ligne',
           alertsActive: 'Alertes actives',
           recentActivity: 'Activité récente',
-          resourceMonitoring: 'Surveillance des ressources'
+          resourceMonitoring: 'Surveillance des ressources',
+          gameServers: 'Serveurs de jeu',
+          discordMembers: 'Membres Discord'
+        },
+        activity: {
+          title: 'Activité récente',
+          noActivity: 'Aucune activité récente',
+          noActivityDesc: 'L\'activité apparaîtra ici une fois que vous commencerez à utiliser la plateforme'
         }
       },
       servers: {

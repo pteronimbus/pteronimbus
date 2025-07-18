@@ -79,7 +79,7 @@
         <UCard>
           <template #header>
             <div class="flex items-center justify-between">
-              <h3 class="text-lg font-semibold text-gray-800">
+              <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100">
                 {{ t('dashboard.gameServers') }}
               </h3>
               <UButton 
@@ -96,18 +96,18 @@
             <div 
               v-for="server in gameServers.slice(0, 5)" 
               :key="server.id"
-              class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+              class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
             >
               <div class="flex items-center space-x-3">
                 <div class="flex-shrink-0">
                   <UIcon 
                     name="heroicons:server" 
-                    class="w-5 h-5 text-gray-600"
+                    class="w-5 h-5 text-gray-600 dark:text-gray-400"
                   />
                 </div>
                 <div>
-                  <p class="text-sm font-medium text-gray-900">{{ server.name }}</p>
-                  <p class="text-xs text-gray-500">{{ server.game_type }}</p>
+                  <p class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ server.name }}</p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">{{ server.game_type }}</p>
                 </div>
               </div>
               <div class="flex items-center space-x-2">
@@ -140,7 +140,7 @@
         <UCard>
           <template #header>
             <div class="flex items-center justify-between">
-              <h3 class="text-lg font-semibold text-gray-800">
+              <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100">
                 {{ t('dashboard.activity.title') }}
               </h3>
               <UButton 
@@ -172,8 +172,8 @@
                 />
               </div>
               <div class="flex-1 min-w-0">
-                <p class="text-sm text-gray-800">{{ activity.message }}</p>
-                <p class="text-xs text-gray-500">{{ formatTimestamp(activity.timestamp) }}</p>
+                <p class="text-sm text-gray-800 dark:text-gray-100">{{ activity.message }}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">{{ formatTimestamp(activity.timestamp) }}</p>
               </div>
             </div>
             <EmptyState
@@ -190,7 +190,7 @@
         <UCard>
           <template #header>
             <div class="flex items-center justify-between">
-              <h3 class="text-lg font-semibold text-gray-800">
+              <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100">
                 {{ t('dashboard.discordIntegration') }}
               </h3>
               <UButton 
@@ -207,24 +207,24 @@
           <div class="space-y-4">
             <div class="flex items-center justify-between">
               <div class="flex items-center space-x-3">
-                <UIcon name="heroicons:users" class="w-5 h-5 text-blue-600" />
-                <span class="text-sm text-gray-700">Discord Members</span>
+                <UIcon name="heroicons:users" class="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <span class="text-sm text-gray-700 dark:text-gray-300">Discord Members</span>
               </div>
-              <span class="text-sm font-medium">{{ discordStats.memberCount }}</span>
+              <span class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ discordStats.memberCount }}</span>
             </div>
             <div class="flex items-center justify-between">
               <div class="flex items-center space-x-3">
-                <UIcon name="heroicons:shield-check" class="w-5 h-5 text-green-600" />
-                <span class="text-sm text-gray-700">Roles Synced</span>
+                <UIcon name="heroicons:shield-check" class="w-5 h-5 text-green-600 dark:text-green-400" />
+                <span class="text-sm text-gray-700 dark:text-gray-300">Roles Synced</span>
               </div>
-              <span class="text-sm font-medium">{{ discordStats.roleCount }}</span>
+              <span class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ discordStats.roleCount }}</span>
             </div>
             <div class="flex items-center justify-between">
               <div class="flex items-center space-x-3">
-                <UIcon name="heroicons:clock" class="w-5 h-5 text-gray-600" />
-                <span class="text-sm text-gray-700">Last Sync</span>
+                <UIcon name="heroicons:clock" class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                <span class="text-sm text-gray-700 dark:text-gray-300">Last Sync</span>
               </div>
-              <span class="text-sm text-gray-500">{{ formatTimestamp(discordStats.lastSync) }}</span>
+              <span class="text-sm text-gray-500 dark:text-gray-400">{{ formatTimestamp(discordStats.lastSync) }}</span>
             </div>
           </div>
         </UCard>
