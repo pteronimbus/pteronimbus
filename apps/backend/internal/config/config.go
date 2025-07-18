@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -64,7 +65,7 @@ func Load() *Config {
 			Port:         getEnv("PORT", "8080"),
 			Host:         getEnv("HOST", "0.0.0.0"),
 			Environment:  getEnv("ENVIRONMENT", "development"),
-			AllowOrigins: []string{getEnv("FRONTEND_URL", "http://localhost:3000")},
+			AllowOrigins: getAllowedOrigins(),
 		},
 		Discord: DiscordConfig{
 			ClientID:     getEnv("DISCORD_CLIENT_ID", ""),
@@ -111,4 +112,41 @@ func getEnvAsInt(key string, fallback int) int {
 		}
 	}
 	return fallback
+}
+
+// getAllowedOrigins returns the list of allowed CORS origins
+func getAllowedOrigins() []string {
+	// Get the primary frontend URL
+	frontendURL := getEnv("FRONTEND_URL", "http://localhost:3000")
+	
+	// For Docker environments, we might need to allow both localhost and container names
+	allowedOrigins := []string{frontendURL}
+	
+	// Add additional origins if specified via environment variable
+	if additionalOrigins := getEnv("ADDITIONAL_CORS_ORIGINS", ""); additionalOrigins != "" {
+		// Split by comma and add to allowed origins
+		for _, origin := range splitAndTrim(additionalOrigins, ",") {
+			if origin != "" {
+				allowedOrigins = append(allowedOrigins, origin)
+			}
+		}
+	}
+	
+	return allowedOrigins
+}
+
+// splitAndTrim splits a string by delimiter and trims whitespace
+func splitAndTrim(s, delimiter string) []string {
+	if s == "" {
+		return []string{}
+	}
+	
+	parts := make([]string, 0)
+	for _, part := range strings.Split(s, delimiter) {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			parts = append(parts, trimmed)
+		}
+	}
+	return parts
 }

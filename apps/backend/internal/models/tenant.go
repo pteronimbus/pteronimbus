@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -21,12 +22,70 @@ func (s *StringArray) Scan(value interface{}) error {
 
 	switch v := value.(type) {
 	case []byte:
-		return json.Unmarshal(v, s)
+		return s.parsePostgreSQLArray(string(v))
 	case string:
-		return json.Unmarshal([]byte(v), s)
+		return s.parsePostgreSQLArray(v)
 	default:
 		return errors.New("cannot scan into StringArray")
 	}
+}
+
+// parsePostgreSQLArray parses PostgreSQL array format like {item1,item2} into []string
+func (s *StringArray) parsePostgreSQLArray(value string) error {
+	if value == "" || value == "{}" {
+		*s = StringArray{}
+		return nil
+	}
+
+	// Remove outer braces
+	if len(value) < 2 || value[0] != '{' || value[len(value)-1] != '}' {
+		return errors.New("invalid PostgreSQL array format")
+	}
+	
+	content := value[1 : len(value)-1]
+	if content == "" {
+		*s = StringArray{}
+		return nil
+	}
+
+	// Split by comma and clean up each item
+	items := []string{}
+	parts := []string{}
+	current := ""
+	inQuotes := false
+	
+	for i, char := range content {
+		if char == '"' && (i == 0 || content[i-1] != '\\') {
+			inQuotes = !inQuotes
+			continue
+		}
+		
+		if char == ',' && !inQuotes {
+			parts = append(parts, current)
+			current = ""
+			continue
+		}
+		
+		current += string(char)
+	}
+	
+	if current != "" {
+		parts = append(parts, current)
+	}
+
+	for _, part := range parts {
+		// Trim whitespace and quotes
+		item := part
+		if len(item) >= 2 && item[0] == '"' && item[len(item)-1] == '"' {
+			item = item[1 : len(item)-1]
+		}
+		// Unescape quotes
+		item = strings.Replace(item, `\"`, `"`, -1)
+		items = append(items, item)
+	}
+
+	*s = StringArray(items)
+	return nil
 }
 
 // Value implements the driver.Valuer interface for writing to database

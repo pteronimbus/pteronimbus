@@ -140,15 +140,15 @@ export const useTenant = () => {
         const errorMsg = 'Please log in again to refresh your Discord connection'
         console.error('Discord token missing, user needs to re-authenticate:', error)
         setError(errorMsg)
-        
+
         // Redirect to login after a short delay
         setTimeout(() => {
           window.location.href = '/login?reason=discord_token_expired'
         }, 2000)
-        
+
         throw new Error(errorMsg)
       }
-      
+
       const errorMsg = error?.data?.message || 'Failed to fetch available guilds'
       console.error('Failed to fetch available guilds:', error)
       setError(errorMsg)
@@ -173,7 +173,7 @@ export const useTenant = () => {
 
       // Add the new tenant to the list
       tenantState.value.tenants.push(response.tenant)
-      
+
       // Set as current tenant
       storeCurrentTenant(response.tenant)
 
@@ -288,10 +288,10 @@ export const useTenant = () => {
   const switchTenant = async (tenant: Tenant) => {
     // Store the tenant first
     storeCurrentTenant(tenant)
-    
+
     // Wait a tick to ensure the state is updated
     await nextTick()
-    
+
     // Navigate to tenant dashboard
     await router.push(`/tenant/${tenant.id}/dashboard`)
   }
@@ -333,7 +333,10 @@ export const useTenant = () => {
       }
     }
 
-    return await apiRequest<T>(url, requestOptions)
+    // Ensure the URL includes the backend URL if it's a relative path
+    const fullUrl = url.startsWith('http') ? url : `${config.public.backendUrl}${url}`
+
+    return await apiRequest<T>(fullUrl, requestOptions)
   }
 
   return {
