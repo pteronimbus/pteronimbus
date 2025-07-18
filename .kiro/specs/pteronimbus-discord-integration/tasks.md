@@ -21,7 +21,7 @@
   - Write unit and integration tests
   - _Requirements: 1.1, 1.2, 1.5_
 
-- [ ] 3. Implement Multi-Tenant Infrastructure
+- [x] 3. Implement Multi-Tenant Infrastructure
 
 
   - Create database schema for tenants, users, and Discord roles
@@ -95,18 +95,28 @@
 
 ## Phase 4: Discord Bot Integration
 
-- [ ] 10. Develop Discord Bot Service
+- [ ] 10. Develop Initial Discord Bot Service
+  - Use discordgo sdk to set up Discord bot application and register simple slash commands (ping/pong)
+  - Implement Discord role and user syncing via the bot token
+  - Implement the ability to post arbitrary message to a given server and room via the bot
+  - Implement audit logging for all bot actions
+  - Implement bot install flow via the AddTenantModal wizard
+  - Implement checks to ensure bot is installed to a tenant before considering it to be available
+  - Write unit and integration tests
+  - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6_
+
+- [ ] 11. Develop Production Discord Bot Service
   - Set up Discord bot application and register slash commands
   - Implement bot command handlers with RBAC integration
   - Create server management commands (start, stop, restart, status)
   - Add real-time notifications to Discord channels
-  - Implement audit logging for all bot actions
+  - Implement warnings and re-pairing if the bot is booted from a tenant
   - Write unit and integration tests
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6_
 
 ## Phase 5: Real-Time Features & Polish
 
-- [ ] 11. Implement Real-Time Updates
+- [ ] 12. Implement Real-Time Updates
   - Add WebSocket connections for live server status updates
   - Create event system for server state changes
   - Implement real-time log streaming functionality
@@ -115,7 +125,7 @@
   - Write unit and integration tests
   - _Requirements: 4.7, 7.3, 7.4_
 
-- [ ] 12. Add Advanced Game Server Features
+- [ ] 13. Add Advanced Game Server Features
   - Implement server resource usage monitoring
   - Create backup and restore functionality for game data
   - Add scheduled task system (automatic restarts, backups)
@@ -128,7 +138,7 @@
 
 Each implementation task must include:
 
-- [ ] 13. Backend API Testing
+- [ ] 14. Backend API Testing
   - Unit tests for all service functions (80% coverage minimum)
   - Integration tests for Discord API interactions
   - API endpoint testing with authentication scenarios
@@ -137,7 +147,7 @@ Each implementation task must include:
   - Write unit and integration tests
   - _Requirements: Testing Requirements 1, 2, 6_
 
-- [ ] 14. Frontend Component Testing
+- [ ] 15. Frontend Component Testing
   - Component tests for all UI components (70% coverage minimum)
   - Integration tests for authentication flows
   - End-to-end tests for critical user workflows
@@ -146,7 +156,7 @@ Each implementation task must include:
   - Write unit and integration tests
   - _Requirements: Testing Requirements 1, 3, 7_
 
-- [ ] 15. Controller Testing
+- [ ] 16. Controller Testing
   - Unit tests for reconciliation logic (80% coverage minimum)
   - Integration tests with test Kubernetes cluster
   - CRD validation and status update testing
@@ -157,7 +167,7 @@ Each implementation task must include:
 
 ## Deployment & Infrastructure
 3.1
-- [ ] 16. Production Deployment Setup
+- [ ] 17. Production Deployment Setup
   - Create Helm charts for all components
   - Implement CI/CD pipeline with automated testing
   - Set up monitoring and observability stack

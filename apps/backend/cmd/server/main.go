@@ -9,8 +9,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/bwmarrin/discordgo"
 	"github.com/gin-gonic/gin"
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/config"
+	"github.com/pteronimbus/pteronimbus/apps/backend/internal/discord"
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/handlers"
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/middleware"
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/services"
@@ -29,18 +31,48 @@ func main() {
 	redisService := services.NewRedisService(cfg)
 	jwtService := services.NewJWTService(cfg)
 	discordService := services.NewDiscordService(cfg)
-	
+
 	// Initialize database service
 	dbService, err := services.NewDatabaseService(&cfg.Database)
 	if err != nil {
 		log.Fatalf("Failed to initialize database service: %v", err)
 	}
-	
+
 	// Run database migrations
 	if err := dbService.AutoMigrate(); err != nil {
 		log.Fatalf("Failed to run database migrations: %v", err)
 	}
-	
+
+	auditService := services.NewAuditService()
+
+	// Initialize Discord Bot
+	var bot *discord.Bot
+	var syncService *services.SyncService
+	if cfg.Discord.BotToken != "" {
+		var err error
+		// We need a temporary session for the sync service
+		tempSession, err := discordgo.New("Bot " + cfg.Discord.BotToken)
+		if err != nil {
+			log.Fatalf("Failed to create temporary Discord session: %v", err)
+		}
+		syncService = services.NewSyncService(dbService.GetDB(), tempSession)
+
+		bot, err = discord.NewBot(cfg.Discord.BotToken, syncService, auditService)
+		if err != nil {
+			log.Fatalf("Failed to initialize Discord bot: %v", err)
+		}
+
+		go func() {
+			if err := bot.Start(); err != nil {
+				log.Printf("Discord bot error: %v", err)
+			}
+		}()
+	} else {
+		log.Println("Discord bot token not configured, skipping bot initialization.")
+		// If the bot is not configured, we can still create the sync service without a session.
+		syncService = services.NewSyncService(dbService.GetDB(), nil)
+	}
+
 	authService := services.NewAuthService(dbService.GetDB(), discordService, jwtService, redisService)
 	tenantService := services.NewTenantService(dbService.GetDB(), discordService)
 	gameServerService := services.NewGameServerService(dbService.GetDB())
@@ -48,7 +80,7 @@ func main() {
 	// Test Redis connection
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	if err := redisService.Ping(ctx); err != nil {
 		log.Printf("Warning: Redis connection failed: %v", err)
 		log.Println("Continuing without Redis - sessions will not persist")
@@ -107,6 +139,7 @@ func main() {
 			tenantRoutes.GET("/available-guilds", tenantHandler.GetAvailableGuilds)
 			tenantRoutes.POST("", tenantHandler.CreateTenant)
 			tenantRoutes.GET("/:id", tenantHandler.GetTenant)
+			tenantRoutes.GET("/:id/bot-status", tenantHandler.GetBotStatus)
 			tenantRoutes.PUT("/:id/config", tenantHandler.UpdateTenantConfig)
 			tenantRoutes.POST("/:id/sync", tenantHandler.SyncTenantData)
 			tenantRoutes.DELETE("/:id", tenantHandler.DeleteTenant)
@@ -120,7 +153,7 @@ func main() {
 			tenantScopedRoutes.GET("/servers", gameServerHandler.GetTenantServers)
 			tenantScopedRoutes.GET("/activity", gameServerHandler.GetTenantActivity)
 			tenantScopedRoutes.GET("/discord/stats", gameServerHandler.GetTenantDiscordStats)
-			
+
 			// Tenant info route
 			tenantScopedRoutes.GET("/info", func(c *gin.Context) {
 				tenant, _ := c.Get("tenant")
@@ -168,6 +201,15 @@ func main() {
 
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Fatalf("Server forced to shutdown: %v", err)
+	}
+
+	// Close Discord bot session
+	if bot != nil {
+		log.Println("Closing Discord bot session...")
+		bot.Stop()
+		if err := bot.Session.Close(); err != nil {
+			log.Printf("Error closing Discord bot session: %v", err)
+		}
 	}
 
 	// Close Redis connection

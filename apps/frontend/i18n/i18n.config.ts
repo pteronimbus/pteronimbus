@@ -230,6 +230,8 @@ export default defineI18nConfig(() => ({
             addButton: 'Add Server',
             owner: 'Owner',
             manager: 'Manager',
+            successTitle: 'Server Added',
+            successDescription: 'The Discord server {serverName} was added. Next, invite the bot to your server to enable full functionality.',
             errors: {
               loadFailed: 'Failed to load available guilds',
               addFailed: 'Failed to add Discord server'
@@ -417,6 +419,8 @@ export default defineI18nConfig(() => ({
             addButton: 'Ajouter le serveur',
             owner: 'Propriétaire',
             manager: 'Gestionnaire',
+            successTitle: 'Serveur Ajouté',
+            successDescription: 'Le serveur Discord {serverName} a été ajouté. Ensuite, invitez le bot sur votre serveur pour activer la fonctionnalité complète.',
             errors: {
               loadFailed: 'Échec du chargement des guildes disponibles',
               addFailed: 'Échec de l\'ajout du serveur Discord'

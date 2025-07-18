@@ -94,7 +94,7 @@ func (th *TenantHandler) GetAvailableGuilds(c *gin.Context) {
 			Message: "Discord access token not found in session. Please log in again.",
 			Details: map[string]interface{}{
 				"session_id": sessionID,
-				"reason": "Session was created before Discord token integration. Please re-authenticate.",
+				"reason":     "Session was created before Discord token integration. Please re-authenticate.",
 			},
 		})
 		return
@@ -177,7 +177,7 @@ func (th *TenantHandler) CreateTenant(c *gin.Context) {
 			Message: "Discord access token not found in session. Please log in again.",
 			Details: map[string]interface{}{
 				"session_id": sessionID,
-				"reason": "Session was created before Discord token integration. Please re-authenticate.",
+				"reason":     "Session was created before Discord token integration. Please re-authenticate.",
 			},
 		})
 		return
@@ -491,6 +491,49 @@ func (th *TenantHandler) DeleteTenant(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Tenant deleted successfully",
+	})
+}
+
+// GetBotStatus checks if the bot is present in the tenant's guild and has required permissions
+func (th *TenantHandler) GetBotStatus(c *gin.Context) {
+	ctx := c.Request.Context()
+	tenantId := c.Param("id")
+
+	// Get tenant
+	tenant, err := th.tenantService.GetTenant(ctx, tenantId)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Tenant not found"})
+		return
+	}
+	guildID := tenant.DiscordServerID
+
+	// Get bot user ID from config
+	botToken := th.discordService.(*services.DiscordService).BotToken()
+	if botToken == "" {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Bot token not configured"})
+		return
+	}
+
+	// Get bot user info
+	botUser, err := th.discordService.GetUserInfo(ctx, botToken)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get bot user info"})
+		return
+	}
+
+	// Check if bot is a member of the guild
+	member, err := th.discordService.GetGuildMember(ctx, botToken, guildID, botUser.ID)
+	present := err == nil && member != nil
+
+	missing := []string{}
+	if present {
+		// Check permissions (for now, just check if bot is present)
+		// TODO: Implement permission checks if possible via Discord API
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"present":            present,
+		"missingPermissions": missing,
 	})
 }
 

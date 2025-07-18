@@ -5,7 +5,7 @@
     <slot />
 
     <template #body>
-      <div class="space-y-6">
+      <div v-if="step === 'select-guild'" class="space-y-6">
         <div class="text-sm text-gray-600 dark:text-gray-400">
           <p class="mb-4">
             {{ t('tenants.modals.add.description') }}
@@ -71,6 +71,24 @@
           :close-button="{ icon: 'i-heroicons-x-mark-20-solid', color: 'neutral', variant: 'link', padded: false }"
           @close="clearError" />
       </div>
+      <div v-if="step === 'install-bot'" class="text-center py-8">
+        <UIcon name="i-heroicons-puzzle-piece" class="w-12 h-12 text-primary-500 mx-auto mb-4" />
+        <h4 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+          {{ t('tenants.modals.add.installBotTitle') }}
+        </h4>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
+          {{ t('tenants.modals.add.installBotDescription') }}
+        </p>
+        <UButton size="lg" @click="installBot">
+          <UIcon name="i-heroicons-arrow-top-right-on-square" class="w-5 h-5 mr-2" />
+          {{ t('tenants.modals.add.installBotButton') }}
+        </UButton>
+        <div class="mt-8">
+          <UButton variant="ghost" @click="finish">
+            {{ t('tenants.modals.add.finishButton') }}
+          </UButton>
+        </div>
+      </div>
     </template>
   </UModal>
 </template>
@@ -82,6 +100,7 @@ interface Props {
 
 interface Emits {
   (e: 'refresh'): void
+  (e: 'finish', tenant: any): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -101,6 +120,8 @@ const {
 const isLoading = ref(false)
 const creatingTenant = ref<string | null>(null)
 const error = ref<string | null>(null)
+const step = ref('select-guild') // 'select-guild' or 'install-bot'
+const newTenant = ref<any>(null)
 
 // Use the guilds passed from parent
 const availableGuilds = computed(() => {
@@ -137,23 +158,38 @@ const createTenantFromGuild = async (guild: any) => {
   creatingTenant.value = guild.id
   error.value = null
   try {
-    const newTenant = await createTenant(guild.id)
+    const createdTenant = await createTenant(guild.id)
+    newTenant.value = createdTenant
+    step.value = 'install-bot'
 
-    // Show success notification
+    // Show success notification for tenant creation
     toast.add({
       title: t('tenants.modals.add.successTitle'),
       description: t('tenants.modals.add.successDescription', { serverName: guild.name }),
       color: 'success'
     })
-
-    // Automatically switch to the new tenant
-    await switchTenant(newTenant)
-
-    // Modal will close automatically when navigating away
   } catch (err: any) {
     error.value = err.message || 'Failed to add Discord server'
   } finally {
     creatingTenant.value = null
+  }
+}
+
+const installBot = () => {
+  const config = useRuntimeConfig()
+  const clientId = config.public.discordClientId
+  if (!clientId || !newTenant.value) {
+    error.value = 'Configuration error: Missing Discord Client ID.'
+    return
+  }
+  const permissions = '8' // Administrator
+  const url = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&guild_id=${newTenant.value.discord_server_id}&permissions=${permissions}&scope=bot%20applications.commands`
+  window.open(url, '_blank')
+}
+
+const finish = async () => {
+  if (newTenant.value) {
+    emit('finish', newTenant.value)
   }
 }
 

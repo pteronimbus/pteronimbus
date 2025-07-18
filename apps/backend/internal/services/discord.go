@@ -9,16 +9,16 @@ import (
 	"net/url"
 	"strings"
 
-	"golang.org/x/oauth2"
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/config"
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/models"
+	"golang.org/x/oauth2"
 )
 
 // DiscordService handles Discord OAuth2 and API operations
 type DiscordService struct {
-	config     *config.DiscordConfig
+	config      *config.DiscordConfig
 	oauthConfig *oauth2.Config
-	httpClient *http.Client
+	httpClient  *http.Client
 }
 
 // NewDiscordService creates a new Discord service
@@ -76,7 +76,14 @@ func (d *DiscordService) GetUserInfo(ctx context.Context, accessToken string) (*
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	req.Header.Set("Authorization", "Bearer "+accessToken)
+	// Use correct Authorization header for bot tokens
+	if strings.HasPrefix(accessToken, "Bot ") {
+		req.Header.Set("Authorization", accessToken)
+	} else if accessToken == d.config.BotToken {
+		req.Header.Set("Authorization", "Bot "+accessToken)
+	} else {
+		req.Header.Set("Authorization", "Bearer "+accessToken)
+	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := d.httpClient.Do(req)
@@ -217,7 +224,7 @@ func (d *DiscordService) GetGuildRoles(ctx context.Context, botToken, guildID st
 // GetGuildMembers retrieves members for a specific guild
 func (d *DiscordService) GetGuildMembers(ctx context.Context, botToken, guildID string, limit int) ([]models.DiscordMember, error) {
 	url := fmt.Sprintf("%s/guilds/%s/members?limit=%d", d.config.APIBaseURL, guildID, limit)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create guild members request: %w", err)
@@ -254,7 +261,7 @@ func (d *DiscordService) GetGuildMembers(ctx context.Context, botToken, guildID 
 // GetGuildMember retrieves a specific member from a guild
 func (d *DiscordService) GetGuildMember(ctx context.Context, botToken, guildID, userID string) (*models.DiscordMember, error) {
 	url := fmt.Sprintf("%s/guilds/%s/members/%s", d.config.APIBaseURL, guildID, userID)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create guild member request: %w", err)
@@ -290,4 +297,9 @@ func (d *DiscordService) GetGuildMember(ctx context.Context, botToken, guildID, 
 	}
 
 	return &member, nil
+}
+
+// Add this method to allow access to the bot token
+func (d *DiscordService) BotToken() string {
+	return d.config.BotToken
 }

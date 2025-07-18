@@ -42,7 +42,7 @@
             <p class="text-sm text-gray-500">Debug: availableGuildsForTenant.length = {{ availableGuildsForTenant.length
             }}</p>
           </div>
-          <AddTenantModal v-if="!isLoading" :available-guilds="availableGuildsForTenant" @refresh="loadAllData"
+          <AddTenantModal v-if="!isLoading" :available-guilds="availableGuildsForTenant" @refresh="loadAllData" @finish="onTenantFinish"
             :key="`modal-${availableGuildsForTenant.length}`">
             <UButton>
               <UIcon name="i-heroicons-plus" class="w-4 h-4 mr-2" />
@@ -177,8 +177,9 @@ const selectTenant = async (tenant: any) => {
   }
 }
 
-
-
+const onTenantFinish = async (tenant: any) => {
+  await switchTenant(tenant)
+}
 
 
 // Helper functions

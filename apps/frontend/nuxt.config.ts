@@ -16,7 +16,8 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      backendUrl: process.env.BACKEND_URL || 'http://localhost:8080'
+      backendUrl: process.env.BACKEND_URL || 'http://localhost:8080',
+      discordClientId: process.env.DISCORD_CLIENT_ID || ''
     }
   },
 

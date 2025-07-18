@@ -1,5 +1,334 @@
+<script setup lang="ts">
+definePageMeta({
+  middleware: ['auth', 'tenant']
+})
+
+const { t } = useI18n()
+const router = useRouter()
+const { 
+  currentTenant, 
+  tenantApiRequest,
+  syncTenantData,
+  clearCurrentTenant
+} = useTenant()
+
+// Local state
+const isLoading = ref(true)
+const isRefreshing = ref(false)
+const isSyncing = ref(false)
+const error = ref<string | null>(null)
+const gameServers = ref<any[]>([])
+const recentActivity = ref<any[]>([])
+const discordStats = ref({
+  memberCount: 0,
+  roleCount: 0,
+  lastSync: new Date().toISOString()
+})
+const botStatus = ref<{ present: boolean, missingPermissions: string[] } | null>(null)
+const botModalOpen = ref(false)
+const pollingInterval = ref<NodeJS.Timeout | null>(null)
+
+// Computed properties
+const tenantStats = computed(() => [
+  { 
+    key: 'gameServers',
+    label: t('dashboard.stats.gameServers'),
+    value: gameServers.value.length.toString(),
+    total: currentTenant.value?.config?.resource_limits?.max_game_servers?.toString() || '5',
+    color: 'emerald',
+    icon: 'heroicons:server',
+    route: `/tenant/${currentTenant.value?.id}/servers`,
+    trend: '+0',
+    trendColor: 'text-gray-500'
+  },
+  { 
+    key: 'activeServers',
+    label: t('dashboard.stats.activeServers'),
+    value: gameServers.value.filter(s => s.status.phase === 'Running').length.toString(),
+    total: gameServers.value.length.toString(),
+    color: 'blue',
+    icon: 'heroicons:play-circle',
+    route: `/tenant/${currentTenant.value?.id}/servers?status=running`,
+    trend: '+0',
+    trendColor: 'text-gray-500'
+  },
+  { 
+    key: 'totalPlayers',
+    label: t('dashboard.stats.totalPlayers'),
+    value: gameServers.value.reduce((sum, s) => sum + (s.status.player_count || 0), 0).toString(),
+    color: 'purple',
+    icon: 'heroicons:users',
+    route: `/tenant/${currentTenant.value?.id}/players`,
+    trend: '+0',
+    trendColor: 'text-gray-500'
+  },
+  { 
+    key: 'discordMembers',
+    label: t('dashboard.stats.discordMembers'),
+    value: discordStats.value.memberCount.toString(),
+    color: 'indigo',
+    icon: 'heroicons:user-group',
+    route: `/tenant/${currentTenant.value?.id}/members`,
+    trend: '+0',
+    trendColor: 'text-gray-500'
+  }
+])
+
+const tenantQuickActions = computed(() => [
+  {
+    label: t('servers.createServer'),
+    description: 'Launch a new game server',
+    icon: 'heroicons:plus-circle',
+    color: 'primary' as const,
+    onClick: () => router.push(`/tenant/${currentTenant.value?.id}/servers/create`)
+  },
+  {
+    label: t('dashboard.manageRoles'),
+    description: 'Configure user permissions',
+    icon: 'heroicons:shield-check',
+    color: 'secondary' as const,
+    onClick: () => router.push(`/tenant/${currentTenant.value?.id}/roles`)
+  },
+  {
+    label: t('dashboard.viewLogs'),
+    description: 'Monitor server activity',
+    icon: 'heroicons:document-text',
+    color: 'success' as const,
+    onClick: () => router.push(`/tenant/${currentTenant.value?.id}/logs`)
+  },
+  {
+    label: t('dashboard.settings'),
+    description: 'Server configuration',
+    icon: 'heroicons:cog-6-tooth',
+    color: 'warning' as const,
+    onClick: () => router.push(`/tenant/${currentTenant.value?.id}/settings`)
+  }
+])
+
+const runtimeConfig = useRuntimeConfig()
+const inviteUrl = computed(() => {
+  if (!currentTenant.value) return '#'
+  const clientId = runtimeConfig.public.discordClientId
+  const guildId = currentTenant.value.discord_server_id
+  const perms = 268438528 // MANAGE_ROLES + SEND_MESSAGES + VIEW_CHANNEL
+  return `https://discord.com/oauth2/authorize?client_id=${clientId}&scope=bot+applications.commands&permissions=${perms}&guild_id=${guildId}`
+})
+
+// Methods
+const loadDashboardData = async () => {
+  if (!currentTenant.value) return
+
+  try {
+    error.value = null
+    
+    // Load game servers
+    const serversResponse = await tenantApiRequest<{ servers: any[] }>(
+      `/api/tenant/servers`
+    )
+    gameServers.value = serversResponse.servers || []
+
+    // Load recent activity
+    const activityResponse = await tenantApiRequest<{ activities: any[] }>(
+      `/api/tenant/activity?limit=10`
+    )
+    recentActivity.value = activityResponse.activities || []
+
+    // Load Discord stats
+    const discordResponse = await tenantApiRequest<{ stats: any }>(
+      `/api/tenant/discord/stats`
+    )
+    discordStats.value = {
+      ...discordStats.value,
+      ...discordResponse.stats
+    }
+
+  } catch (err: any) {
+    // Enhanced error handling for forbidden/not found
+    const code = err?.data?.code || err?.response?.data?.code
+    if (code === 'FORBIDDEN' || code === 'NOT_FOUND') {
+      clearCurrentTenant()
+      await router.replace('/tenants')
+      return
+    }
+    console.error('Failed to load dashboard data:', err)
+    error.value = err?.data?.message || 'Failed to load dashboard data'
+  }
+}
+
+const refreshData = async () => {
+  isRefreshing.value = true
+  try {
+    await loadDashboardData()
+  } finally {
+    isRefreshing.value = false
+  }
+}
+
+const syncDiscordData = async () => {
+  if (!currentTenant.value) return
+
+  isSyncing.value = true
+  try {
+    await syncTenantData(currentTenant.value.id)
+    await loadDashboardData()
+    
+    const toast = useToast()
+    toast.add({
+      title: 'Discord Data Synced',
+      description: 'Discord roles and members have been synchronized',
+      color: 'success'
+    })
+  } catch (err: any) {
+    console.error('Failed to sync Discord data:', err)
+    const toast = useToast()
+    toast.add({
+      title: 'Sync Failed',
+      description: 'Failed to synchronize Discord data',
+      color: 'error'
+    })
+  } finally {
+    isSyncing.value = false
+  }
+}
+
+const checkBotStatus = async () => {
+  if (!currentTenant.value) return
+  try {
+    const res = await tenantApiRequest<{ present: boolean, missingPermissions: string[] }>(`/api/tenants/${currentTenant.value.id}/bot-status`)
+    botStatus.value = res
+    botModalOpen.value = !res.present || (res.missingPermissions && res.missingPermissions.length > 0)
+  } catch (err) {
+    botStatus.value = { present: false, missingPermissions: ["unknown"] }
+    botModalOpen.value = true
+  }
+}
+
+// Helper functions
+const getTenantIcon = (tenant: any) => {
+  if (tenant?.icon) {
+    return `https://cdn.discordapp.com/icons/${tenant.discord_server_id}/${tenant.icon}.png`
+  }
+  return null
+}
+
+const getActivityIcon = (type: string) => {
+  const icons: Record<string, string> = {
+    server_started: 'heroicons:play-circle',
+    server_stopped: 'heroicons:stop-circle',
+    server_created: 'heroicons:plus-circle',
+    user_joined: 'heroicons:user-plus',
+    user_left: 'heroicons:user-minus',
+    role_updated: 'heroicons:shield-check'
+  }
+  return icons[type] || 'heroicons:information-circle'
+}
+
+const getActivityColorClass = (type: string) => {
+  const colors: Record<string, string> = {
+    server_started: 'bg-green-100',
+    server_stopped: 'bg-red-100',
+    server_created: 'bg-blue-100',
+    user_joined: 'bg-purple-100',
+    user_left: 'bg-gray-100',
+    role_updated: 'bg-yellow-100'
+  }
+  return colors[type] || 'bg-gray-100'
+}
+
+const getActivityIconColorClass = (type: string) => {
+  const colors: Record<string, string> = {
+    server_started: 'text-green-600',
+    server_stopped: 'text-red-600',
+    server_created: 'text-blue-600',
+    user_joined: 'text-purple-600',
+    user_left: 'text-gray-600',
+    role_updated: 'text-yellow-600'
+  }
+  return colors[type] || 'text-gray-600'
+}
+
+const formatTimestamp = (timestamp: string) => {
+  return new Date(timestamp).toLocaleString()
+}
+
+// Load data on mount
+onMounted(async () => {
+  isLoading.value = true
+  try {
+    await loadDashboardData()
+    await checkBotStatus()
+  } finally {
+    isLoading.value = false
+  }
+})
+
+// Watch for tenant changes
+watch(currentTenant, async (newTenant) => {
+  if (newTenant) {
+    await refreshData()
+    await checkBotStatus()
+  }
+})
+
+const startBotStatusPolling = () => {
+  if (pollingInterval.value) return // already polling
+  pollingInterval.value = setInterval(async () => {
+    await checkBotStatus()
+    // If bot is present, stop polling
+    if (botStatus.value && botStatus.value.present && (!botStatus.value.missingPermissions || botStatus.value.missingPermissions.length === 0)) {
+      stopBotStatusPolling()
+    }
+  }, 2000)
+}
+
+const stopBotStatusPolling = () => {
+  if (pollingInterval.value) {
+    clearInterval(pollingInterval.value)
+    pollingInterval.value = null
+  }
+}
+
+watch(
+  () => botModalOpen.value,
+  (open) => {
+    if (open) {
+      startBotStatusPolling()
+    } else {
+      stopBotStatusPolling()
+    }
+  }
+)
+
+onUnmounted(() => {
+  stopBotStatusPolling()
+})
+</script>
+
 <template>
   <div class="space-y-8">
+    <UModal v-model:open="botModalOpen"
+      :dismissible="false"
+      :close="false"
+      :title="t('dashboard.botRequiredTitle', 'Bot Required')"
+      :ui="{
+        overlay: 'fixed inset-0 bg-gray-200/75 dark:bg-gray-900/75 backdrop-blur-sm'
+      }"
+    >
+      <template #body>
+        <div class="text-center py-8">
+          <UIcon name="i-heroicons-wrench-screwdriver" class="w-12 h-12 text-primary-500 mx-auto mb-4" />
+          <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
+            {{ t('dashboard.botRequiredDescription', 'To use all features, please invite the Pteronimbus bot to your Discord server.') }}
+          </p>
+          <UButton size="lg" color="primary" :to="inviteUrl" target="_blank">
+            {{ t('dashboard.inviteBot', 'Invite Bot') }}
+          </UButton>
+          <div v-if="botStatus && botStatus.missingPermissions && botStatus.missingPermissions.length > 0" class="mt-4">
+            <p class="text-sm text-red-500">Missing permissions: {{ botStatus.missingPermissions.join(', ') }}</p>
+          </div>
+        </div>
+      </template>
+    </UModal>
     <!-- Tenant Header - Enhanced -->
     <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
       <div class="flex items-center justify-between">
@@ -293,242 +622,3 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-definePageMeta({
-  middleware: ['auth', 'tenant']
-})
-
-const { t } = useI18n()
-const router = useRouter()
-const { 
-  currentTenant, 
-  tenantApiRequest,
-  syncTenantData
-} = useTenant()
-
-// Local state
-const isLoading = ref(true)
-const isRefreshing = ref(false)
-const isSyncing = ref(false)
-const error = ref<string | null>(null)
-const gameServers = ref<any[]>([])
-const recentActivity = ref<any[]>([])
-const discordStats = ref({
-  memberCount: 0,
-  roleCount: 0,
-  lastSync: new Date().toISOString()
-})
-
-// Computed properties
-const tenantStats = computed(() => [
-  { 
-    key: 'gameServers',
-    label: t('dashboard.stats.gameServers'),
-    value: gameServers.value.length.toString(),
-    total: currentTenant.value?.config?.resource_limits?.max_game_servers?.toString() || '5',
-    color: 'emerald',
-    icon: 'heroicons:server',
-    route: `/tenant/${currentTenant.value?.id}/servers`,
-    trend: '+0',
-    trendColor: 'text-gray-500'
-  },
-  { 
-    key: 'activeServers',
-    label: t('dashboard.stats.activeServers'),
-    value: gameServers.value.filter(s => s.status.phase === 'Running').length.toString(),
-    total: gameServers.value.length.toString(),
-    color: 'blue',
-    icon: 'heroicons:play-circle',
-    route: `/tenant/${currentTenant.value?.id}/servers?status=running`,
-    trend: '+0',
-    trendColor: 'text-gray-500'
-  },
-  { 
-    key: 'totalPlayers',
-    label: t('dashboard.stats.totalPlayers'),
-    value: gameServers.value.reduce((sum, s) => sum + (s.status.player_count || 0), 0).toString(),
-    color: 'purple',
-    icon: 'heroicons:users',
-    route: `/tenant/${currentTenant.value?.id}/players`,
-    trend: '+0',
-    trendColor: 'text-gray-500'
-  },
-  { 
-    key: 'discordMembers',
-    label: t('dashboard.stats.discordMembers'),
-    value: discordStats.value.memberCount.toString(),
-    color: 'indigo',
-    icon: 'heroicons:user-group',
-    route: `/tenant/${currentTenant.value?.id}/members`,
-    trend: '+0',
-    trendColor: 'text-gray-500'
-  }
-])
-
-const tenantQuickActions = computed(() => [
-  {
-    label: t('servers.createServer'),
-    description: 'Launch a new game server',
-    icon: 'heroicons:plus-circle',
-    color: 'primary' as const,
-    onClick: () => router.push(`/tenant/${currentTenant.value?.id}/servers/create`)
-  },
-  {
-    label: t('dashboard.manageRoles'),
-    description: 'Configure user permissions',
-    icon: 'heroicons:shield-check',
-    color: 'secondary' as const,
-    onClick: () => router.push(`/tenant/${currentTenant.value?.id}/roles`)
-  },
-  {
-    label: t('dashboard.viewLogs'),
-    description: 'Monitor server activity',
-    icon: 'heroicons:document-text',
-    color: 'success' as const,
-    onClick: () => router.push(`/tenant/${currentTenant.value?.id}/logs`)
-  },
-  {
-    label: t('dashboard.settings'),
-    description: 'Server configuration',
-    icon: 'heroicons:cog-6-tooth',
-    color: 'warning' as const,
-    onClick: () => router.push(`/tenant/${currentTenant.value?.id}/settings`)
-  }
-])
-
-// Methods
-const loadDashboardData = async () => {
-  if (!currentTenant.value) return
-
-  try {
-    error.value = null
-    
-    // Load game servers
-    const serversResponse = await tenantApiRequest<{ servers: any[] }>(
-      `/api/tenant/servers`
-    )
-    gameServers.value = serversResponse.servers || []
-
-    // Load recent activity
-    const activityResponse = await tenantApiRequest<{ activities: any[] }>(
-      `/api/tenant/activity?limit=10`
-    )
-    recentActivity.value = activityResponse.activities || []
-
-    // Load Discord stats
-    const discordResponse = await tenantApiRequest<{ stats: any }>(
-      `/api/tenant/discord/stats`
-    )
-    discordStats.value = {
-      ...discordStats.value,
-      ...discordResponse.stats
-    }
-
-  } catch (err: any) {
-    console.error('Failed to load dashboard data:', err)
-    error.value = err?.data?.message || 'Failed to load dashboard data'
-  }
-}
-
-const refreshData = async () => {
-  isRefreshing.value = true
-  try {
-    await loadDashboardData()
-  } finally {
-    isRefreshing.value = false
-  }
-}
-
-const syncDiscordData = async () => {
-  if (!currentTenant.value) return
-
-  isSyncing.value = true
-  try {
-    await syncTenantData(currentTenant.value.id)
-    await loadDashboardData()
-    
-    const toast = useToast()
-    toast.add({
-      title: 'Discord Data Synced',
-      description: 'Discord roles and members have been synchronized',
-      color: 'success'
-    })
-  } catch (err: any) {
-    console.error('Failed to sync Discord data:', err)
-    const toast = useToast()
-    toast.add({
-      title: 'Sync Failed',
-      description: 'Failed to synchronize Discord data',
-      color: 'error'
-    })
-  } finally {
-    isSyncing.value = false
-  }
-}
-
-// Helper functions
-const getTenantIcon = (tenant: any) => {
-  if (tenant?.icon) {
-    return `https://cdn.discordapp.com/icons/${tenant.discord_server_id}/${tenant.icon}.png`
-  }
-  return null
-}
-
-const getActivityIcon = (type: string) => {
-  const icons: Record<string, string> = {
-    server_started: 'heroicons:play-circle',
-    server_stopped: 'heroicons:stop-circle',
-    server_created: 'heroicons:plus-circle',
-    user_joined: 'heroicons:user-plus',
-    user_left: 'heroicons:user-minus',
-    role_updated: 'heroicons:shield-check'
-  }
-  return icons[type] || 'heroicons:information-circle'
-}
-
-const getActivityColorClass = (type: string) => {
-  const colors: Record<string, string> = {
-    server_started: 'bg-green-100',
-    server_stopped: 'bg-red-100',
-    server_created: 'bg-blue-100',
-    user_joined: 'bg-purple-100',
-    user_left: 'bg-gray-100',
-    role_updated: 'bg-yellow-100'
-  }
-  return colors[type] || 'bg-gray-100'
-}
-
-const getActivityIconColorClass = (type: string) => {
-  const colors: Record<string, string> = {
-    server_started: 'text-green-600',
-    server_stopped: 'text-red-600',
-    server_created: 'text-blue-600',
-    user_joined: 'text-purple-600',
-    user_left: 'text-gray-600',
-    role_updated: 'text-yellow-600'
-  }
-  return colors[type] || 'text-gray-600'
-}
-
-const formatTimestamp = (timestamp: string) => {
-  return new Date(timestamp).toLocaleString()
-}
-
-// Load data on mount
-onMounted(async () => {
-  isLoading.value = true
-  try {
-    await loadDashboardData()
-  } finally {
-    isLoading.value = false
-  }
-})
-
-// Watch for tenant changes
-watch(currentTenant, async (newTenant) => {
-  if (newTenant) {
-    await refreshData()
-  }
-})
-</script>

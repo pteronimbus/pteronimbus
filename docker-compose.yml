@@ -56,6 +56,7 @@ services:
       # Discord OAuth2 Configuration (you'll need to set these)
       DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-your_discord_client_id}
       DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-your_discord_client_secret}
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN:-your_discord_bot_token}
       DISCORD_REDIRECT_URL: http://localhost:8080/auth/callback
       
       # JWT Configuration
@@ -126,6 +127,7 @@ services:
     environment:
       BACKEND_URL: http://backend:8080
       NUXT_PUBLIC_BACKEND_URL: http://localhost:8080
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-your_discord_client_id}
     ports:
       - "3000:3000"
     depends_on:
