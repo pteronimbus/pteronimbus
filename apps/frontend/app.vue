@@ -1,5 +1,5 @@
 <template>
-  <UApp>
+  <UApp class="layout-container">
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>
@@ -7,5 +7,13 @@
 </template>
 
 <script setup>
-// Remove the layout structure from here since pages use their own layouts
+// Ensure proper hydration and layout stability
+useHead({
+  htmlAttrs: {
+    class: 'h-full'
+  },
+  bodyAttrs: {
+    class: 'h-full'
+  }
+})
 </script>

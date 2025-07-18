@@ -1,32 +1,43 @@
 <template>
-  <div>
-    <header class="flex justify-between items-center p-4 mb-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-      <div class="flex items-center gap-4">
-        <button 
-          @click="router.push('/')"
-          class="text-2xl font-bold text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-colors cursor-pointer"
-        >
-          Pteronimbus
-        </button>
-        <TenantSelector />
-      </div>
-      <div class="flex items-center gap-4">
-        <UDropdownMenu :items="userMenuItems" class=" dark:text-white" :ui="{ content: 'dark:bg-gray-800 dark:border-gray-700 dark:text-white' }">
-          <UButton
-            color="neutral"
-            variant="ghost"
-            icon="i-heroicons-user-circle"
-            size="sm"
-            class="text-xl"
-          />
-        </UDropdownMenu>
-        <ThemeSwitcher />
+  <div class="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+    <!-- Fixed Header -->
+    <header class="sticky top-0 z-50 w-full border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm">
+      <div class="w-full max-w-none">
+        <div class="flex justify-between items-center h-16 px-4 sm:px-6 lg:px-8">
+          <div class="flex items-center gap-4 min-w-0 flex-1">
+            <button 
+              @click="router.push('/')"
+              class="text-2xl font-bold text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-colors cursor-pointer flex-shrink-0"
+            >
+              Pteronimbus
+            </button>
+            <div class="flex-shrink-0">
+              <TenantSelector />
+            </div>
+          </div>
+          <div class="flex items-center gap-4 flex-shrink-0">
+            <UDropdownMenu :items="userMenuItems" :ui="{ content: 'dark:bg-gray-800 dark:border-gray-700 dark:text-white' }">
+              <UButton
+                color="neutral"
+                variant="ghost"
+                icon="i-heroicons-user-circle"
+                size="sm"
+                class="text-xl"
+              />
+            </UDropdownMenu>
+            <ThemeSwitcher />
+          </div>
+        </div>
       </div>
     </header>
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <main class="py-6">
-        <slot />
-      </main>
+
+    <!-- Main Content Area -->
+    <div class="flex-1 w-full">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+        <main class="py-6 w-full">
+          <slot />
+        </main>
+      </div>
     </div>
   </div>
 </template>
