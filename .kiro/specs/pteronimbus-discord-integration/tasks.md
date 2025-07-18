@@ -21,28 +21,7 @@
   - Write unit and integration tests
   - _Requirements: 1.1, 1.2, 1.5_
 
-- [x] 3. Implement Multi-Tenant Infrastructure
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+- [ ] 3. Implement Multi-Tenant Infrastructure
 
 
   - Create database schema for tenants, users, and Discord roles

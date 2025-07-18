@@ -69,6 +69,12 @@ export default defineI18nConfig(() => ({
           stopping: 'Stopping',
           error: 'Error'
         },
+        create: {
+          title: 'Create Server',
+          description: 'Create a new game server.',
+          comingSoon: 'Server Creation Coming Soon',
+          comingSoonDesc: 'The ability to create new game servers will be available here shortly.'
+        },
         columns: {
           name: 'Name',
           game: 'Game',
@@ -183,6 +189,24 @@ export default defineI18nConfig(() => ({
           sessions: 'Sessions'
         }
       },
+      roles: {
+        title: 'Role Management',
+        description: 'Manage roles and permissions for your tenant.',
+        comingSoon: 'Role Management Coming Soon',
+        comingSoonDesc: 'The ability to manage roles and permissions will be available here shortly.'
+      },
+      logs: {
+        title: 'Audit Logs',
+        description: 'Review all activity that has occurred within your tenant.',
+        comingSoon: 'Audit Logs Coming Soon',
+        comingSoonDesc: 'The ability to view audit logs will be available here shortly.'
+      },
+      settings: {
+        title: 'Tenant Settings',
+        description: 'Manage your tenant settings and preferences.',
+        comingSoon: 'Tenant Settings Coming Soon',
+        comingSoonDesc: 'The ability to manage tenant settings will be available here shortly.'
+      },
       tenants: {
         title: 'Discord Servers',
         addServer: 'Add Server',
@@ -241,7 +265,8 @@ export default defineI18nConfig(() => ({
         search: 'Search',
         filter: 'Filter',
         export: 'Export',
-        import: 'Import'
+        import: 'Import',
+        back: 'Back'
       }
     },
     fr: {
@@ -289,12 +314,19 @@ export default defineI18nConfig(() => ({
       servers: {
         title: 'Serveurs',
         createServer: 'Créer un serveur',
+        noServers: 'Aucun serveur disponible',
         status: {
           online: 'En ligne',
           offline: 'Hors ligne',
           starting: 'Démarrage',
           stopping: 'Arrêt',
           error: 'Erreur'
+        },
+        create: {
+          title: 'Créer un serveur',
+          description: 'Créez un nouveau serveur de jeu.',
+          comingSoon: 'Création de serveur bientôt disponible',
+          comingSoonDesc: 'La possibilité de créer de nouveaux serveurs de jeu sera bientôt disponible ici.'
         },
         columns: {
           name: 'Nom',
@@ -412,7 +444,8 @@ export default defineI18nConfig(() => ({
         confirm: 'Confirmer',
         loading: 'Chargement...',
         viewAll: 'Voir tout',
-        refresh: 'Actualiser'
+        refresh: 'Actualiser',
+        back: 'Retour'
       }
     }
   }
