@@ -43,6 +43,7 @@ func main() {
 	
 	authService := services.NewAuthService(dbService.GetDB(), discordService, jwtService, redisService)
 	tenantService := services.NewTenantService(dbService.GetDB(), discordService)
+	gameServerService := services.NewGameServerService(dbService.GetDB())
 
 	// Test Redis connection
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -59,6 +60,7 @@ func main() {
 	healthHandler := handlers.NewHealthHandler()
 	authHandler := handlers.NewAuthHandler(authService)
 	tenantHandler := handlers.NewTenantHandler(tenantService, discordService, authService, redisService)
+	gameServerHandler := handlers.NewGameServerHandler(gameServerService, tenantService)
 
 	// Initialize middleware
 	authMiddleware := middleware.NewAuthMiddleware(authService)
@@ -114,7 +116,12 @@ func main() {
 		tenantScopedRoutes := apiRoutes.Group("/tenant")
 		tenantScopedRoutes.Use(tenantMiddleware.RequireTenant())
 		{
-			// Game server routes will be added here later
+			// Game server routes
+			tenantScopedRoutes.GET("/servers", gameServerHandler.GetTenantServers)
+			tenantScopedRoutes.GET("/activity", gameServerHandler.GetTenantActivity)
+			tenantScopedRoutes.GET("/discord/stats", gameServerHandler.GetTenantDiscordStats)
+			
+			// Tenant info route
 			tenantScopedRoutes.GET("/info", func(c *gin.Context) {
 				tenant, _ := c.Get("tenant")
 				c.JSON(http.StatusOK, gin.H{

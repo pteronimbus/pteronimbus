@@ -287,6 +287,21 @@ func (TenantDiscordUser) TableName() string {
 	return "discord_users"
 }
 
+// Activity represents an activity log entry
+type Activity struct {
+	ID        string    `json:"id"`
+	Type      string    `json:"type"`
+	Message   string    `json:"message"`
+	Timestamp string    `json:"timestamp"`
+}
+
+// DiscordStats represents Discord statistics for a tenant
+type DiscordStats struct {
+	MemberCount int    `json:"memberCount"`
+	RoleCount   int    `json:"roleCount"`
+	LastSync    string `json:"lastSync"`
+}
+
 // TableName returns the table name for GameServer
 func (GameServer) TableName() string {
 	return "game_servers"

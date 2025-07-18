@@ -35,6 +35,10 @@
 
 
 
+
+
+
+
   - Create database schema for tenants, users, and Discord roles
   - Implement Discord server discovery via Discord API
   - Create tenant creation and configuration endpoints

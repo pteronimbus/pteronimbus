@@ -5,7 +5,7 @@
       <div class="flex items-center justify-between">
         <div class="flex items-center space-x-4">
           <UAvatar
-            :src="getTenantIcon(currentTenant)"
+            :src="getTenantIcon(currentTenant) || undefined"
             :alt="currentTenant?.name"
             size="lg"
           />
@@ -13,13 +13,9 @@
             <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
               {{ currentTenant?.name || 'Loading...' }}
             </h1>
-            <p class="text-gray-600 dark:text-gray-400">
-              {{ t('dashboard.tenantOverview') }}
-            </p>
           </div>
         </div>
         <div class="flex items-center space-x-3">
-          <TenantSelector />
           <UButton
             variant="outline"
             size="sm"
@@ -243,14 +239,11 @@ definePageMeta({
 })
 
 const { t } = useI18n()
-const route = useRoute()
 const router = useRouter()
-const { user } = useAuth()
 const { 
   currentTenant, 
   tenantApiRequest,
-  syncTenantData,
-  clearError 
+  syncTenantData
 } = useTenant()
 
 // Local state
@@ -394,7 +387,7 @@ const syncDiscordData = async () => {
     toast.add({
       title: 'Discord Data Synced',
       description: 'Discord roles and members have been synchronized',
-      color: 'green'
+      color: 'success'
     })
   } catch (err: any) {
     console.error('Failed to sync Discord data:', err)
@@ -402,7 +395,7 @@ const syncDiscordData = async () => {
     toast.add({
       title: 'Sync Failed',
       description: 'Failed to synchronize Discord data',
-      color: 'red'
+      color: 'error'
     })
   } finally {
     isSyncing.value = false

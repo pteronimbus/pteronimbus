@@ -59,3 +59,10 @@ type TenantServiceInterface interface {
 	HasPermission(ctx context.Context, userID, tenantID, permission string) (bool, error)
 	CheckManageServerPermission(discordGuild *models.DiscordGuild) bool
 }
+
+// GameServerServiceInterface defines the interface for game server service operations
+type GameServerServiceInterface interface {
+	GetTenantServers(ctx context.Context, tenantID string) ([]models.GameServer, error)
+	GetTenantActivity(ctx context.Context, tenantID string, limit int) ([]models.Activity, error)
+	GetTenantDiscordStats(ctx context.Context, tenantID string) (*models.DiscordStats, error)
+}
