@@ -316,11 +316,18 @@ onUnmounted(() => {
     >
       <template #body>
         <div class="text-center py-8">
-          <UIcon name="i-heroicons-wrench-screwdriver" class="w-12 h-12 text-primary-500 mx-auto mb-4" />
+          <UIcon name="i-heroicons-wrench-screwdriver" class="w-12 h-12 mx-auto mb-4" />
           <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
             {{ t('dashboard.botRequiredDescription', 'To use all features, please invite the Pteronimbus bot to your Discord server.') }}
           </p>
-          <UButton size="lg" color="primary" :to="inviteUrl" target="_blank">
+          <UButton
+            variant="outline"
+            size="lg"
+            icon="heroicons:user-plus"
+            :to="inviteUrl"
+            target="_blank"
+            class="bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+          >
             {{ t('dashboard.inviteBot', 'Invite Bot') }}
           </UButton>
           <div v-if="botStatus && botStatus.missingPermissions && botStatus.missingPermissions.length > 0" class="mt-4">

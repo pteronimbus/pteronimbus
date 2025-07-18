@@ -104,7 +104,7 @@ alwaysApply: true
 
 ## Phase 4: Discord Bot Integration
 
-- [ ] 10. Develop Initial Discord Bot Service
+- [x] 10. Develop Initial Discord Bot Service
   - Use discordgo sdk to set up Discord bot application and register simple slash commands (ping/pong)
   - Implement Discord role and user syncing via the bot token
   - Implement the ability to post arbitrary message to a given server and room via the bot
