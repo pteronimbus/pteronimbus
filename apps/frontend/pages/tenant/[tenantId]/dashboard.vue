@@ -110,7 +110,7 @@ const inviteUrl = computed(() => {
   if (!currentTenant.value) return '#'
   const clientId = runtimeConfig.public.discordClientId
   const guildId = currentTenant.value.discord_server_id
-  const perms = 268438528 // MANAGE_ROLES + SEND_MESSAGES + VIEW_CHANNEL
+  const perms = 277293902870 // MANAGE_ROLES + SEND_MESSAGES + VIEW_CHANNEL
   return `https://discord.com/oauth2/authorize?client_id=${clientId}&scope=bot+applications.commands&permissions=${perms}&guild_id=${guildId}`
 })
 

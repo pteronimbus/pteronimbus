@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/models"
@@ -410,7 +411,14 @@ func (th *TenantHandler) SyncTenantData(c *gin.Context) {
 
 	// Get bot token from config or environment
 	// For now, we'll use a placeholder - this should be configured properly
-	botToken := "YOUR_BOT_TOKEN" // This should come from configuration
+	botToken := th.discordService.(*services.DiscordService).BotToken()
+	if botToken == "" {
+		c.JSON(http.StatusInternalServerError, models.APIError{
+			Code:    "DISCORD_SYNC_ERROR",
+			Message: "Bot token not configured",
+		})
+		return
+	}
 
 	// Sync Discord roles
 	err = th.tenantService.SyncDiscordRoles(c.Request.Context(), tenantID, botToken)
@@ -527,8 +535,73 @@ func (th *TenantHandler) GetBotStatus(c *gin.Context) {
 
 	missing := []string{}
 	if present {
-		// Check permissions (for now, just check if bot is present)
-		// TODO: Implement permission checks if possible via Discord API
+		// Discord permissions bitfield for required permissions
+		const requiredPerms int64 = 277293902870
+
+		// Get the bot's member object in the guild (already fetched as 'member')
+		// The member.Roles and member.Permissions fields may be relevant
+
+		// Calculate the bot's effective permissions in the guild
+		// This requires fetching all roles and summing the permissions for the bot's roles
+		roles, err := th.discordService.GetGuildRoles(ctx, botToken, guildID)
+		var effectivePerms int64 = 0
+		if err == nil && roles != nil {
+			for _, role := range roles {
+				for _, botRoleID := range member.Roles {
+					if role.ID == botRoleID {
+						// Permissions is a string, so parse it to int64
+						permInt, perr := strconv.ParseInt(role.Permissions, 10, 64)
+						if perr == nil {
+							effectivePerms |= permInt
+						}
+					}
+				}
+			}
+		}
+		// If the bot has the ADMINISTRATOR permission, it has all permissions
+		const permAdministrator int64 = 0x00000008
+		if (effectivePerms & permAdministrator) == permAdministrator {
+			// Bot has all permissions
+		} else {
+			// Check for each required permission bit
+			permMap := map[int64]string{
+				0x00000008:   "ADMINISTRATOR",
+				0x00000020:   "MANAGE_CHANNELS",
+				0x00000040:   "MANAGE_GUILD",
+				0x00000080:   "ADD_REACTIONS",
+				0x00000400:   "VIEW_AUDIT_LOG",
+				0x00000800:   "PRIORITY_SPEAKER",
+				0x00001000:   "STREAM",
+				0x00002000:   "VIEW_CHANNEL",
+				0x00004000:   "SEND_MESSAGES",
+				0x00008000:   "SEND_TTS_MESSAGES",
+				0x00010000:   "MANAGE_MESSAGES",
+				0x00020000:   "EMBED_LINKS",
+				0x00040000:   "ATTACH_FILES",
+				0x00080000:   "READ_MESSAGE_HISTORY",
+				0x00100000:   "MENTION_EVERYONE",
+				0x00200000:   "USE_EXTERNAL_EMOJIS",
+				0x00400000:   "VIEW_GUILD_INSIGHTS",
+				0x01000000:   "MANAGE_ROLES",
+				0x02000000:   "MANAGE_WEBHOOKS",
+				0x04000000:   "MANAGE_EMOJIS_AND_STICKERS",
+				0x08000000:   "USE_APPLICATION_COMMANDS",
+				0x10000000:   "REQUEST_TO_SPEAK",
+				0x20000000:   "MANAGE_EVENTS",
+				0x40000000:   "MANAGE_THREADS",
+				0x80000000:   "CREATE_PUBLIC_THREADS",
+				0x100000000:  "CREATE_PRIVATE_THREADS",
+				0x200000000:  "USE_EXTERNAL_STICKERS",
+				0x400000000:  "SEND_MESSAGES_IN_THREADS",
+				0x800000000:  "START_EMBEDDED_ACTIVITIES",
+				0x1000000000: "MODERATE_MEMBERS",
+			}
+			for bit, name := range permMap {
+				if (requiredPerms&bit) == bit && (effectivePerms&bit) != bit {
+					missing = append(missing, name)
+				}
+			}
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{

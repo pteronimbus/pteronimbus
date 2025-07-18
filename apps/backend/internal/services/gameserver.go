@@ -23,11 +23,11 @@ func NewGameServerService(db *gorm.DB) GameServerServiceInterface {
 // GetTenantServers retrieves all game servers for a tenant
 func (gss *GameServerService) GetTenantServers(ctx context.Context, tenantID string) ([]models.GameServer, error) {
 	var servers []models.GameServer
-	
+
 	// For now, return mock data until we implement the full database integration
 	// In a real implementation, this would query the database:
 	// err := gss.db.WithContext(ctx).Where("tenant_id = ?", tenantID).Find(&servers).Error
-	
+
 	servers = []models.GameServer{
 		{
 			ID:         "server-1",
@@ -75,7 +75,7 @@ func (gss *GameServerService) GetTenantServers(ctx context.Context, tenantID str
 			UpdatedAt: time.Now().Add(-1 * time.Hour),
 		},
 	}
-	
+
 	return servers, nil
 }
 
@@ -83,7 +83,7 @@ func (gss *GameServerService) GetTenantServers(ctx context.Context, tenantID str
 func (gss *GameServerService) GetTenantActivity(ctx context.Context, tenantID string, limit int) ([]models.Activity, error) {
 	// For now, return mock activity data
 	// In a real implementation, this would query an audit log table
-	
+
 	activities := []models.Activity{
 		{
 			ID:        "activity-1",
@@ -116,25 +116,45 @@ func (gss *GameServerService) GetTenantActivity(ctx context.Context, tenantID st
 			Timestamp: time.Now().Add(-2 * time.Hour).Format(time.RFC3339),
 		},
 	}
-	
+
 	// Apply limit if specified
 	if limit > 0 && limit < len(activities) {
 		activities = activities[:limit]
 	}
-	
+
 	return activities, nil
 }
 
 // GetTenantDiscordStats retrieves Discord statistics for a tenant
 func (gss *GameServerService) GetTenantDiscordStats(ctx context.Context, tenantID string) (*models.DiscordStats, error) {
-	// For now, return mock Discord stats
-	// In a real implementation, this would query the tenant's Discord data
-	
-	stats := &models.DiscordStats{
-		MemberCount: 42,
-		RoleCount:   8,
-		LastSync:    time.Now().Add(-2 * time.Hour).Format(time.RFC3339),
+	var roleCount int64
+	var userCount int64
+	var lastSync time.Time
+
+	// Count roles
+	if err := gss.db.Model(&models.TenantDiscordRole{}).Where("tenant_id = ?", tenantID).Count(&roleCount).Error; err != nil {
+		return nil, err
 	}
-	
+
+	// Count users
+	if err := gss.db.Model(&models.TenantDiscordUser{}).Where("tenant_id = ?", tenantID).Count(&userCount).Error; err != nil {
+		return nil, err
+	}
+
+	// Get last sync time (latest of users or roles)
+	var userLastSync, roleLastSync time.Time
+	gss.db.Model(&models.TenantDiscordUser{}).Where("tenant_id = ?", tenantID).Select("MAX(last_sync_at)").Scan(&userLastSync)
+	gss.db.Model(&models.TenantDiscordRole{}).Where("tenant_id = ?", tenantID).Select("MAX(updated_at)").Scan(&roleLastSync)
+	if userLastSync.After(roleLastSync) {
+		lastSync = userLastSync
+	} else {
+		lastSync = roleLastSync
+	}
+
+	stats := &models.DiscordStats{
+		MemberCount: int(userCount),
+		RoleCount:   int(roleCount),
+		LastSync:    lastSync.Format(time.RFC3339),
+	}
 	return stats, nil
 }
