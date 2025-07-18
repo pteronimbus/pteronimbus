@@ -19,6 +19,11 @@ export default defineAppConfig({
         leadingIcon: 'text-gray-600 dark:text-gray-300',
         trailingIcon: 'text-gray-600 dark:text-gray-300'
       }
+    },
+    toast: {
+      slots: {
+        root: 'bg-white dark:bg-gray-900 shadow-lg rounded-lg border border-gray-200 dark:border-gray-700'
+      }
     }
   }
 }) 
