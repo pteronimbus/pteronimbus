@@ -8,7 +8,7 @@
       You haven't added any Discord servers to Pteronimbus yet. 
       Add your first server to start managing game servers for your community.
     </p>
-    <AddTenantModal>
+    <AddTenantModal :available-guilds="availableGuilds" @refresh="$emit('refresh')">
       <UButton
         size="lg"
         color="primary"
@@ -23,5 +23,17 @@
 </template>
 
 <script setup lang="ts">
-// No emits needed since AddTenantModal handles its own state
+interface Props {
+  availableGuilds?: any[]
+}
+
+interface Emits {
+  (e: 'refresh'): void
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  availableGuilds: () => []
+})
+
+defineEmits<Emits>()
 </script>

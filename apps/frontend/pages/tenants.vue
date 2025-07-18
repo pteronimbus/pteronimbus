@@ -19,15 +19,10 @@
 
       <!-- Error State -->
       <div v-else-if="error" class="text-center py-12">
-        <UAlert
-          icon="i-heroicons-exclamation-triangle"
-          color="error"
-          variant="soft"
-          :title="t('common.error')"
+        <UAlert icon="i-heroicons-exclamation-triangle" color="error" variant="soft" :title="t('common.error')"
           :description="error"
           :close-button="{ icon: 'i-heroicons-x-mark-20-solid', color: 'neutral', variant: 'link', padded: false }"
-          @close="clearError"
-        />
+          @close="clearError" />
         <div class="mt-6">
           <UButton @click="loadTenants" variant="outline">
             <UIcon name="i-heroicons-arrow-path" class="w-4 h-4 mr-2" />
@@ -44,9 +39,11 @@
             <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
               Your Servers ({{ tenants.length }})
             </h2>
-            <p class="text-sm text-gray-500">Debug: availableGuildsForTenant.length = {{ availableGuildsForTenant.length }}</p>
+            <p class="text-sm text-gray-500">Debug: availableGuildsForTenant.length = {{ availableGuildsForTenant.length
+            }}</p>
           </div>
-          <AddTenantModal v-if="!isLoading" :available-guilds="availableGuildsForTenant" @refresh="loadAllData" :key="`modal-${availableGuildsForTenant.length}`">
+          <AddTenantModal v-if="!isLoading" :available-guilds="availableGuildsForTenant" @refresh="loadAllData"
+            :key="`modal-${availableGuildsForTenant.length}`">
             <UButton>
               <UIcon name="i-heroicons-plus" class="w-4 h-4 mr-2" />
               {{ t('tenants.addServer') }}
@@ -56,38 +53,20 @@
 
         <!-- Tenant Cards -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <TenantCard
-            v-for="tenant in tenants"
-            :key="tenant.id"
-            :tenant="tenant"
-            :is-owner="isOwner(tenant)"
-            @select="selectTenant"
-          >
+          <TenantCard v-for="tenant in tenants" :key="tenant.id" :tenant="tenant" :is-owner="isOwner(tenant)"
+            @select="selectTenant">
             <template #delete-button>
               <DeleteTenantModal :tenant="tenant">
-                <UButton
-                  color="error"
-                  variant="ghost"
-                  size="sm"
-                  icon="i-heroicons-trash"
-                />
+                <UButton color="error" variant="ghost" size="sm" icon="i-heroicons-trash" />
               </DeleteTenantModal>
             </template>
           </TenantCard>
         </div>
       </div>
 
+
       <!-- Empty State -->
-      <EmptyTenantState v-else>
-        <template #add-server-button>
-          <AddTenantModal v-if="!isLoading" :available-guilds="availableGuildsForTenant" @refresh="loadAllData" :key="`modal-${availableGuildsForTenant.length}`">
-            <UButton>
-              <UIcon name="i-heroicons-plus" class="w-4 h-4 mr-2" />
-              {{ t('tenants.addServer') }}
-            </UButton>
-          </AddTenantModal>
-        </template>
-      </EmptyTenantState>
+      <EmptyTenantState v-else :available-guilds="availableGuildsForTenant" @refresh="loadAllData" />
     </div>
 
 
@@ -101,10 +80,10 @@ definePageMeta({
 
 const { t } = useI18n()
 const { user } = useAuth()
-const { 
-  tenants, 
+const {
+  tenants,
   availableGuilds,
-  isLoading, 
+  isLoading,
   error,
   fetchUserTenants,
   fetchAvailableGuilds,
@@ -120,18 +99,18 @@ const availableGuildsForTenant = computed(() => {
     tenantsExists: !!tenants.value,
     tenantsLength: tenants.value?.length
   })
-  
+
   if (!availableGuilds.value || !tenants.value) {
-    console.log('Debug: Missing data', { 
-      availableGuilds: availableGuilds.value?.length, 
-      tenants: tenants.value?.length 
+    console.log('Debug: Missing data', {
+      availableGuilds: availableGuilds.value?.length,
+      tenants: tenants.value?.length
     })
     return []
   }
-  
+
   const tenantGuildIds = new Set(tenants.value.map(tenant => tenant.discord_server_id))
   const filtered = availableGuilds.value.filter(guild => !tenantGuildIds.has(guild.id))
-  
+
   console.log('Debug: Filtering guilds', {
     totalGuilds: availableGuilds.value.length,
     existingTenants: tenants.value.length,
@@ -139,7 +118,7 @@ const availableGuildsForTenant = computed(() => {
     availableForTenant: filtered.length,
     filteredGuilds: filtered.map(g => ({ id: g.id, name: g.name }))
   })
-  
+
   return filtered
 })
 
@@ -207,4 +186,3 @@ const isOwner = (tenant: any) => {
   return tenant.owner_id === user.value?.id
 }
 </script>
-
