@@ -10,10 +10,10 @@
             size="lg"
           />
           <div>
-            <h1 class="text-2xl font-bold text-gray-900">
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
               {{ currentTenant?.name || 'Loading...' }}
             </h1>
-            <p class="text-gray-600">
+            <p class="text-gray-600 dark:text-gray-400">
               {{ t('dashboard.tenantOverview') }}
             </p>
           </div>
@@ -36,14 +36,14 @@
     <!-- Loading State -->
     <div v-if="isLoading" class="text-center py-12">
       <UIcon name="heroicons:arrow-path" class="w-8 h-8 animate-spin mx-auto mb-4 text-primary-500" />
-      <p class="text-gray-600">Loading dashboard data...</p>
+      <p class="text-gray-600 dark:text-gray-400">Loading dashboard data...</p>
     </div>
 
     <!-- Error State -->
     <div v-else-if="error" class="text-center py-12">
       <UIcon name="heroicons:exclamation-triangle" class="w-12 h-12 text-red-500 mx-auto mb-4" />
-      <h3 class="text-lg font-medium text-gray-900 mb-2">Failed to Load Dashboard</h3>
-      <p class="text-gray-600 mb-6">{{ error }}</p>
+      <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Failed to Load Dashboard</h3>
+      <p class="text-gray-600 dark:text-gray-400 mb-6">{{ error }}</p>
       <UButton @click="refreshData" variant="outline">
         <UIcon name="heroicons:arrow-path" class="w-4 h-4 mr-2" />
         Try Again

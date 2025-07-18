@@ -22,6 +22,13 @@
   - _Requirements: 1.1, 1.2, 1.5_
 
 - [x] 3. Implement Multi-Tenant Infrastructure
+
+
+
+
+
+
+
   - Create database schema for tenants, users, and Discord roles
   - Implement Discord server discovery via Discord API
   - Create tenant creation and configuration endpoints
@@ -41,9 +48,7 @@
   - Test the moved dashboard functionaltiy under tenant/xxx/dashboard
   - _Requirements: Testing Requirements 1, 3_
 
-- [x] 5. Set up Kubernetes Controller Foundation
-
-
+- [ ] 5. Set up Kubernetes Controller Foundation
 
   - Implement GameTemplate and GameServer CRD definitions
   - Create controller reconciliation loop structure using controller-runtime
@@ -174,3 +179,5 @@ Each implementation task must include:
 - Performance testing should be conducted for multi-tenant scenarios
 - Documentation should be updated as features are implemented
 - Any changes to the frontend must respect the dark and light themes
+- Any changes to the frontend should be done to the quality of a staff ui developer, shortcuts should be avoided
+- Any changes to the frontend should respect i18n

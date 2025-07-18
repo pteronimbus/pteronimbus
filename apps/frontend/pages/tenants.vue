@@ -1,258 +1,96 @@
 <template>
   <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
-    <div class="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <!-- Header -->
-      <div class="text-center mb-12">
+      <div class="text-center mb-8">
         <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-          Select Discord Server
+          {{ t('tenants.title') }}
         </h1>
         <p class="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-          Choose a Discord server to manage game servers for your community.
-          You can switch between servers anytime.
+          Manage game servers for your Discord communities. Select a server to get started.
         </p>
       </div>
 
       <!-- Loading State -->
       <div v-if="isLoading" class="text-center py-12">
-        <UIcon name="heroicons:arrow-path" class="w-8 h-8 animate-spin mx-auto mb-4 text-primary-500" />
-        <p class="text-gray-600 dark:text-gray-400">Loading your Discord servers...</p>
+        <UIcon name="i-heroicons-arrow-path" class="w-8 h-8 animate-spin mx-auto mb-4 text-primary-500" />
+        <p class="text-gray-600 dark:text-gray-400">{{ t('tenants.loading') }}</p>
       </div>
 
       <!-- Error State -->
       <div v-else-if="error" class="text-center py-12">
-        <UIcon name="heroicons:exclamation-triangle" class="w-12 h-12 text-red-500 mx-auto mb-4" />
-        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Failed to Load Servers</h3>
-        <p class="text-gray-600 dark:text-gray-400 mb-6">{{ error }}</p>
-        <UButton @click="loadTenants" variant="outline">
-          <UIcon name="heroicons:arrow-path" class="w-4 h-4 mr-2" />
-          Try Again
-        </UButton>
-      </div>
-
-      <!-- Tenant Grid -->
-      <div v-else-if="tenants.length > 0" class="space-y-8">
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div
-            v-for="tenant in tenants"
-            :key="tenant.id"
-            class="tenant-card"
-          >
-            <UCard class="h-full hover:shadow-lg transition-shadow cursor-pointer" @click="selectTenant(tenant)">
-              <div class="flex items-center space-x-4 mb-4">
-                <UAvatar
-                  :src="getTenantIcon(tenant)"
-                  :alt="tenant.name"
-                  size="lg"
-                />
-                <div class="flex-1 min-w-0">
-                  <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 truncate">
-                    {{ tenant.name }}
-                  </h3>
-                  <p class="text-sm text-gray-500 dark:text-gray-400">
-                    {{ isOwner(tenant) ? 'Owner' : 'Member' }}
-                  </p>
-                </div>
-              </div>
-              
-              <div class="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                <div class="flex items-center">
-                  <UIcon name="heroicons:calendar" class="w-4 h-4 mr-2" />
-                  Added {{ formatDate(tenant.created_at) }}
-                </div>
-                <div class="flex items-center">
-                  <UIcon name="heroicons:server" class="w-4 h-4 mr-2" />
-                  {{ tenant.config?.resource_limits?.max_game_servers || 5 }} server limit
-                </div>
-              </div>
-
-              <div class="mt-6 flex space-x-2">
-                <UButton
-                  class="flex-1"
-                  @click.stop="selectTenant(tenant)"
-                >
-                  Select Server
-                </UButton>
-                <UDropdown
-                  v-if="isOwner(tenant)"
-                  :items="getTenantActions(tenant)"
-                  :popper="{ placement: 'bottom-end' }"
-                >
-                  <UButton
-                    variant="ghost"
-                    size="sm"
-                    icon="heroicons:ellipsis-vertical"
-                    @click.stop
-                  />
-                </UDropdown>
-              </div>
-            </UCard>
-          </div>
-        </div>
-
-        <!-- Add New Server Button -->
-        <div class="text-center">
-          <UButton
-            size="lg"
-            variant="outline"
-            @click="showCreateModal = true"
-          >
-            <UIcon name="heroicons:plus" class="w-5 h-5 mr-2" />
-            Add New Discord Server
+        <UAlert
+          icon="i-heroicons-exclamation-triangle"
+          color="error"
+          variant="soft"
+          :title="t('common.error')"
+          :description="error"
+          :close-button="{ icon: 'i-heroicons-x-mark-20-solid', color: 'neutral', variant: 'link', padded: false }"
+          @close="clearError"
+        />
+        <div class="mt-6">
+          <UButton @click="loadTenants" variant="outline">
+            <UIcon name="i-heroicons-arrow-path" class="w-4 h-4 mr-2" />
+            {{ t('common.refresh') }}
           </UButton>
         </div>
       </div>
 
-      <!-- No Tenants State -->
-      <div v-else class="text-center py-12">
-        <UIcon name="heroicons:server" class="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-6" />
-        <h3 class="text-xl font-medium text-gray-900 dark:text-gray-100 mb-4">
-          No Discord Servers Found
-        </h3>
-        <p class="text-gray-600 dark:text-gray-400 mb-8 max-w-md mx-auto">
-          You haven't added any Discord servers to Pteronimbus yet. 
-          Add your first server to start managing game servers for your community.
-        </p>
-        <UButton
-          size="lg"
-          @click="showCreateModal = true"
-        >
-          <UIcon name="heroicons:plus" class="w-5 h-5 mr-2" />
-          Add Your First Server
-        </UButton>
+      <!-- Tenant Grid -->
+      <div v-else-if="tenants.length > 0" class="space-y-8">
+        <!-- Action Bar -->
+        <div class="flex justify-between items-center">
+          <div class="flex items-center space-x-4">
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+              Your Servers ({{ tenants.length }})
+            </h2>
+            <p class="text-sm text-gray-500">Debug: availableGuildsForTenant.length = {{ availableGuildsForTenant.length }}</p>
+          </div>
+          <AddTenantModal v-if="!isLoading" :available-guilds="availableGuildsForTenant" @refresh="loadAllData" :key="`modal-${availableGuildsForTenant.length}`">
+            <UButton>
+              <UIcon name="i-heroicons-plus" class="w-4 h-4 mr-2" />
+              {{ t('tenants.addServer') }}
+            </UButton>
+          </AddTenantModal>
+        </div>
+
+        <!-- Tenant Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <TenantCard
+            v-for="tenant in tenants"
+            :key="tenant.id"
+            :tenant="tenant"
+            :is-owner="isOwner(tenant)"
+            @select="selectTenant"
+          >
+            <template #delete-button>
+              <DeleteTenantModal :tenant="tenant">
+                <UButton
+                  color="error"
+                  variant="ghost"
+                  size="sm"
+                  icon="i-heroicons-trash"
+                />
+              </DeleteTenantModal>
+            </template>
+          </TenantCard>
+        </div>
       </div>
+
+      <!-- Empty State -->
+      <EmptyTenantState v-else>
+        <template #add-server-button>
+          <AddTenantModal v-if="!isLoading" :available-guilds="availableGuildsForTenant" @refresh="loadAllData" :key="`modal-${availableGuildsForTenant.length}`">
+            <UButton>
+              <UIcon name="i-heroicons-plus" class="w-4 h-4 mr-2" />
+              {{ t('tenants.addServer') }}
+            </UButton>
+          </AddTenantModal>
+        </template>
+      </EmptyTenantState>
     </div>
 
-    <!-- Create Tenant Modal -->
-    <UModal v-model="showCreateModal" :ui="{ width: 'sm:max-w-lg' }">
-      <UCard>
-        <template #header>
-          <div class="flex items-center justify-between">
-            <h3 class="text-lg font-semibold">Add Discord Server</h3>
-            <UButton
-              variant="ghost"
-              size="sm"
-              icon="heroicons:x-mark"
-              @click="showCreateModal = false"
-            />
-          </div>
-        </template>
 
-        <div class="space-y-6">
-          <div class="text-sm text-gray-600 dark:text-gray-400">
-            <p class="mb-4">
-              Select a Discord server where you have "Manage Server" permissions. 
-              This will allow Pteronimbus to integrate with your Discord server for game server management.
-            </p>
-            <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-              <div class="flex items-start">
-                <UIcon name="heroicons:information-circle" class="w-5 h-5 text-blue-500 mr-2 mt-0.5" />
-                <div class="text-blue-700 dark:text-blue-300 text-sm">
-                  <p class="font-medium mb-1">What happens when you add a server?</p>
-                  <ul class="list-disc list-inside space-y-1 text-xs">
-                    <li>Your Discord roles will be synced for permission management</li>
-                    <li>You can manage game servers through Discord commands</li>
-                    <li>Server notifications will be sent to Discord channels</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Loading Available Guilds -->
-          <div v-if="loadingGuilds" class="text-center py-8">
-            <UIcon name="heroicons:arrow-path" class="w-6 h-6 animate-spin mx-auto mb-2" />
-            <p class="text-sm text-gray-500 dark:text-gray-400">Loading your Discord servers...</p>
-          </div>
-
-          <!-- Available Guilds -->
-          <div v-else-if="availableGuilds.length > 0" class="space-y-3">
-            <div
-              v-for="guild in availableGuilds"
-              :key="guild.id"
-              class="guild-item border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
-              @click="createTenantFromGuild(guild)"
-            >
-              <div class="flex items-center space-x-3">
-                <UAvatar
-                  :src="getGuildIcon(guild)"
-                  :alt="guild.name"
-                  size="md"
-                />
-                <div class="flex-1 min-w-0">
-                  <h4 class="font-medium text-gray-900 dark:text-gray-100 truncate">{{ guild.name }}</h4>
-                  <p class="text-sm text-gray-500 dark:text-gray-400">
-                    {{ guild.owner ? 'Owner' : 'Manager' }}
-                  </p>
-                </div>
-                <UButton
-                  size="sm"
-                  :loading="creatingTenant === guild.id"
-                  @click.stop="createTenantFromGuild(guild)"
-                >
-                  Add Server
-                </UButton>
-              </div>
-            </div>
-          </div>
-
-          <!-- No Available Guilds -->
-          <div v-else class="text-center py-8">
-            <UIcon name="heroicons:shield-exclamation" class="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h4 class="text-lg font-medium mb-2">No Available Servers</h4>
-            <p class="text-sm text-gray-500 mb-4">
-              You need "Manage Server" permissions to add a Discord server to Pteronimbus.
-              Make sure you're an administrator or have the required permissions.
-            </p>
-            <UButton variant="outline" @click="loadAvailableGuilds">
-              <UIcon name="heroicons:arrow-path" class="w-4 h-4 mr-2" />
-              Refresh List
-            </UButton>
-          </div>
-        </div>
-      </UCard>
-    </UModal>
-
-    <!-- Delete Confirmation Modal -->
-    <UModal v-model="showDeleteModal" :ui="{ width: 'sm:max-w-md' }">
-      <UCard>
-        <template #header>
-          <h3 class="text-lg font-semibold text-red-600 dark:text-red-400">Delete Server</h3>
-        </template>
-
-        <div class="space-y-4">
-          <div class="flex items-start space-x-3">
-            <UIcon name="heroicons:exclamation-triangle" class="w-6 h-6 text-red-500 mt-1" />
-            <div>
-              <p class="text-gray-900 dark:text-gray-100 font-medium mb-2">
-                Are you sure you want to remove "{{ tenantToDelete?.name }}"?
-              </p>
-              <p class="text-sm text-gray-600 dark:text-gray-400">
-                This will permanently delete all game servers, configurations, and data 
-                associated with this Discord server. This action cannot be undone.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <template #footer>
-          <div class="flex justify-end space-x-3">
-            <UButton
-              variant="ghost"
-              @click="showDeleteModal = false"
-            >
-              Cancel
-            </UButton>
-            <UButton
-              color="red"
-              :loading="deletingTenant"
-              @click="confirmDeleteTenant"
-            >
-              Delete Server
-            </UButton>
-          </div>
-        </template>
-      </UCard>
-    </UModal>
   </div>
 </template>
 
@@ -261,51 +99,88 @@ definePageMeta({
   middleware: 'auth'
 })
 
+const { t } = useI18n()
 const { user } = useAuth()
 const { 
   tenants, 
-  availableGuilds, 
+  availableGuilds,
   isLoading, 
   error,
   fetchUserTenants,
   fetchAvailableGuilds,
-  createTenant,
-  deleteTenant,
   switchTenant,
   clearError
 } = useTenant()
 
-// Local state
-const showCreateModal = ref(false)
-const showDeleteModal = ref(false)
-const loadingGuilds = ref(false)
-const creatingTenant = ref<string | null>(null)
-const deletingTenant = ref(false)
-const tenantToDelete = ref<any>(null)
+// Computed property to get guilds that are not already tenants
+const availableGuildsForTenant = computed(() => {
+  console.log('Debug: availableGuildsForTenant computed running', {
+    availableGuildsExists: !!availableGuilds.value,
+    availableGuildsLength: availableGuilds.value?.length,
+    tenantsExists: !!tenants.value,
+    tenantsLength: tenants.value?.length
+  })
+  
+  if (!availableGuilds.value || !tenants.value) {
+    console.log('Debug: Missing data', { 
+      availableGuilds: availableGuilds.value?.length, 
+      tenants: tenants.value?.length 
+    })
+    return []
+  }
+  
+  const tenantGuildIds = new Set(tenants.value.map(tenant => tenant.discord_server_id))
+  const filtered = availableGuilds.value.filter(guild => !tenantGuildIds.has(guild.id))
+  
+  console.log('Debug: Filtering guilds', {
+    totalGuilds: availableGuilds.value.length,
+    existingTenants: tenants.value.length,
+    tenantGuildIds: Array.from(tenantGuildIds),
+    availableForTenant: filtered.length,
+    filteredGuilds: filtered.map(g => ({ id: g.id, name: g.name }))
+  })
+  
+  return filtered
+})
 
 // Load data on mount
 onMounted(async () => {
-  await loadTenants()
+  await loadAllData()
 })
 
+// Watch the computed property to ensure it's reactive
+watch(availableGuildsForTenant, (newValue) => {
+  console.log('Debug: availableGuildsForTenant changed', {
+    length: newValue?.length,
+    guilds: newValue?.map(g => ({ id: g.id, name: g.name }))
+  })
+}, { immediate: true })
+
 // Methods
+const loadAllData = async () => {
+  try {
+    clearError()
+    console.log('Debug: Loading all data...')
+    // Load both tenants and available guilds in parallel to avoid rate limiting
+    await Promise.all([
+      fetchUserTenants(),
+      fetchAvailableGuilds()
+    ])
+    console.log('Debug: Data loaded', {
+      tenantsCount: tenants.value?.length,
+      guildsCount: availableGuilds.value?.length
+    })
+  } catch (error) {
+    console.error('Failed to load data:', error)
+  }
+}
+
 const loadTenants = async () => {
   try {
     clearError()
     await fetchUserTenants()
   } catch (error) {
     console.error('Failed to load tenants:', error)
-  }
-}
-
-const loadAvailableGuilds = async () => {
-  loadingGuilds.value = true
-  try {
-    await fetchAvailableGuilds()
-  } catch (error) {
-    console.error('Failed to load available guilds:', error)
-  } finally {
-    loadingGuilds.value = false
   }
 }
 
@@ -318,125 +193,18 @@ const selectTenant = async (tenant: any) => {
     toast.add({
       title: 'Failed to Switch Server',
       description: 'There was an error switching to the selected server',
-      color: 'red'
+      color: 'error'
     })
   }
 }
 
-const createTenantFromGuild = async (guild: any) => {
-  creatingTenant.value = guild.id
-  try {
-    const newTenant = await createTenant(guild.id)
-    showCreateModal.value = false
-    
-    // Show success notification
-    const toast = useToast()
-    toast.add({
-      title: 'Server Added Successfully',
-      description: `${guild.name} has been added to Pteronimbus`,
-      color: 'green'
-    })
 
-    // Automatically switch to the new tenant
-    await switchTenant(newTenant)
-  } catch (error) {
-    console.error('Failed to create tenant:', error)
-    const toast = useToast()
-    toast.add({
-      title: 'Failed to Add Server',
-      description: 'There was an error adding the Discord server',
-      color: 'red'
-    })
-  } finally {
-    creatingTenant.value = null
-  }
-}
 
-const confirmDeleteTenant = async () => {
-  if (!tenantToDelete.value) return
 
-  deletingTenant.value = true
-  try {
-    await deleteTenant(tenantToDelete.value.id)
-    showDeleteModal.value = false
-    tenantToDelete.value = null
-
-    const toast = useToast()
-    toast.add({
-      title: 'Server Removed',
-      description: 'The Discord server has been removed from Pteronimbus',
-      color: 'green'
-    })
-  } catch (error) {
-    console.error('Failed to delete tenant:', error)
-    const toast = useToast()
-    toast.add({
-      title: 'Failed to Remove Server',
-      description: 'There was an error removing the Discord server',
-      color: 'red'
-    })
-  } finally {
-    deletingTenant.value = false
-  }
-}
 
 // Helper functions
 const isOwner = (tenant: any) => {
   return tenant.owner_id === user.value?.id
 }
-
-const getTenantIcon = (tenant: any) => {
-  if (tenant.icon) {
-    return `https://cdn.discordapp.com/icons/${tenant.discord_server_id}/${tenant.icon}.png`
-  }
-  return null
-}
-
-const getGuildIcon = (guild: any) => {
-  if (guild.icon) {
-    return `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png`
-  }
-  return null
-}
-
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString()
-}
-
-const getTenantActions = (tenant: any) => {
-  return [
-    [{
-      label: 'Manage Settings',
-      icon: 'heroicons:cog-6-tooth',
-      click: () => navigateTo(`/tenant/${tenant.id}/settings`)
-    }],
-    [{
-      label: 'Remove Server',
-      icon: 'heroicons:trash',
-      click: () => {
-        tenantToDelete.value = tenant
-        showDeleteModal.value = true
-      }
-    }]
-  ]
-}
-
-// Watch for create modal opening
-watch(showCreateModal, (newValue) => {
-  if (newValue && availableGuilds.value.length === 0) {
-    loadAvailableGuilds()
-  }
-})
 </script>
 
-<style scoped>
-.tenant-card {
-  @apply transition-transform hover:scale-105;
-}
-
-.guild-item {
-  @apply transition-all duration-200;
-}
-
-
-</style>

@@ -133,13 +133,18 @@ const filters = computed(() => [
   }
 ])
 
+// Modal state
+const showAddModal = ref(false)
+const showDeleteModal = ref(false)
+const serverToDelete = ref<Server | null>(null)
+
 // Page header actions
 const headerActions = computed(() => [
   {
     label: t('servers.createServer'),
     icon: 'i-heroicons-plus-circle',
     color: 'primary' as const,
-    onClick: () => router.push(`/tenant/${currentTenant.value?.id}/servers/create`)
+    onClick: () => showAddModal.value = true
   }
 ])
 

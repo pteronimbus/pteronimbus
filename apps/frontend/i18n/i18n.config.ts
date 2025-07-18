@@ -85,6 +85,48 @@ export default defineI18nConfig(() => ({
           players: 'Players',
           performance: 'Performance',
           backups: 'Backups'
+        },
+        modals: {
+          add: {
+            title: 'Create New Server',
+            create: 'Create Server',
+            fields: {
+              name: 'Server Name',
+              game: 'Game Type',
+              maxPlayers: 'Max Players',
+              port: 'Port',
+              description: 'Description',
+              autoStart: 'Auto-start server'
+            },
+            placeholders: {
+              name: 'Enter server name',
+              game: 'Select a game',
+              maxPlayers: '20',
+              port: '25565',
+              description: 'Optional server description'
+            },
+            validation: {
+              nameRequired: 'Server name is required',
+              gameRequired: 'Please select a game type'
+            },
+            errors: {
+              createFailed: 'Failed to create server'
+            }
+          },
+          delete: {
+            title: 'Delete Server',
+            confirm: 'Delete Server',
+            confirmMessage: 'Are you sure you want to delete "{name}"?',
+            warningMessage: 'This will permanently delete the server, all its data, configurations, and backups. This action cannot be undone.',
+            confirmationLabel: 'Type "{name}" to confirm deletion',
+            validation: {
+              confirmationRequired: 'Please enter the server name to confirm',
+              confirmationMismatch: 'Server name does not match'
+            },
+            errors: {
+              deleteFailed: 'Failed to delete server'
+            }
+          }
         }
       },
       users: {
@@ -127,6 +169,45 @@ export default defineI18nConfig(() => ({
           permissions: 'Permissions',
           activity: 'Activity',
           sessions: 'Sessions'
+        }
+      },
+      tenants: {
+        title: 'Discord Servers',
+        addServer: 'Add Server',
+        noServers: 'No servers available',
+        loading: 'Loading your Discord servers...',
+        modals: {
+          add: {
+            title: 'Add Discord Server',
+            description: 'Select a Discord server where you have "Manage Server" permissions. This will allow Pteronimbus to integrate with your Discord server for game server management.',
+            infoTitle: 'What happens when you add a server?',
+            infoItems: [
+              'Your Discord roles will be synced for permission management',
+              'You can manage game servers through Discord commands',
+              'Server notifications will be sent to Discord channels'
+            ],
+            availableServers: 'Available Servers',
+            loadingServers: 'Loading your Discord servers...',
+            noAvailableServers: 'No Available Servers',
+            noServersDescription: 'You need "Manage Server" permissions to add a Discord server to Pteronimbus. Make sure you\'re an administrator or have the required permissions.',
+            refreshList: 'Refresh List',
+            addButton: 'Add Server',
+            owner: 'Owner',
+            manager: 'Manager',
+            errors: {
+              loadFailed: 'Failed to load available guilds',
+              addFailed: 'Failed to add Discord server'
+            }
+          },
+          delete: {
+            title: 'Remove Server',
+            confirmMessage: 'Are you sure you want to remove "{name}"?',
+            warningMessage: 'This will permanently delete all game servers, configurations, and data associated with this Discord server. This action cannot be undone.',
+            confirmButton: 'Remove Server',
+            errors: {
+              deleteFailed: 'Failed to remove server'
+            }
+          }
         }
       },
       common: {
@@ -186,11 +267,111 @@ export default defineI18nConfig(() => ({
           starting: 'Démarrage',
           stopping: 'Arrêt',
           error: 'Erreur'
+        },
+        columns: {
+          name: 'Nom',
+          game: 'Jeu',
+          status: 'Statut',
+          players: 'Joueurs',
+          ip: 'Adresse IP',
+          uptime: 'Temps de fonctionnement',
+          actions: 'Actions'
+        },
+        actions: {
+          start: 'Démarrer',
+          stop: 'Arrêter',
+          restart: 'Redémarrer',
+          edit: 'Modifier',
+          delete: 'Supprimer',
+          console: 'Console',
+          viewDetails: 'Voir les détails',
+          managePlayers: 'Gérer les joueurs'
+        },
+        modals: {
+          add: {
+            title: 'Créer un nouveau serveur',
+            create: 'Créer le serveur',
+            fields: {
+              name: 'Nom du serveur',
+              game: 'Type de jeu',
+              maxPlayers: 'Joueurs max',
+              port: 'Port',
+              description: 'Description',
+              autoStart: 'Démarrage automatique'
+            },
+            placeholders: {
+              name: 'Entrez le nom du serveur',
+              game: 'Sélectionnez un jeu',
+              maxPlayers: '20',
+              port: '25565',
+              description: 'Description optionnelle du serveur'
+            },
+            validation: {
+              nameRequired: 'Le nom du serveur est requis',
+              gameRequired: 'Veuillez sélectionner un type de jeu'
+            },
+            errors: {
+              createFailed: 'Échec de la création du serveur'
+            }
+          },
+          delete: {
+            title: 'Supprimer le serveur',
+            confirm: 'Supprimer le serveur',
+            confirmMessage: 'Êtes-vous sûr de vouloir supprimer "{name}" ?',
+            warningMessage: 'Cela supprimera définitivement le serveur, toutes ses données, configurations et sauvegardes. Cette action ne peut pas être annulée.',
+            confirmationLabel: 'Tapez "{name}" pour confirmer la suppression',
+            validation: {
+              confirmationRequired: 'Veuillez entrer le nom du serveur pour confirmer',
+              confirmationMismatch: 'Le nom du serveur ne correspond pas'
+            },
+            errors: {
+              deleteFailed: 'Échec de la suppression du serveur'
+            }
+          }
         }
       },
       users: {
         title: 'Utilisateurs',
         createUser: 'Créer un utilisateur'
+      },
+      tenants: {
+        title: 'Serveurs Discord',
+        addServer: 'Ajouter un serveur',
+        noServers: 'Aucun serveur disponible',
+        loading: 'Chargement de vos serveurs Discord...',
+        modals: {
+          add: {
+            title: 'Ajouter un serveur Discord',
+            description: 'Sélectionnez un serveur Discord où vous avez les permissions "Gérer le serveur". Cela permettra à Pteronimbus de s\'intégrer avec votre serveur Discord pour la gestion des serveurs de jeu.',
+            infoTitle: 'Que se passe-t-il quand vous ajoutez un serveur ?',
+            infoItems: [
+              'Vos rôles Discord seront synchronisés pour la gestion des permissions',
+              'Vous pourrez gérer les serveurs de jeu via les commandes Discord',
+              'Les notifications du serveur seront envoyées aux canaux Discord'
+            ],
+            availableServers: 'Serveurs disponibles',
+            loadingServers: 'Chargement de vos serveurs Discord...',
+            noAvailableServers: 'Aucun serveur disponible',
+            noServersDescription: 'Vous avez besoin des permissions "Gérer le serveur" pour ajouter un serveur Discord à Pteronimbus. Assurez-vous d\'être administrateur ou d\'avoir les permissions requises.',
+            refreshList: 'Actualiser la liste',
+            addButton: 'Ajouter le serveur',
+            owner: 'Propriétaire',
+            manager: 'Gestionnaire',
+            errors: {
+              loadFailed: 'Échec du chargement des guildes disponibles',
+              addFailed: 'Échec de l\'ajout du serveur Discord'
+            }
+          },
+          delete: {
+            title: 'Supprimer le serveur',
+            confirmMessage: 'Êtes-vous sûr de vouloir supprimer "{name}" ?',
+            warningMessage: 'Cela supprimera définitivement tous les serveurs de jeu, configurations et données associées à ce serveur Discord. Cette action ne peut pas être annulée.',
+            confirmButton: 'Supprimer le serveur',
+            errors: {
+              deleteFailed: 'Échec de la suppression du serveur'
+            }
+          }
+        }
       },
       common: {
         actions: 'Actions',
