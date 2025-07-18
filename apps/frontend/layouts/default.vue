@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+  <div class="flex flex-col bg-gray-50 dark:bg-gray-900">
     <!-- Fixed Header -->
     <header class="sticky top-0 z-50 w-full border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm">
       <div class="w-full max-w-none">
@@ -32,9 +32,9 @@
     </header>
 
     <!-- Main Content Area -->
-    <div class="flex-1 w-full">
+    <div class="flex-1 w-full flex">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-        <main class="py-6 w-full">
+        <main class="py-6 w-full" style="min-height: calc(100vh - 4rem);">
           <slot />
         </main>
       </div>
