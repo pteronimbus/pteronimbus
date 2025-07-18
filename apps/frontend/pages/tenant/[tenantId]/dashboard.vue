@@ -245,12 +245,12 @@
                  </UBadge>
                </div>
                <UButton 
-                 color="neutral"
+                 color="info"
                 variant="ghost" 
                 size="sm"
                 @click="syncDiscordData"
                 :loading="isSyncing"
-                class="hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                class="hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors px-3"
               >
                 <UIcon name="heroicons:arrow-path" class="w-4 h-4 mr-1" />
                 {{ t('dashboard.sync') }}
