@@ -50,7 +50,7 @@ func (suite *AuthIntegrationTestSuite) SetupSuite() {
 	mockDiscordService := &MockDiscordService{}
 	mockRedisService := &MockRedisService{}
 	
-	suite.authService = services.NewAuthService(mockDiscordService, suite.jwtService, mockRedisService)
+	suite.authService = services.NewAuthService(nil, mockDiscordService, suite.jwtService, mockRedisService)
 	suite.authHandler = handlers.NewAuthHandler(suite.authService)
 
 	// Setup router

@@ -41,7 +41,7 @@ func main() {
 		log.Fatalf("Failed to run database migrations: %v", err)
 	}
 	
-	authService := services.NewAuthService(discordService, jwtService, redisService)
+	authService := services.NewAuthService(dbService.GetDB(), discordService, jwtService, redisService)
 	tenantService := services.NewTenantService(dbService.GetDB(), discordService)
 
 	// Test Redis connection

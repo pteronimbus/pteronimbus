@@ -29,6 +29,12 @@
 
 
 
+
+
+
+
+
+
   - Create database schema for tenants, users, and Discord roles
   - Implement Discord server discovery via Discord API
   - Create tenant creation and configuration endpoints
@@ -173,7 +179,7 @@ Each implementation task must include:
 
 ## Notes
 
-- Each task should be implemented incrementally with comprehensive testing, not thorugh scripts, but in the language and projects that they test.
+- Each task should be implemented incrementally with comprehensive testing, not through scripts, but in the language and projects that they test.
 - All Discord API interactions must handle rate limiting and errors gracefully
 - Security considerations must be addressed at every level
 - Performance testing should be conducted for multi-tenant scenarios

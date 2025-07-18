@@ -1,12 +1,15 @@
 <template>
   <div>
     <header class="flex justify-between items-center p-4 mb-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-      <button 
-        @click="router.push('/')"
-        class="text-2xl font-bold text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-colors cursor-pointer"
-      >
-        Pteronimbus
-      </button>
+      <div class="flex items-center gap-4">
+        <button 
+          @click="router.push('/')"
+          class="text-2xl font-bold text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-colors cursor-pointer"
+        >
+          Pteronimbus
+        </button>
+        <TenantSelector />
+      </div>
       <div class="flex items-center gap-4">
         <UDropdownMenu :items="userMenuItems" class=" dark:text-white" :ui="{ content: 'dark:bg-gray-800 dark:border-gray-700 dark:text-white' }">
           <UButton
@@ -30,6 +33,7 @@
 
 <script setup lang="ts">
 import ThemeSwitcher from '~/components/ThemeSwitcher.vue'
+import TenantSelector from '~/components/TenantSelector.vue'
 
 const router = useRouter()
 const { user, signOut, initializeAuth } = useAuth()

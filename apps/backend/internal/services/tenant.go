@@ -110,8 +110,8 @@ func (ts *TenantService) AddUserToTenant(ctx context.Context, userID, tenantID s
 	err := ts.db.Where("user_id = ? AND tenant_id = ?", userID, tenantID).First(&existingUserTenant).Error
 	if err == nil {
 		// Update existing relationship
-		existingUserTenant.Roles = roles
-		existingUserTenant.Permissions = permissions
+		existingUserTenant.Roles = models.StringArray(roles)
+		existingUserTenant.Permissions = models.StringArray(permissions)
 		existingUserTenant.UpdatedAt = time.Now()
 		return ts.db.Save(&existingUserTenant).Error
 	}
@@ -123,8 +123,8 @@ func (ts *TenantService) AddUserToTenant(ctx context.Context, userID, tenantID s
 	userTenant := &models.UserTenant{
 		UserID:      userID,
 		TenantID:    tenantID,
-		Roles:       roles,
-		Permissions: permissions,
+		Roles:       models.StringArray(roles),
+		Permissions: models.StringArray(permissions),
 	}
 
 	err = ts.db.Create(userTenant).Error
@@ -172,7 +172,7 @@ func (ts *TenantService) SyncDiscordRoles(ctx context.Context, tenantID, botToke
 				Name:          discordRole.Name,
 				Color:         discordRole.Color,
 				Position:      discordRole.Position,
-				Permissions:   []string{}, // Will be mapped later
+				Permissions:   models.StringArray{}, // Will be mapped later
 				Mentionable:   discordRole.Mentionable,
 				Hoist:         discordRole.Hoist,
 			}
@@ -235,7 +235,7 @@ func (ts *TenantService) SyncDiscordUsers(ctx context.Context, tenantID, botToke
 				Username:      member.User.Username,
 				DisplayName:   member.Nick,
 				Avatar:        member.Avatar,
-				Roles:         member.Roles,
+				Roles:         models.StringArray(member.Roles),
 				JoinedAt:      &joinedAt,
 				LastSyncAt:    time.Now(),
 			}
@@ -249,7 +249,7 @@ func (ts *TenantService) SyncDiscordUsers(ctx context.Context, tenantID, botToke
 			existingUser.Username = member.User.Username
 			existingUser.DisplayName = member.Nick
 			existingUser.Avatar = member.Avatar
-			existingUser.Roles = member.Roles
+			existingUser.Roles = models.StringArray(member.Roles)
 			existingUser.JoinedAt = &joinedAt
 			existingUser.LastSyncAt = time.Now()
 			existingUser.UpdatedAt = time.Now()

@@ -35,6 +35,16 @@
 - **Container Registry**: Docker Hub compatible
 - **Development Tools**: pgAdmin, Redis Commander
 
+## Notes
+- Each task should be implemented incrementally with comprehensive testing, not through scripts, but in the language and projects that they test.
+- All Discord API interactions must handle rate limiting and errors gracefully
+- Security considerations must be addressed at every level
+- Performance testing should be conducted for multi-tenant scenarios
+- Documentation should be updated as features are implemented
+- Any changes to the frontend must respect the dark and light themes
+- Any changes to the frontend should be done to the quality of a staff ui developer, shortcuts should be avoided
+- Any changes to the frontend should respect i18n
+
 ## Common Commands
 
 ### Development Setup

@@ -1,10 +1,54 @@
 package models
 
 import (
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
 	"time"
 
 	"gorm.io/gorm"
 )
+
+// StringArray is a custom type for handling PostgreSQL text arrays
+type StringArray []string
+
+// Scan implements the sql.Scanner interface for reading from database
+func (s *StringArray) Scan(value interface{}) error {
+	if value == nil {
+		*s = StringArray{}
+		return nil
+	}
+
+	switch v := value.(type) {
+	case []byte:
+		return json.Unmarshal(v, s)
+	case string:
+		return json.Unmarshal([]byte(v), s)
+	default:
+		return errors.New("cannot scan into StringArray")
+	}
+}
+
+// Value implements the driver.Valuer interface for writing to database
+func (s StringArray) Value() (driver.Value, error) {
+	if len(s) == 0 {
+		return "{}", nil
+	}
+	
+	// Convert to PostgreSQL array format
+	result := "{"
+	for i, str := range s {
+		if i > 0 {
+			result += ","
+		}
+		// Escape quotes and wrap in quotes
+		escaped := `"` + str + `"`
+		result += escaped
+	}
+	result += "}"
+	
+	return result, nil
+}
 
 // Tenant represents a Discord server with Pteronimbus installed
 type Tenant struct {
@@ -33,6 +77,28 @@ type TenantConfig struct {
 	Settings             map[string]string `json:"settings,omitempty"`
 }
 
+// Scan implements the sql.Scanner interface for reading from database
+func (tc *TenantConfig) Scan(value interface{}) error {
+	if value == nil {
+		*tc = TenantConfig{}
+		return nil
+	}
+
+	switch v := value.(type) {
+	case []byte:
+		return json.Unmarshal(v, tc)
+	case string:
+		return json.Unmarshal([]byte(v), tc)
+	default:
+		return errors.New("cannot scan into TenantConfig")
+	}
+}
+
+// Value implements the driver.Valuer interface for writing to database
+func (tc TenantConfig) Value() (driver.Value, error) {
+	return json.Marshal(tc)
+}
+
 // ResourceLimits defines resource constraints for a tenant
 type ResourceLimits struct {
 	MaxGameServers int    `json:"max_game_servers"`
@@ -46,8 +112,8 @@ type UserTenant struct {
 	ID          string         `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
 	UserID      string         `json:"user_id" gorm:"not null;index"`
 	TenantID    string         `json:"tenant_id" gorm:"not null;index"`
-	Roles       []string       `json:"roles" gorm:"type:text[]"`
-	Permissions []string       `json:"permissions" gorm:"type:text[]"`
+	Roles       StringArray    `json:"roles" gorm:"type:text[]"`
+	Permissions StringArray    `json:"permissions" gorm:"type:text[]"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
 	DeletedAt   gorm.DeletedAt `json:"-" gorm:"index"`
@@ -65,7 +131,7 @@ type TenantDiscordRole struct {
 	Name            string         `json:"name" gorm:"not null"`
 	Color           int            `json:"color"`
 	Position        int            `json:"position"`
-	Permissions     []string       `json:"permissions" gorm:"type:text[]"`
+	Permissions     StringArray    `json:"permissions" gorm:"type:text[]"`
 	Mentionable     bool           `json:"mentionable"`
 	Hoist           bool           `json:"hoist"`
 	CreatedAt       time.Time      `json:"created_at"`
@@ -84,7 +150,7 @@ type TenantDiscordUser struct {
 	Username        string         `json:"username" gorm:"not null"`
 	DisplayName     string         `json:"display_name"`
 	Avatar          string         `json:"avatar"`
-	Roles           []string       `json:"roles" gorm:"type:text[]"`
+	Roles           StringArray    `json:"roles" gorm:"type:text[]"`
 	JoinedAt        *time.Time     `json:"joined_at"`
 	LastSyncAt      time.Time      `json:"last_sync_at"`
 	CreatedAt       time.Time      `json:"created_at"`
@@ -122,6 +188,28 @@ type GameServerConfig struct {
 	StartupCommand  []string          `json:"startup_command"`
 }
 
+// Scan implements the sql.Scanner interface for reading from database
+func (gsc *GameServerConfig) Scan(value interface{}) error {
+	if value == nil {
+		*gsc = GameServerConfig{}
+		return nil
+	}
+
+	switch v := value.(type) {
+	case []byte:
+		return json.Unmarshal(v, gsc)
+	case string:
+		return json.Unmarshal([]byte(v), gsc)
+	default:
+		return errors.New("cannot scan into GameServerConfig")
+	}
+}
+
+// Value implements the driver.Valuer interface for writing to database
+func (gsc GameServerConfig) Value() (driver.Value, error) {
+	return json.Marshal(gsc)
+}
+
 // GameServerStatus represents the current status of a game server
 type GameServerStatus struct {
 	Phase       string    `json:"phase"` // Pending, Running, Stopped, Failed
@@ -129,6 +217,28 @@ type GameServerStatus struct {
 	LastUpdated time.Time `json:"last_updated"`
 	PlayerCount int       `json:"player_count"`
 	Uptime      string    `json:"uptime"`
+}
+
+// Scan implements the sql.Scanner interface for reading from database
+func (gss *GameServerStatus) Scan(value interface{}) error {
+	if value == nil {
+		*gss = GameServerStatus{}
+		return nil
+	}
+
+	switch v := value.(type) {
+	case []byte:
+		return json.Unmarshal(v, gss)
+	case string:
+		return json.Unmarshal([]byte(v), gss)
+	default:
+		return errors.New("cannot scan into GameServerStatus")
+	}
+}
+
+// Value implements the driver.Valuer interface for writing to database
+func (gss GameServerStatus) Value() (driver.Value, error) {
+	return json.Marshal(gss)
 }
 
 // Port represents a network port configuration

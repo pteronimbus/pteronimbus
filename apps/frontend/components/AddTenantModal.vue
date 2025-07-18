@@ -23,13 +23,11 @@
           </div>
         </div>
 
-        <!-- Loading Available Guilds -->
         <div v-if="isLoading" class="text-center py-8">
           <UIcon name="i-heroicons-arrow-path" class="w-6 h-6 animate-spin mx-auto mb-2 text-primary-500" />
           <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('tenants.modals.add.loadingServers') }}</p>
         </div>
 
-        <!-- Available Guilds -->
         <div v-else-if="availableGuilds.length > 0" class="space-y-3">
           <h4 class="font-medium text-gray-900 dark:text-gray-100 mb-3">{{ t('tenants.modals.add.availableServers') }}
           </h4>
@@ -51,7 +49,7 @@
           </div>
         </div>
 
-        <!-- No Available Guilds -->
+        
         <div v-else class="text-center py-8">
           <UIcon name="i-heroicons-shield-exclamation"
             class="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
@@ -67,7 +65,7 @@
           </UButton>
         </div>
 
-        <!-- Error State -->
+        
         <UAlert v-if="error" icon="i-heroicons-exclamation-triangle" color="error" variant="soft"
           :title="t('common.error')" :description="error"
           :close-button="{ icon: 'i-heroicons-x-mark-20-solid', color: 'neutral', variant: 'link', padded: false }"
@@ -143,8 +141,8 @@ const createTenantFromGuild = async (guild: any) => {
 
     // Show success notification
     toast.add({
-      title: 'Server Added Successfully',
-      description: `${guild.name} has been added to Pteronimbus`,
+      title: t('tenants.modals.add.successTitle'),
+      description: t('tenants.modals.add.successDescription', { serverName: guild.name }),
       color: 'success'
     })
 

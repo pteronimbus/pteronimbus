@@ -6,19 +6,22 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/models"
 )
 
 // AuthService handles authentication operations
 type AuthService struct {
+	db             *gorm.DB
 	discordService DiscordServiceInterface
 	jwtService     JWTServiceInterface
 	redisService   RedisServiceInterface
 }
 
 // NewAuthService creates a new authentication service
-func NewAuthService(discordService DiscordServiceInterface, jwtService JWTServiceInterface, redisService RedisServiceInterface) *AuthService {
+func NewAuthService(db *gorm.DB, discordService DiscordServiceInterface, jwtService JWTServiceInterface, redisService RedisServiceInterface) *AuthService {
 	return &AuthService{
+		db:             db,
 		discordService: discordService,
 		jwtService:     jwtService,
 		redisService:   redisService,
@@ -44,27 +47,63 @@ func (a *AuthService) HandleCallback(ctx context.Context, code string) (*models.
 		return nil, fmt.Errorf("failed to get user info: %w", err)
 	}
 
-	// Create or update user
-	user := &models.User{
-		ID:            uuid.New().String(),
-		DiscordUserID: discordUser.ID,
-		Username:      discordUser.Username,
-		Avatar:        discordUser.Avatar,
-		Email:         discordUser.Email,
-		CreatedAt:     time.Now(),
-		UpdatedAt:     time.Now(),
+	// Create or update user in database (skip if db is nil for testing)
+	var user models.User
+	if a.db != nil {
+		err = a.db.Where("discord_user_id = ?", discordUser.ID).First(&user).Error
+		if err == gorm.ErrRecordNotFound {
+			// Create new user
+			user = models.User{
+				ID:            uuid.New().String(),
+				DiscordUserID: discordUser.ID,
+				Username:      discordUser.Username,
+				Avatar:        discordUser.Avatar,
+				Email:         discordUser.Email,
+				CreatedAt:     time.Now(),
+				UpdatedAt:     time.Now(),
+			}
+			
+			err = a.db.Create(&user).Error
+			if err != nil {
+				return nil, fmt.Errorf("failed to create user: %w", err)
+			}
+		} else if err == nil {
+			// Update existing user
+			user.Username = discordUser.Username
+			user.Avatar = discordUser.Avatar
+			user.Email = discordUser.Email
+			user.UpdatedAt = time.Now()
+			
+			err = a.db.Save(&user).Error
+			if err != nil {
+				return nil, fmt.Errorf("failed to update user: %w", err)
+			}
+		} else {
+			return nil, fmt.Errorf("failed to check existing user: %w", err)
+		}
+	} else {
+		// For testing without database - create user in memory only
+		user = models.User{
+			ID:            uuid.New().String(),
+			DiscordUserID: discordUser.ID,
+			Username:      discordUser.Username,
+			Avatar:        discordUser.Avatar,
+			Email:         discordUser.Email,
+			CreatedAt:     time.Now(),
+			UpdatedAt:     time.Now(),
+		}
 	}
 
 	// Create session
 	sessionID := uuid.New().String()
 	
 	// Generate JWT tokens
-	accessToken, accessExpiresAt, err := a.jwtService.GenerateAccessToken(user, sessionID)
+	accessToken, accessExpiresAt, err := a.jwtService.GenerateAccessToken(&user, sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate access token: %w", err)
 	}
 
-	refreshToken, refreshExpiresAt, err := a.jwtService.GenerateRefreshToken(user, sessionID)
+	refreshToken, refreshExpiresAt, err := a.jwtService.GenerateRefreshToken(&user, sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate refresh token: %w", err)
 	}
@@ -91,7 +130,7 @@ func (a *AuthService) HandleCallback(ctx context.Context, code string) (*models.
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		ExpiresIn:    int64(accessExpiresAt.Sub(time.Now()).Seconds()),
-		User:         *user,
+		User:         user,
 	}, nil
 }
 

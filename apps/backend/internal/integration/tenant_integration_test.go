@@ -63,6 +63,41 @@ func (m *TenantMockDiscordService) GetGuildMember(ctx context.Context, botToken,
 	return args.Get(0).(*models.DiscordMember), args.Error(1)
 }
 
+// TenantMockAuthService for tenant integration tests
+type TenantMockAuthService struct {
+	mock.Mock
+}
+
+func (m *TenantMockAuthService) GetAuthURL(state string) string {
+	args := m.Called(state)
+	return args.String(0)
+}
+
+func (m *TenantMockAuthService) HandleCallback(ctx context.Context, code string) (*models.AuthResponse, error) {
+	args := m.Called(ctx, code)
+	return args.Get(0).(*models.AuthResponse), args.Error(1)
+}
+
+func (m *TenantMockAuthService) RefreshToken(ctx context.Context, refreshToken string) (*models.AuthResponse, error) {
+	args := m.Called(ctx, refreshToken)
+	return args.Get(0).(*models.AuthResponse), args.Error(1)
+}
+
+func (m *TenantMockAuthService) ValidateAccessToken(ctx context.Context, accessToken string) (*models.User, error) {
+	args := m.Called(ctx, accessToken)
+	return args.Get(0).(*models.User), args.Error(1)
+}
+
+func (m *TenantMockAuthService) ParseTokenClaims(accessToken string) (*models.JWTClaims, error) {
+	args := m.Called(accessToken)
+	return args.Get(0).(*models.JWTClaims), args.Error(1)
+}
+
+func (m *TenantMockAuthService) Logout(ctx context.Context, accessToken string) error {
+	args := m.Called(ctx, accessToken)
+	return args.Error(0)
+}
+
 // setupIntegrationTest sets up a complete test environment
 func setupIntegrationTest(t *testing.T) (*gin.Engine, *gorm.DB, *TenantMockDiscordService) {
 	// Setup in-memory database
@@ -130,8 +165,12 @@ func setupIntegrationTest(t *testing.T) (*gin.Engine, *gorm.DB, *TenantMockDisco
 	// Create real services with mocked dependencies
 	tenantService := services.NewTenantService(db, mockDiscordService)
 
+	// Create mock auth and redis services (use existing MockRedisService)
+	mockAuthService := &TenantMockAuthService{}
+	mockRedisService := &MockRedisService{}
+
 	// Setup handlers
-	tenantHandler := handlers.NewTenantHandler(tenantService, mockDiscordService, nil)
+	tenantHandler := handlers.NewTenantHandler(tenantService, mockDiscordService, mockAuthService, mockRedisService)
 
 	// Setup middleware
 	tenantMiddleware := middleware.NewTenantMiddleware(tenantService)

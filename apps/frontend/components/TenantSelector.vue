@@ -1,186 +1,91 @@
 <template>
   <div class="tenant-selector">
-    <!-- Current Tenant Display -->
-    <div v-if="currentTenant" class="current-tenant">
-      <UButton variant="ghost" size="lg" class="w-full justify-between" @click="showSelector = !showSelector">
-        <div class="flex items-center space-x-3">
-          <UAvatar :src="getTenantIcon(currentTenant)" :alt="currentTenant.name" size="sm" />
-          <div class="text-left">
-            <div class="font-medium">{{ currentTenant.name }}</div>
-            <div class="text-xs text-gray-500">Current Server</div>
-          </div>
-        </div>
-        <UIcon name="lucide:chevron-down" class="w-4 h-4" />
+    <UDropdownMenu :items="dropdownItems" :ui="{
+      content: 'max-h-64 overflow-y-auto',
+    }" :content="{ class: 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700' }">
+      <UButton variant="ghost" size="sm"
+        class="flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800">
+        <UAvatar v-if="currentTenant" :src="getTenantIcon(currentTenant)" :alt="currentTenant.name" size="xs" />
+        <UIcon v-else name="heroicons:server" class="w-4 h-4 text-gray-500 dark:text-gray-400" />
+        <span class="text-sm font-medium">
+          {{ currentTenant?.name || 'Select Server' }}
+        </span>
+        <UIcon name="lucide:chevron-down" class="w-3 h-3 text-gray-400 dark:text-gray-500" />
       </UButton>
-    </div>
 
-    <!-- No Tenant Selected -->
-    <div v-else class="no-tenant">
-      <UButton variant="outline" size="lg" class="w-full" @click="showSelector = true">
-        <UIcon name="heroicons:server" class="w-4 h-4 mr-2" />
-        Select Server
-      </UButton>
-    </div>
-
-    <!-- Tenant Selection Modal -->
-    <UModal v-model="showSelector" :ui="{ width: 'sm:max-w-md' }">
-      <UCard>
-        <template #header>
-          <div class="flex items-center justify-between">
-            <h3 class="text-lg font-semibold">Select Server</h3>
-            <UButton variant="ghost" size="sm" icon="heroicons:x-mark" @click="showSelector = false" />
+      <template #add-new-item>
+        <AddTenantModal :available-guilds="availableGuildsForTenant" @refresh="loadAllData">
+          <div @click.stop
+            class="w-full flex items-center gap-2 p-1.5 text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer">
+            <UIcon name="i-heroicons-plus" class="w-4 h-4" />
+            <span>Add New Server</span>
           </div>
-        </template>
-
-        <div class="space-y-4">
-          <!-- Loading State -->
-          <div v-if="isLoading" class="text-center py-8">
-            <UIcon name="heroicons:arrow-path" class="w-6 h-6 animate-spin mx-auto mb-2" />
-            <p class="text-sm text-gray-500">Loading servers...</p>
-          </div>
-
-          <!-- Error State -->
-          <div v-else-if="error" class="text-center py-8">
-            <UIcon name="heroicons:exclamation-triangle" class="w-6 h-6 text-red-500 mx-auto mb-2" />
-            <p class="text-sm text-red-500 mb-4">{{ error }}</p>
-            <UButton variant="outline" size="sm" @click="loadTenants">
-              Try Again
-            </UButton>
-          </div>
-
-          <!-- Tenant List -->
-          <div v-else-if="tenants.length > 0" class="space-y-2">
-            <div v-for="tenant in tenants" :key="tenant.id" class="tenant-item">
-              <UButton variant="ghost" size="lg" class="w-full justify-start" :class="{
-                'bg-primary-50 border-primary-200': currentTenant?.id === tenant.id
-              }" @click="selectTenant(tenant)">
-                <div class="flex items-center space-x-3">
-                  <UAvatar :src="getTenantIcon(tenant)" :alt="tenant.name" size="sm" />
-                  <div class="text-left">
-                    <div class="font-medium">{{ tenant.name }}</div>
-                    <div class="text-xs text-gray-500">
-                      {{ tenant.id === tenant.owner_id ? 'Owner' : 'Member' }}
-                    </div>
-                  </div>
-                </div>
-                <UIcon v-if="currentTenant?.id === tenant.id" name="heroicons:check-circle"
-                  class="w-4 h-4 text-primary-500 ml-auto" />
-              </UButton>
-            </div>
-          </div>
-
-          <!-- No Tenants -->
-          <div v-else class="text-center py-8">
-            <UIcon name="heroicons:server" class="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h4 class="text-lg font-medium mb-2">No Servers Found</h4>
-            <p class="text-sm text-gray-500 mb-4">
-              You don't have access to any servers yet. Create one to get started.
-            </p>
-            <UButton @click="showCreateTenant = true">
-              <UIcon name="heroicons:plus" class="w-4 h-4 mr-2" />
-              Add Server
-            </UButton>
-          </div>
-
-          <!-- Create Tenant Button -->
-          <div v-if="tenants.length > 0" class="border-t pt-4">
-            <UButton variant="outline" class="w-full" @click="showCreateTenant = true">
-              <UIcon name="heroicons:plus" class="w-4 h-4 mr-2" />
-              Add New Server
-            </UButton>
-          </div>
-        </div>
-      </UCard>
-    </UModal>
-
-    <!-- Create Tenant Modal -->
-    <UModal v-model="showCreateTenant" :ui="{ width: 'sm:max-w-md' }">
-      <UCard>
-        <template #header>
-          <div class="flex items-center justify-between">
-            <h3 class="text-lg font-semibold">Add Discord Server</h3>
-            <UButton variant="ghost" size="sm" icon="heroicons:x-mark" @click="showCreateTenant = false" />
-          </div>
-        </template>
-
-        <div class="space-y-4">
-          <!-- Loading Available Guilds -->
-          <div v-if="loadingGuilds" class="text-center py-8">
-            <UIcon name="heroicons:arrow-path" class="w-6 h-6 animate-spin mx-auto mb-2" />
-            <p class="text-sm text-gray-500">Loading Discord servers...</p>
-          </div>
-
-          <!-- Available Guilds -->
-          <div v-else-if="availableGuilds.length > 0" class="space-y-2">
-            <p class="text-sm text-gray-600 mb-4">
-              Select a Discord server where you have manage permissions:
-            </p>
-            <div v-for="guild in availableGuilds" :key="guild.id" class="guild-item">
-              <UButton variant="ghost" size="lg" class="w-full justify-start" @click="createTenantFromGuild(guild)"
-                :loading="creatingTenant">
-                <div class="flex items-center space-x-3">
-                  <UAvatar :src="getGuildIcon(guild)" :alt="guild.name" size="sm" />
-                  <div class="text-left">
-                    <div class="font-medium">{{ guild.name }}</div>
-                    <div class="text-xs text-gray-500">
-                      {{ guild.owner ? 'Owner' : 'Manager' }}
-                    </div>
-                  </div>
-                </div>
-              </UButton>
-            </div>
-          </div>
-
-          <!-- No Available Guilds -->
-          <div v-else class="text-center py-8">
-            <UIcon name="heroicons:shield-exclamation" class="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h4 class="text-lg font-medium mb-2">No Available Servers</h4>
-            <p class="text-sm text-gray-500 mb-4">
-              You need "Manage Server" permissions to add a Discord server to Pteronimbus.
-            </p>
-            <UButton variant="outline" @click="loadAvailableGuilds">
-              Refresh
-            </UButton>
-          </div>
-        </div>
-      </UCard>
-    </UModal>
+        </AddTenantModal>
+      </template>
+    </UDropdownMenu>
   </div>
 </template>
 
 <script setup lang="ts">
-interface Props {
-  showLabel?: boolean
-  size?: 'sm' | 'md' | 'lg'
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  showLabel: true,
-  size: 'md'
-})
-
 const {
   tenants,
   currentTenant,
   availableGuilds,
-  isLoading,
-  error,
   fetchUserTenants,
   fetchAvailableGuilds,
-  createTenant,
-  switchTenant,
-  clearError
+  switchTenant
 } = useTenant()
 
-// Local state
-const showSelector = ref(false)
-const showCreateTenant = ref(false)
-const loadingGuilds = ref(false)
-const creatingTenant = ref(false)
+// No local state needed - AddTenantModal manages its own state
 
 // Load tenants on mount
 onMounted(async () => {
   await loadTenants()
+})
+
+// Computed properties
+const availableGuildsForTenant = computed(() => {
+  if (!availableGuilds.value || !tenants.value) {
+    return []
+  }
+  const tenantGuildIds = new Set(tenants.value.map(tenant => tenant.discord_server_id))
+  return availableGuilds.value.filter(guild => !tenantGuildIds.has(guild.id))
+})
+
+const dropdownItems = computed(() => {
+  const items = []
+
+  // Add tenant items
+  if (tenants.value && tenants.value.length > 0) {
+    const tenantItems = tenants.value.map(tenant => ({
+      label: tenant.name,
+      avatar: { src: getTenantIcon(tenant) },
+      onSelect: () => selectTenant(tenant),
+      checked: currentTenant.value?.id === tenant.id,
+      type: 'checkbox' as const
+    }))
+    items.push(tenantItems)
+
+    // Add separator and "Add New" item
+    items.push([
+      {
+        label: 'Add New Server',
+        icon: 'i-heroicons-plus',
+        slot: 'add-new-item' as const
+      }
+    ])
+  } else {
+    // If no tenants, just show the "Add New" option
+    items.push([
+      {
+        label: 'Add New Server',
+        icon: 'i-heroicons-plus',
+        slot: 'add-new-item' as const
+      }
+    ])
+  }
+
+  return items
 })
 
 // Methods
@@ -192,94 +97,39 @@ const loadTenants = async () => {
   }
 }
 
-const loadAvailableGuilds = async () => {
-  loadingGuilds.value = true
+const loadAllData = async () => {
   try {
-    await fetchAvailableGuilds()
+    await Promise.all([
+      fetchUserTenants(),
+      fetchAvailableGuilds()
+    ])
   } catch (error) {
-    console.error('Failed to load available guilds:', error)
-  } finally {
-    loadingGuilds.value = false
+    console.error('Failed to load data:', error)
   }
 }
 
 const selectTenant = async (tenant: any) => {
   try {
     await switchTenant(tenant)
-    showSelector.value = false
   } catch (error) {
     console.error('Failed to switch tenant:', error)
   }
 }
 
-const createTenantFromGuild = async (guild: any) => {
-  creatingTenant.value = true
-  try {
-    const newTenant = await createTenant(guild.id)
-    showCreateTenant.value = false
-    showSelector.value = false
 
-    // Show success notification
-    const toast = useToast()
-    toast.add({
-      title: 'Server Added',
-      description: `${guild.name} has been added to Pteronimbus`,
-      color: 'green'
-    })
-  } catch (error) {
-    console.error('Failed to create tenant:', error)
-    const toast = useToast()
-    toast.add({
-      title: 'Failed to Add Server',
-      description: 'There was an error adding the Discord server',
-      color: 'red'
-    })
-  } finally {
-    creatingTenant.value = false
-  }
-}
 
 const getTenantIcon = (tenant: any) => {
   if (tenant.icon) {
     return `https://cdn.discordapp.com/icons/${tenant.discord_server_id}/${tenant.icon}.png`
   }
-  return null
+  return undefined
 }
 
-const getGuildIcon = (guild: any) => {
-  if (guild.icon) {
-    return `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png`
-  }
-  return null
-}
-
-// Watch for create tenant modal opening
-watch(showCreateTenant, (newValue) => {
-  if (newValue && availableGuilds.value.length === 0) {
-    loadAvailableGuilds()
-  }
-})
+// No watch needed - AddTenantModal handles its own state
 </script>
 
 <style scoped>
-@reference "~/assets/css/main.css";
-
 .tenant-selector {
-  @apply relative;
-}
-
-.current-tenant,
-.no-tenant {
-  @apply w-full;
-}
-
-.tenant-item,
-.guild-item {
-  @apply rounded-lg border border-gray-200 hover:border-gray-300 transition-colors;
-}
-
-.tenant-item:hover,
-.guild-item:hover {
-  @apply bg-gray-50;
+  position: relative;
 }
 </style>

@@ -102,7 +102,7 @@ func TestAuthService_GetAuthURL(t *testing.T) {
 	mockJWT := new(MockJWTService)
 	mockRedis := new(MockRedisService)
 
-	authService := NewAuthService(mockDiscord, mockJWT, mockRedis)
+	authService := NewAuthService(nil, mockDiscord, mockJWT, mockRedis)
 
 	state := "test_state"
 	expectedURL := "https://discord.com/oauth2/authorize?client_id=test&state=test_state"
@@ -239,7 +239,7 @@ func TestAuthService_HandleCallback(t *testing.T) {
 
 			tt.setupMocks(mockDiscord, mockJWT, mockRedis)
 
-			authService := NewAuthService(mockDiscord, mockJWT, mockRedis)
+			authService := NewAuthService(nil, mockDiscord, mockJWT, mockRedis)
 
 			result, err := authService.HandleCallback(context.Background(), tt.code)
 
@@ -358,7 +358,7 @@ func TestAuthService_RefreshToken(t *testing.T) {
 
 			tt.setupMocks(mockDiscord, mockJWT, mockRedis)
 
-			authService := NewAuthService(mockDiscord, mockJWT, mockRedis)
+			authService := NewAuthService(nil, mockDiscord, mockJWT, mockRedis)
 
 			result, err := authService.RefreshToken(context.Background(), tt.refreshToken)
 
@@ -474,7 +474,7 @@ func TestAuthService_ValidateAccessToken(t *testing.T) {
 
 			tt.setupMocks(mockDiscord, mockJWT, mockRedis)
 
-			authService := NewAuthService(mockDiscord, mockJWT, mockRedis)
+			authService := NewAuthService(nil, mockDiscord, mockJWT, mockRedis)
 
 			result, err := authService.ValidateAccessToken(context.Background(), tt.accessToken)
 
@@ -551,7 +551,7 @@ func TestAuthService_Logout(t *testing.T) {
 
 			tt.setupMocks(mockDiscord, mockJWT, mockRedis)
 
-			authService := NewAuthService(mockDiscord, mockJWT, mockRedis)
+			authService := NewAuthService(nil, mockDiscord, mockJWT, mockRedis)
 
 			err := authService.Logout(context.Background(), tt.accessToken)
 
