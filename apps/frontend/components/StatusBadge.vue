@@ -14,7 +14,7 @@
 <script setup lang="ts">
 interface Props {
   status: string
-  type?: 'server' | 'user' | 'alert' | 'player' | 'custom'
+  type?: 'server' | 'user' | 'alert' | 'player' | 'controller' | 'custom'
   customColors?: Record<string, string>
   label?: string
 }
@@ -37,6 +37,8 @@ const displayLabel = computed(() => {
     return t(`users.status.${props.status}`)
   } else if (props.type === 'alert') {
     return t(`alerts.severity.${props.status}`)
+  } else if (props.type === 'controller') {
+    return t(`admin.controllers.statuses.${props.status}`)
   }
   
   return props.status
@@ -56,6 +58,13 @@ const getStatusColor = (status: string) => {
     starting: 'warning',
     stopping: 'warning',
     error: 'error',
+    degraded: 'orange',
+    
+    // Controller statuses
+    pending_approval: 'warning',
+    active: 'success',
+    degraded: 'orange',
+    rejected: 'error',
     
     // User statuses
     banned: 'error',

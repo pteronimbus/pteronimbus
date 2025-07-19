@@ -232,7 +232,14 @@ export default defineI18nConfig(() => ({
           version: 'Version',
           uptime: 'Uptime',
           lastHeartbeat: 'Last Heartbeat',
-          actions: 'Actions'
+          actions: 'Actions',
+          statuses: {
+            pending_approval: 'Pending Approval',
+            active: 'Active',
+            degraded: 'Degraded',
+            error: 'Error',
+            rejected: 'Rejected'
+          }
         }
       },
       tenants: {
@@ -462,6 +469,41 @@ export default defineI18nConfig(() => ({
             errors: {
               deleteFailed: 'Échec de la suppression du serveur'
             }
+          }
+        }
+      },
+      admin: {
+        title: 'Panneau d\'administration',
+        controllers: {
+          title: 'Gestion des contrôleurs',
+          description: 'Surveiller et gérer les contrôleurs Kubernetes sur tous les clusters',
+          totalControllers: 'Total des contrôleurs',
+          pendingApproval: 'En attente d\'approbation',
+          online: 'En ligne',
+          offline: 'Hors ligne',
+          errors: 'Erreurs',
+          refreshControllers: 'Actualiser les contrôleurs',
+          cleanupInactive: 'Nettoyer les inactifs',
+          viewDetails: 'Voir les détails',
+          viewLogs: 'Voir les journaux',
+          restartController: 'Redémarrer le contrôleur',
+          removeController: 'Supprimer le contrôleur',
+          approveController: 'Approuver le contrôleur',
+          rejectController: 'Rejeter le contrôleur',
+          noControllers: 'Aucun contrôleur enregistré',
+          noControllersDesc: 'Les contrôleurs apparaîtront ici une fois qu\'ils se seront enregistrés auprès du backend',
+          clusterName: 'Nom du cluster',
+          status: 'Statut',
+          version: 'Version',
+          uptime: 'Temps de fonctionnement',
+          lastHeartbeat: 'Dernier battement de cœur',
+          actions: 'Actions',
+          statuses: {
+            pending_approval: 'En attente d\'approbation',
+            active: 'Actif',
+            degraded: 'Dégradé',
+            error: 'Erreur',
+            rejected: 'Rejeté'
           }
         }
       },

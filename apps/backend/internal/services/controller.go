@@ -130,7 +130,7 @@ func (s *ControllerService) Heartbeat(ctx context.Context, controllerID string, 
 		"last_heartbeat": time.Now().UTC(),
 	}
 
-	// Only update status if the controller is approved (active, inactive, error)
+	// Only update status if the controller is approved (active, inactive, error, degraded)
 	// Don't allow pending_approval or rejected controllers to change their status
 	if controller.Status != "pending_approval" && controller.Status != "rejected" {
 		updates["status"] = req.Status
@@ -252,6 +252,14 @@ func (s *ControllerService) GetControllerStatus(ctx context.Context, controllerI
 
 	isOnline := time.Since(controller.LastHeartbeat) < s.config.Controller.MaxHeartbeatAge
 
+	// Auto-transition to degraded status if controller is offline and was previously active
+	if !isOnline && controller.Status == "active" {
+		controller.Status = "degraded"
+		if err := s.db.WithContext(ctx).Save(&controller).Error; err != nil {
+			return nil, fmt.Errorf("failed to update controller status to degraded: %w", err)
+		}
+	}
+
 	status := &models.ControllerStatus{
 		ID:            controller.ID,
 		ClusterID:     controller.ClusterID,
@@ -283,6 +291,14 @@ func (s *ControllerService) GetAllControllers(ctx context.Context) ([]*models.Co
 	var statuses []*models.ControllerStatus
 	for _, controller := range controllers {
 		isOnline := time.Since(controller.LastHeartbeat) < s.config.Controller.MaxHeartbeatAge
+
+		// Auto-transition to degraded status if controller is offline and was previously active
+		if !isOnline && controller.Status == "active" {
+			controller.Status = "degraded"
+			if err := s.db.WithContext(ctx).Save(&controller).Error; err != nil {
+				return nil, fmt.Errorf("failed to update controller status to degraded: %w", err)
+			}
+		}
 
 		status := &models.ControllerStatus{
 			ID:            controller.ID,

@@ -102,13 +102,11 @@ const controllerStats = computed(() => {
     {
       key: 'status',
       label: 'Status',
-      value: controller.value.status === 'pending_approval' ? 'Pending Approval' : 
-             controller.value.status === 'active' ? 'Active' :
-             controller.value.status === 'rejected' ? 'Rejected' :
-             controller.value.status,
+      value: t(`admin.controllers.statuses.${controller.value.status}`),
       icon: controller.value.status === 'pending_approval' ? 'i-heroicons-clock-20-solid' :
             controller.value.is_online ? 'i-heroicons-check-circle-20-solid' : 'i-heroicons-x-circle-20-solid',
       color: controller.value.status === 'pending_approval' ? 'yellow' :
+             controller.value.status === 'degraded' ? 'orange' :
              controller.value.is_online ? 'green' : 'red'
     },
     {
@@ -267,6 +265,7 @@ const handleRejectController = async () => {
         <template #extra>
           <UBadge 
             :color="controller.status === 'pending_approval' ? 'warning' : 
+                    controller.status === 'degraded' ? 'orange' :
                     controller.is_online ? 'success' : 'error'" 
             variant="subtle"
             class="ml-2"
@@ -276,10 +275,7 @@ const handleRejectController = async () => {
                       controller.is_online ? 'i-heroicons-check-circle-20-solid' : 'i-heroicons-x-circle-20-solid'" 
               class="w-4 h-4 mr-1" 
             />
-            {{ controller.status === 'pending_approval' ? 'Pending Approval' : 
-               controller.status === 'active' ? 'Active' :
-               controller.status === 'rejected' ? 'Rejected' :
-               controller.status }}
+            {{ t(`admin.controllers.statuses.${controller.status}`) }}
           </UBadge>
         </template>
       </PageHeader>
@@ -322,11 +318,9 @@ const handleRejectController = async () => {
                 <div class="flex justify-between">
                   <span class="text-gray-600 dark:text-gray-400">Status:</span>
                   <UBadge :color="controller.status === 'pending_approval' ? 'warning' : 
+                                   controller.status === 'degraded' ? 'orange' :
                                    controller.is_online ? 'success' : 'error'" variant="subtle">
-                    {{ controller.status === 'pending_approval' ? 'Pending Approval' : 
-                       controller.status === 'active' ? 'Active' :
-                       controller.status === 'rejected' ? 'Rejected' :
-                       controller.status }}
+                    {{ t(`admin.controllers.statuses.${controller.status}`) }}
                   </UBadge>
                 </div>
                 <div v-if="controller.approved_at" class="flex justify-between">

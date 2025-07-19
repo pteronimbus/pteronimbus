@@ -53,11 +53,13 @@ const filters = computed(() => [
     value: selectedStatus.value,
     options: [
       { label: 'All Status', value: 'all' },
-      { label: 'Pending Approval', value: 'pending_approval' },
+      { label: t('admin.controllers.statuses.pending_approval'), value: 'pending_approval' },
+      { label: t('admin.controllers.statuses.active'), value: 'active' },
+      { label: t('admin.controllers.statuses.degraded'), value: 'degraded' },
       { label: 'Online', value: 'online' },
       { label: 'Offline', value: 'offline' },
-      { label: 'Error', value: 'error' },
-      { label: 'Rejected', value: 'rejected' }
+      { label: t('admin.controllers.statuses.error'), value: 'error' },
+      { label: t('admin.controllers.statuses.rejected'), value: 'rejected' }
     ],
     class: 'w-40'
   },
@@ -128,6 +130,7 @@ const StatusBadge = resolveComponent('StatusBadge')
 const getStatusColor = (status: string, isOnline: boolean) => {
   if (!isOnline) return 'error'
   if (status === 'error') return 'error'
+  if (status === 'degraded') return 'orange'
   if (status === 'active') return 'success'
   return 'warning'
 }
@@ -239,7 +242,7 @@ const columns = computed(() => [
         color: getStatusColor(controller.status, controller.is_online),
         variant: 'subtle',
         size: 'sm'
-      }, controller.status)
+      }, t(`admin.controllers.statuses.${controller.status}`))
     }
   },
   {
@@ -301,6 +304,10 @@ const filteredControllers = computed(() => {
       filtered = filtered.filter(controller => controller.is_online)
     } else if (selectedStatus.value === 'offline') {
       filtered = filtered.filter(controller => !controller.is_online)
+    } else if (selectedStatus.value === 'active') {
+      filtered = filtered.filter(controller => controller.status === 'active')
+    } else if (selectedStatus.value === 'degraded') {
+      filtered = filtered.filter(controller => controller.status === 'degraded')
     } else if (selectedStatus.value === 'error') {
       filtered = filtered.filter(controller => controller.status === 'error')
     } else if (selectedStatus.value === 'pending_approval') {

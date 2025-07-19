@@ -15,6 +15,7 @@ type Config struct {
 	Redis      RedisConfig
 	Database   DatabaseConfig
 	Controller ControllerConfig
+	RBAC       RBACConfig
 }
 
 // ServerConfig holds server configuration
@@ -67,6 +68,14 @@ type ControllerConfig struct {
 	MaxHeartbeatAge time.Duration
 }
 
+// RBACConfig holds RBAC system configuration
+type RBACConfig struct {
+	SuperAdminDiscordID string
+	RoleSyncTTL         time.Duration
+	GuildCacheTTL       time.Duration
+	GracePeriod         time.Duration
+}
+
 // Load loads configuration from environment variables
 func Load() *Config {
 	return &Config{
@@ -107,6 +116,12 @@ func Load() *Config {
 			HandshakeSecret: getEnv("CONTROLLER_HANDSHAKE_SECRET", ""),
 			HeartbeatTTL:    time.Minute * 5,  // 5 minutes
 			MaxHeartbeatAge: time.Minute * 10, // 10 minutes
+		},
+		RBAC: RBACConfig{
+			SuperAdminDiscordID: getEnv("SUPER_ADMIN_DISCORD_ID", ""),
+			RoleSyncTTL:         time.Minute * 5,  // 5 minutes
+			GuildCacheTTL:       time.Minute * 5,  // 5 minutes
+			GracePeriod:         time.Minute * 2,  // 2 minutes for security
 		},
 	}
 }

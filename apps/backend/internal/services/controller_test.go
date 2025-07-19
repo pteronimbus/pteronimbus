@@ -537,3 +537,153 @@ func TestControllerService_RejectController(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "rejected", updatedController.Status)
 }
+
+func TestControllerService_GetControllerStatus_AutoDegraded(t *testing.T) {
+	service, db := setupControllerService(t)
+	ctx := context.Background()
+
+	// Create an active controller with an old heartbeat (offline)
+	oldHeartbeat := time.Now().UTC().Add(-time.Hour) // 1 hour ago
+	controller := models.Controller{
+		ID:             "test-controller-id",
+		ClusterID:      "test-cluster-1",
+		ClusterName:    "Test Cluster",
+		Version:        "1.0.0",
+		LastHeartbeat:  oldHeartbeat,
+		Status:         "active", // Currently active but offline
+		HandshakeToken: "test-token",
+		CreatedAt:      time.Now().UTC().Add(-time.Hour * 2),
+	}
+	err := db.Create(&controller).Error
+	require.NoError(t, err)
+
+	// Get controller status - should auto-transition to degraded
+	status, err := service.GetControllerStatus(ctx, controller.ID)
+	require.NoError(t, err)
+	assert.NotNil(t, status)
+	assert.Equal(t, "degraded", status.Status) // Should be degraded now
+	assert.False(t, status.IsOnline)           // Should be offline
+
+	// Verify the database was updated
+	var updatedController models.Controller
+	err = db.Where("id = ?", controller.ID).First(&updatedController).Error
+	require.NoError(t, err)
+	assert.Equal(t, "degraded", updatedController.Status)
+}
+
+func TestControllerService_GetAllControllers_AutoDegraded(t *testing.T) {
+	service, db := setupControllerService(t)
+	ctx := context.Background()
+
+	// Create multiple controllers with different states
+	oldHeartbeat := time.Now().UTC().Add(-time.Hour) // 1 hour ago
+	recentHeartbeat := time.Now().UTC().Add(-time.Minute) // 1 minute ago
+
+	controllers := []models.Controller{
+		{
+			ID:             "controller-1",
+			ClusterID:      "cluster-1",
+			ClusterName:    "Cluster 1",
+			Version:        "1.0.0",
+			LastHeartbeat:  oldHeartbeat,
+			Status:         "active", // Will become degraded
+			HandshakeToken: "token-1",
+		},
+		{
+			ID:             "controller-2",
+			ClusterID:      "cluster-2",
+			ClusterName:    "Cluster 2",
+			Version:        "1.0.0",
+			LastHeartbeat:  recentHeartbeat,
+			Status:         "active", // Will stay active
+			HandshakeToken: "token-2",
+		},
+		{
+			ID:             "controller-3",
+			ClusterID:      "cluster-3",
+			ClusterName:    "Cluster 3",
+			Version:        "1.0.0",
+			LastHeartbeat:  oldHeartbeat,
+			Status:         "pending_approval", // Won't change
+			HandshakeToken: "token-3",
+		},
+	}
+
+	for _, c := range controllers {
+		err := db.Create(&c).Error
+		require.NoError(t, err)
+	}
+
+	// Get all controllers - should auto-transition offline active ones to degraded
+	statuses, err := service.GetAllControllers(ctx)
+	require.NoError(t, err)
+	assert.Len(t, statuses, 3)
+
+	// Find each controller and verify its status
+	controller1 := findControllerByID(statuses, "controller-1")
+	controller2 := findControllerByID(statuses, "controller-2")
+	controller3 := findControllerByID(statuses, "controller-3")
+
+	assert.NotNil(t, controller1)
+	assert.Equal(t, "degraded", controller1.Status)
+	assert.False(t, controller1.IsOnline)
+
+	assert.NotNil(t, controller2)
+	assert.Equal(t, "active", controller2.Status)
+	assert.True(t, controller2.IsOnline)
+
+	assert.NotNil(t, controller3)
+	assert.Equal(t, "pending_approval", controller3.Status)
+	assert.False(t, controller3.IsOnline)
+
+	// Verify the database was updated for controller-1
+	var updatedController models.Controller
+	err = db.Where("id = ?", "controller-1").First(&updatedController).Error
+	require.NoError(t, err)
+	assert.Equal(t, "degraded", updatedController.Status)
+}
+
+func TestControllerService_Heartbeat_DegradedToActive(t *testing.T) {
+	service, db := setupControllerService(t)
+	ctx := context.Background()
+
+	// Create a degraded controller
+	controller := models.Controller{
+		ID:             "test-controller-id",
+		ClusterID:      "test-cluster-1",
+		ClusterName:    "Test Cluster",
+		Version:        "1.0.0",
+		LastHeartbeat:  time.Now().UTC().Add(-time.Hour),
+		Status:         "degraded", // Currently degraded
+		HandshakeToken: "test-token",
+	}
+	err := db.Create(&controller).Error
+	require.NoError(t, err)
+
+	// Send heartbeat with active status - should transition back to active
+	req := &models.HeartbeatRequest{
+		Status:  "active",
+		Message: "Controller is running again",
+	}
+
+	resp, err := service.Heartbeat(ctx, controller.ID, req)
+	require.NoError(t, err)
+	assert.True(t, resp.Success)
+	assert.Equal(t, "Heartbeat received", resp.Message)
+
+	// Verify the controller was updated to active
+	var updatedController models.Controller
+	err = db.Where("id = ?", controller.ID).First(&updatedController).Error
+	require.NoError(t, err)
+	assert.Equal(t, "active", updatedController.Status)
+}
+
+// Helper function to find controller by ID in status slice
+func findControllerByID(statuses []*models.ControllerStatus, id string) *models.ControllerStatus {
+	for _, status := range statuses {
+		if status.ID == id {
+			return status
+		}
+	}
+	return nil
+}

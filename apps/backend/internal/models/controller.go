@@ -11,7 +11,7 @@ type Controller struct {
 	ClusterName    string    `json:"cluster_name" gorm:"not null"`
 	Version        string    `json:"version" gorm:"not null"`
 	LastHeartbeat  time.Time `json:"last_heartbeat" gorm:"not null"`
-	Status         string    `json:"status" gorm:"not null;default:'pending_approval'"` // pending_approval, active, inactive, error, rejected
+	Status         string    `json:"status" gorm:"not null;default:'pending_approval'"` // pending_approval, active, inactive, error, degraded, rejected
 	HandshakeToken string    `json:"-" gorm:"not null"`                       // JWT token for secure communication
 	ApprovedAt     *time.Time `json:"approved_at,omitempty" gorm:"index"`     // When the controller was approved
 	ApprovedBy     *string    `json:"approved_by,omitempty" gorm:"index"`     // User ID who approved the controller
@@ -39,7 +39,7 @@ type HandshakeResponse struct {
 
 // HeartbeatRequest represents a controller heartbeat request
 type HeartbeatRequest struct {
-	Status    string            `json:"status" binding:"required"` // active, error
+	Status    string            `json:"status" binding:"required"` // active, error, degraded
 	Message   string            `json:"message,omitempty"`
 	Metrics   map[string]string `json:"metrics,omitempty"`
 	Resources map[string]int64  `json:"resources,omitempty"`
