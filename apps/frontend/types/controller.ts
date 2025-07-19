@@ -7,5 +7,7 @@ export interface Controller {
   last_heartbeat: string
   is_online: boolean
   uptime: string
+  approved_at?: string
+  approved_by?: string
   created_at: string
 } 

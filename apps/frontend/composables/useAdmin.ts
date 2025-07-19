@@ -111,6 +111,54 @@ export const useAdmin = () => {
     throw new Error('Controller removal not yet implemented')
   }
 
+  // Approve controller
+  const approveController = async (controllerId: string) => {
+    setLoading(true)
+    clearError()
+
+    try {
+      await apiRequest(`${config.public.backendUrl}/api/controllers/${controllerId}/approve`, {
+        method: 'POST'
+      })
+
+      // Refresh controllers after approval
+      await fetchControllers()
+    } catch (error: any) {
+      const errorMsg = error?.data?.message || 'Failed to approve controller'
+      console.error('Failed to approve controller:', error)
+      setError(errorMsg)
+      throw new Error(errorMsg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Reject controller
+  const rejectController = async (controllerId: string, reason?: string) => {
+    setLoading(true)
+    clearError()
+
+    try {
+      await apiRequest(`${config.public.backendUrl}/api/controllers/${controllerId}/reject`, {
+        method: 'POST',
+        body: {
+          action: 'reject',
+          reason: reason || ''
+        }
+      })
+
+      // Refresh controllers after rejection
+      await fetchControllers()
+    } catch (error: any) {
+      const errorMsg = error?.data?.message || 'Failed to reject controller'
+      console.error('Failed to reject controller:', error)
+      setError(errorMsg)
+      throw new Error(errorMsg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Reset admin state (for testing)
   const resetAdminState = () => {
     adminState.value = {
@@ -133,6 +181,8 @@ export const useAdmin = () => {
     getControllerStatus,
     restartController,
     removeController,
+    approveController,
+    rejectController,
     clearError,
     resetAdminState
   }

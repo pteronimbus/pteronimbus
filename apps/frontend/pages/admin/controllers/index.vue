@@ -20,6 +20,8 @@ const {
   cleanupInactiveControllers,
   restartController,
   removeController,
+  approveController,
+  rejectController,
   clearError
 } = useAdmin()
 
@@ -51,9 +53,11 @@ const filters = computed(() => [
     value: selectedStatus.value,
     options: [
       { label: 'All Status', value: 'all' },
+      { label: 'Pending Approval', value: 'pending_approval' },
       { label: 'Online', value: 'online' },
       { label: 'Offline', value: 'offline' },
-      { label: 'Error', value: 'error' }
+      { label: 'Error', value: 'error' },
+      { label: 'Rejected', value: 'rejected' }
     ],
     class: 'w-40'
   },
@@ -91,6 +95,13 @@ const controllerStats = computed(() => [
     color: 'blue'
   },
   {
+    key: 'pending',
+    label: t('admin.controllers.pendingApproval'),
+    value: controllers.value.filter(c => c.status === 'pending_approval').length.toString(),
+    icon: 'i-heroicons-clock-20-solid',
+    color: 'yellow'
+  },
+  {
     key: 'online',
     label: t('admin.controllers.online'),
     value: controllers.value.filter(c => c.is_online).length.toString(),
@@ -103,13 +114,6 @@ const controllerStats = computed(() => [
     value: controllers.value.filter(c => !c.is_online).length.toString(),
     icon: 'i-heroicons-x-circle-20-solid',
     color: 'red'
-  },
-  {
-    key: 'errors',
-    label: t('admin.controllers.errors'),
-    value: controllers.value.filter(c => c.status === 'error').length.toString(),
-    icon: 'i-heroicons-exclamation-triangle-20-solid',
-    color: 'yellow'
   }
 ])
 
@@ -188,6 +192,18 @@ const getControllerActions = (controller: any) => [
     disabled: !controller.is_online
   },
   {
+    label: t('admin.controllers.approveController'),
+    icon: 'i-heroicons-check-circle-20-solid',
+    onClick: () => handleApproveController(controller),
+    disabled: controller.status !== 'pending_approval'
+  },
+  {
+    label: t('admin.controllers.rejectController'),
+    icon: 'i-heroicons-x-circle-20-solid',
+    onClick: () => handleRejectController(controller),
+    disabled: controller.status !== 'pending_approval'
+  },
+  {
     label: t('admin.controllers.removeController'),
     icon: 'i-heroicons-trash-20-solid',
     onClick: () => handleRemoveController(controller),
@@ -220,10 +236,10 @@ const columns = computed(() => [
     cell: ({ row }: any) => {
       const controller = row.original
       return h(UBadge, {
-        color: controller.is_online ? 'green' : 'red',
+        color: getStatusColor(controller.status, controller.is_online),
         variant: 'subtle',
         size: 'sm'
-      }, controller.is_online ? 'Online' : 'Offline')
+      }, controller.status)
     }
   },
   {
@@ -287,6 +303,10 @@ const filteredControllers = computed(() => {
       filtered = filtered.filter(controller => !controller.is_online)
     } else if (selectedStatus.value === 'error') {
       filtered = filtered.filter(controller => controller.status === 'error')
+    } else if (selectedStatus.value === 'pending_approval') {
+      filtered = filtered.filter(controller => controller.status === 'pending_approval')
+    } else if (selectedStatus.value === 'rejected') {
+      filtered = filtered.filter(controller => controller.status === 'rejected')
     }
   }
 
@@ -370,6 +390,52 @@ const handleRestartController = async (controller: any) => {
     toast.add({
       title: 'Restart Failed',
       description: err?.data?.message || 'Failed to restart controller',
+      color: 'error'
+    })
+  }
+}
+
+const handleApproveController = async (controller: any) => {
+  const confirmed = confirm(`Are you sure you want to approve ${controller.cluster_name}? This action cannot be undone.`)
+  if (!confirmed) return
+
+  try {
+    await approveController(controller.id)
+    const toast = useToast()
+    toast.add({
+      title: 'Controller Approved',
+      description: `${controller.cluster_name} has been approved`,
+      color: 'success'
+    })
+    await loadControllers()
+  } catch (err: any) {
+    const toast = useToast()
+    toast.add({
+      title: 'Approve Failed',
+      description: err?.data?.message || 'Failed to approve controller',
+      color: 'error'
+    })
+  }
+}
+
+const handleRejectController = async (controller: any) => {
+  const confirmed = confirm(`Are you sure you want to reject ${controller.cluster_name}? This action cannot be undone.`)
+  if (!confirmed) return
+
+  try {
+    await rejectController(controller.id)
+    const toast = useToast()
+    toast.add({
+      title: 'Controller Rejected',
+      description: `${controller.cluster_name} has been rejected`,
+      color: 'error'
+    })
+    await loadControllers()
+  } catch (err: any) {
+    const toast = useToast()
+    toast.add({
+      title: 'Reject Failed',
+      description: err?.data?.message || 'Failed to reject controller',
       color: 'error'
     })
   }

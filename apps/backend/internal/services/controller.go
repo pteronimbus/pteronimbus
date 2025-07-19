@@ -51,18 +51,31 @@ func (s *ControllerService) Handshake(ctx context.Context, req *models.Handshake
 		existingController.ClusterName = req.ClusterName
 		existingController.Version = req.Version
 		existingController.LastHeartbeat = time.Now().UTC()
-		existingController.Status = "active"
+		
+		// Only update status to active if it was previously approved
+		if existingController.Status == "active" {
+			existingController.Status = "active"
+		} else if existingController.Status == "pending_approval" {
+			// Keep as pending_approval if not yet approved
+			existingController.Status = "pending_approval"
+		}
+		
 		existingController.HandshakeToken = s.generateControllerToken(existingController.ID, req.ClusterID)
 
 		if err := s.db.WithContext(ctx).Save(&existingController).Error; err != nil {
 			return nil, fmt.Errorf("failed to update controller: %w", err)
 		}
 
+		message := "Controller re-registered successfully"
+		if existingController.Status == "pending_approval" {
+			message = "Controller re-registered successfully - awaiting approval"
+		}
+
 		return &models.HandshakeResponse{
 			Success:      true,
 			ControllerID: existingController.ID,
 			Token:        existingController.HandshakeToken,
-			Message:      "Controller re-registered successfully",
+			Message:      message,
 			HeartbeatURL: "/api/controller/heartbeat",
 			HeartbeatTTL: int(s.config.Controller.HeartbeatTTL.Seconds()),
 		}, nil
@@ -70,7 +83,7 @@ func (s *ControllerService) Handshake(ctx context.Context, req *models.Handshake
 		return nil, fmt.Errorf("failed to check existing controller: %w", err)
 	}
 
-	// Create new controller
+	// Create new controller in pending_approval status
 	controllerID := uuid.New().String()
 	controller := models.Controller{
 		ID:             controllerID,
@@ -78,7 +91,7 @@ func (s *ControllerService) Handshake(ctx context.Context, req *models.Handshake
 		ClusterName:    req.ClusterName,
 		Version:        req.Version,
 		LastHeartbeat:  time.Now().UTC(),
-		Status:         "active",
+		Status:         "pending_approval", // New controllers start as pending
 		HandshakeToken: s.generateControllerToken(controllerID, req.ClusterID),
 	}
 
@@ -90,7 +103,7 @@ func (s *ControllerService) Handshake(ctx context.Context, req *models.Handshake
 		Success:      true,
 		ControllerID: controller.ID,
 		Token:        controller.HandshakeToken,
-		Message:      "Controller registered successfully",
+		Message:      "Controller registered successfully - awaiting approval",
 		HeartbeatURL: "/api/controller/heartbeat",
 		HeartbeatTTL: int(s.config.Controller.HeartbeatTTL.Seconds()),
 	}, nil
@@ -98,13 +111,35 @@ func (s *ControllerService) Handshake(ctx context.Context, req *models.Handshake
 
 // Heartbeat processes a controller heartbeat and updates its status
 func (s *ControllerService) Heartbeat(ctx context.Context, controllerID string, req *models.HeartbeatRequest) (*models.HeartbeatResponse, error) {
+	// First, get the current controller to check its status
+	var controller models.Controller
+	err := s.db.WithContext(ctx).Where("id = ?", controllerID).First(&controller).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return &models.HeartbeatResponse{
+				Success: false,
+				Message: "Controller not found",
+			}, nil
+		}
+		return nil, fmt.Errorf("failed to get controller: %w", err)
+	}
+
+	// Only allow status updates for approved controllers
+	// Pending controllers can send heartbeats but their status won't change
+	updates := map[string]interface{}{
+		"last_heartbeat": time.Now().UTC(),
+	}
+
+	// Only update status if the controller is approved (active, inactive, error)
+	// Don't allow pending_approval or rejected controllers to change their status
+	if controller.Status != "pending_approval" && controller.Status != "rejected" {
+		updates["status"] = req.Status
+	}
+
 	// Update controller heartbeat
 	result := s.db.WithContext(ctx).Model(&models.Controller{}).
 		Where("id = ?", controllerID).
-		Updates(map[string]interface{}{
-			"last_heartbeat": time.Now().UTC(),
-			"status":         req.Status,
-		})
+		Updates(updates)
 
 	if result.Error != nil {
 		return nil, fmt.Errorf("failed to update controller heartbeat: %w", result.Error)
@@ -117,9 +152,90 @@ func (s *ControllerService) Heartbeat(ctx context.Context, controllerID string, 
 		}, nil
 	}
 
+	message := "Heartbeat received"
+	if controller.Status == "pending_approval" {
+		message = "Heartbeat received - controller awaiting approval"
+	} else if controller.Status == "rejected" {
+		message = "Heartbeat received - controller has been rejected"
+	}
+
 	return &models.HeartbeatResponse{
 		Success: true,
-		Message: "Heartbeat received",
+		Message: message,
+	}, nil
+}
+
+// ApproveController approves a pending controller
+func (s *ControllerService) ApproveController(ctx context.Context, controllerID string, approvedBy string) (*models.ControllerApprovalResponse, error) {
+	var controller models.Controller
+	err := s.db.WithContext(ctx).Where("id = ?", controllerID).First(&controller).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return &models.ControllerApprovalResponse{
+				Success: false,
+				Message: "Controller not found",
+			}, nil
+		}
+		return nil, fmt.Errorf("failed to get controller: %w", err)
+	}
+
+	if controller.Status != "pending_approval" {
+		return &models.ControllerApprovalResponse{
+			Success: false,
+			Message: "Controller is not in pending approval status",
+		}, nil
+	}
+
+	now := time.Now().UTC()
+	controller.Status = "active"
+	controller.ApprovedAt = &now
+	controller.ApprovedBy = &approvedBy
+
+	if err := s.db.WithContext(ctx).Save(&controller).Error; err != nil {
+		return nil, fmt.Errorf("failed to approve controller: %w", err)
+	}
+
+	return &models.ControllerApprovalResponse{
+		Success: true,
+		Message: "Controller approved successfully",
+	}, nil
+}
+
+// RejectController rejects a pending controller
+func (s *ControllerService) RejectController(ctx context.Context, controllerID string, rejectedBy string, reason string) (*models.ControllerApprovalResponse, error) {
+	var controller models.Controller
+	err := s.db.WithContext(ctx).Where("id = ?", controllerID).First(&controller).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return &models.ControllerApprovalResponse{
+				Success: false,
+				Message: "Controller not found",
+			}, nil
+		}
+		return nil, fmt.Errorf("failed to get controller: %w", err)
+	}
+
+	if controller.Status != "pending_approval" {
+		return &models.ControllerApprovalResponse{
+			Success: false,
+			Message: "Controller is not in pending approval status",
+		}, nil
+	}
+
+	controller.Status = "rejected"
+
+	if err := s.db.WithContext(ctx).Save(&controller).Error; err != nil {
+		return nil, fmt.Errorf("failed to reject controller: %w", err)
+	}
+
+	message := "Controller rejected successfully"
+	if reason != "" {
+		message = fmt.Sprintf("Controller rejected: %s", reason)
+	}
+
+	return &models.ControllerApprovalResponse{
+		Success: true,
+		Message: message,
 	}, nil
 }
 
@@ -134,7 +250,6 @@ func (s *ControllerService) GetControllerStatus(ctx context.Context, controllerI
 		return nil, fmt.Errorf("failed to get controller: %w", err)
 	}
 
-	// Determine if controller is online based on last heartbeat
 	isOnline := time.Since(controller.LastHeartbeat) < s.config.Controller.MaxHeartbeatAge
 
 	status := &models.ControllerStatus{
@@ -145,10 +260,11 @@ func (s *ControllerService) GetControllerStatus(ctx context.Context, controllerI
 		Status:        controller.Status,
 		LastHeartbeat: controller.LastHeartbeat,
 		IsOnline:      isOnline,
+		ApprovedAt:    controller.ApprovedAt,
+		ApprovedBy:    controller.ApprovedBy,
 		CreatedAt:     controller.CreatedAt,
 	}
 
-	// Calculate uptime if online
 	if isOnline {
 		status.Uptime = time.Since(controller.CreatedAt).String()
 	}
@@ -156,7 +272,7 @@ func (s *ControllerService) GetControllerStatus(ctx context.Context, controllerI
 	return status, nil
 }
 
-// GetAllControllers returns all registered controllers with their status
+// GetAllControllers returns all registered controllers
 func (s *ControllerService) GetAllControllers(ctx context.Context) ([]*models.ControllerStatus, error) {
 	var controllers []models.Controller
 	err := s.db.WithContext(ctx).Find(&controllers).Error
@@ -176,6 +292,8 @@ func (s *ControllerService) GetAllControllers(ctx context.Context) ([]*models.Co
 			Status:        controller.Status,
 			LastHeartbeat: controller.LastHeartbeat,
 			IsOnline:      isOnline,
+			ApprovedAt:    controller.ApprovedAt,
+			ApprovedBy:    controller.ApprovedBy,
 			CreatedAt:     controller.CreatedAt,
 		}
 

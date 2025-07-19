@@ -182,6 +182,8 @@ func main() {
 		{
 			controllerRoutes.GET("", controllerHandler.GetAllControllers)
 			controllerRoutes.GET("/:id", controllerHandler.GetControllerStatus)
+			controllerRoutes.POST("/:id/approve", controllerHandler.ApproveController)
+			controllerRoutes.POST("/:id/reject", controllerHandler.RejectController)
 		}
 
 		// Admin routes (superadmin only)

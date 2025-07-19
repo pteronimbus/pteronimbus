@@ -160,3 +160,98 @@ func (h *ControllerHandler) GetAllControllers(c *gin.Context) {
 		"controllers": controllers,
 	})
 }
+
+// ApproveController handles controller approval
+func (h *ControllerHandler) ApproveController(c *gin.Context) {
+	controllerID := c.Param("id")
+	if controllerID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Controller ID is required",
+		})
+		return
+	}
+
+	// Get authenticated user
+	user, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"message": "User not authenticated",
+		})
+		return
+	}
+
+	userModel := user.(*models.User)
+
+	response, err := h.controllerService.ApproveController(c.Request.Context(), controllerID, userModel.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Internal server error: " + err.Error(),
+		})
+		return
+	}
+
+	if response.Success {
+		c.JSON(http.StatusOK, response)
+	} else {
+		c.JSON(http.StatusBadRequest, response)
+	}
+}
+
+// RejectController handles controller rejection
+func (h *ControllerHandler) RejectController(c *gin.Context) {
+	controllerID := c.Param("id")
+	if controllerID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Controller ID is required",
+		})
+		return
+	}
+
+	// Get authenticated user
+	user, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"message": "User not authenticated",
+		})
+		return
+	}
+
+	userModel := user.(*models.User)
+
+	var req models.ControllerApprovalRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid request format: " + err.Error(),
+		})
+		return
+	}
+
+	if req.Action != "reject" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid action, expected 'reject'",
+		})
+		return
+	}
+
+	response, err := h.controllerService.RejectController(c.Request.Context(), controllerID, userModel.ID, req.Reason)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Internal server error: " + err.Error(),
+		})
+		return
+	}
+
+	if response.Success {
+		c.JSON(http.StatusOK, response)
+	} else {
+		c.JSON(http.StatusBadRequest, response)
+	}
+}

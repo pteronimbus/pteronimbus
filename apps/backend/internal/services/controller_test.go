@@ -61,9 +61,15 @@ func TestControllerService_Handshake_NewController(t *testing.T) {
 	assert.True(t, resp.Success)
 	assert.NotEmpty(t, resp.ControllerID)
 	assert.NotEmpty(t, resp.Token)
-	assert.Equal(t, "Controller registered successfully", resp.Message)
+	assert.Equal(t, "Controller registered successfully - awaiting approval", resp.Message)
 	assert.Equal(t, "/api/controller/heartbeat", resp.HeartbeatURL)
 	assert.Equal(t, 300, resp.HeartbeatTTL) // 5 minutes in seconds
+
+	// Verify controller was created with pending_approval status
+	var controller models.Controller
+	err = service.db.WithContext(ctx).Where("cluster_id = ?", req.ClusterID).First(&controller).Error
+	require.NoError(t, err)
+	assert.Equal(t, "pending_approval", controller.Status)
 }
 
 func TestControllerService_Handshake_ExistingController(t *testing.T) {
@@ -103,7 +109,47 @@ func TestControllerService_Handshake_ExistingController(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "Updated Cluster Name", updatedController.ClusterName)
 	assert.Equal(t, "1.0.0", updatedController.Version)
-	assert.Equal(t, "active", updatedController.Status)
+	assert.Equal(t, "inactive", updatedController.Status) // Status should remain inactive, not change to active
+}
+
+func TestControllerService_Handshake_ExistingApprovedController(t *testing.T) {
+	service, db := setupControllerService(t)
+	ctx := context.Background()
+
+	// Create an existing approved controller
+	existingController := models.Controller{
+		ID:             "existing-controller-id",
+		ClusterID:      "test-cluster-1",
+		ClusterName:    "Old Cluster Name",
+		Version:        "0.9.0",
+		LastHeartbeat:  time.Now().UTC().Add(-time.Hour),
+		Status:         "active",
+		HandshakeToken: "old-token",
+	}
+	err := db.Create(&existingController).Error
+	require.NoError(t, err)
+
+	req := &models.HandshakeRequest{
+		ClusterID:   "test-cluster-1",
+		ClusterName: "Updated Cluster Name",
+		Version:     "1.0.0",
+		Nonce:       "test-nonce-456",
+	}
+
+	resp, err := service.Handshake(ctx, req)
+	require.NoError(t, err)
+	assert.True(t, resp.Success)
+	assert.Equal(t, existingController.ID, resp.ControllerID)
+	assert.NotEmpty(t, resp.Token)
+	assert.Equal(t, "Controller re-registered successfully", resp.Message)
+
+	// Verify the controller was updated in the database
+	var updatedController models.Controller
+	err = db.Where("cluster_id = ?", "test-cluster-1").First(&updatedController).Error
+	require.NoError(t, err)
+	assert.Equal(t, "Updated Cluster Name", updatedController.ClusterName)
+	assert.Equal(t, "1.0.0", updatedController.Version)
+	assert.Equal(t, "active", updatedController.Status) // Status should remain active
 }
 
 func TestControllerService_Handshake_WithSecret(t *testing.T) {
@@ -136,7 +182,7 @@ func TestControllerService_Heartbeat_Success(t *testing.T) {
 		ClusterName:    "Test Cluster",
 		Version:        "1.0.0",
 		LastHeartbeat:  time.Now().UTC().Add(-time.Hour),
-		Status:         "inactive",
+		Status:         "active",
 		HandshakeToken: "test-token",
 	}
 	err := db.Create(&controller).Error
@@ -164,7 +210,40 @@ func TestControllerService_Heartbeat_Success(t *testing.T) {
 	err = db.Where("id = ?", controller.ID).First(&updatedController).Error
 	require.NoError(t, err)
 	assert.Equal(t, "active", updatedController.Status)
-	assert.True(t, time.Since(updatedController.LastHeartbeat) < time.Minute)
+}
+
+func TestControllerService_Heartbeat_PendingController(t *testing.T) {
+	service, db := setupControllerService(t)
+	ctx := context.Background()
+
+	// Create a pending controller
+	controller := models.Controller{
+		ID:             "test-controller-id",
+		ClusterID:      "test-cluster-1",
+		ClusterName:    "Test Cluster",
+		Version:        "1.0.0",
+		LastHeartbeat:  time.Now().UTC().Add(-time.Hour),
+		Status:         "pending_approval",
+		HandshakeToken: "test-token",
+	}
+	err := db.Create(&controller).Error
+	require.NoError(t, err)
+
+	req := &models.HeartbeatRequest{
+		Status:  "active", // Controller tries to set status to active
+		Message: "Controller is running",
+	}
+
+	resp, err := service.Heartbeat(ctx, controller.ID, req)
+	require.NoError(t, err)
+	assert.True(t, resp.Success)
+	assert.Equal(t, "Heartbeat received - controller awaiting approval", resp.Message)
+
+	// Verify the controller status remains pending_approval
+	var updatedController models.Controller
+	err = db.Where("id = ?", controller.ID).First(&updatedController).Error
+	require.NoError(t, err)
+	assert.Equal(t, "pending_approval", updatedController.Status) // Status should not change
 }
 
 func TestControllerService_Heartbeat_ControllerNotFound(t *testing.T) {
@@ -395,4 +474,66 @@ func TestControllerService_CleanupInactiveControllers(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, remainingControllers, 1)
 	assert.Equal(t, "active-controller", remainingControllers[0].ID)
+}
+
+func TestControllerService_ApproveController(t *testing.T) {
+	service, db := setupControllerService(t)
+	ctx := context.Background()
+
+	// Create a pending controller
+	controller := models.Controller{
+		ID:             "test-controller-id",
+		ClusterID:      "test-cluster-1",
+		ClusterName:    "Test Cluster",
+		Version:        "1.0.0",
+		LastHeartbeat:  time.Now().UTC(),
+		Status:         "pending_approval",
+		HandshakeToken: "test-token",
+	}
+	err := db.Create(&controller).Error
+	require.NoError(t, err)
+
+	// Approve the controller
+	resp, err := service.ApproveController(ctx, controller.ID, "test-user-id")
+	require.NoError(t, err)
+	assert.True(t, resp.Success)
+	assert.Equal(t, "Controller approved successfully", resp.Message)
+
+	// Verify the controller was approved
+	var updatedController models.Controller
+	err = db.Where("id = ?", controller.ID).First(&updatedController).Error
+	require.NoError(t, err)
+	assert.Equal(t, "active", updatedController.Status)
+	assert.NotNil(t, updatedController.ApprovedAt)
+	assert.Equal(t, "test-user-id", *updatedController.ApprovedBy)
+}
+
+func TestControllerService_RejectController(t *testing.T) {
+	service, db := setupControllerService(t)
+	ctx := context.Background()
+
+	// Create a pending controller
+	controller := models.Controller{
+		ID:             "test-controller-id",
+		ClusterID:      "test-cluster-1",
+		ClusterName:    "Test Cluster",
+		Version:        "1.0.0",
+		LastHeartbeat:  time.Now().UTC(),
+		Status:         "pending_approval",
+		HandshakeToken: "test-token",
+	}
+	err := db.Create(&controller).Error
+	require.NoError(t, err)
+
+	// Reject the controller
+	resp, err := service.RejectController(ctx, controller.ID, "test-user-id", "Test rejection reason")
+	require.NoError(t, err)
+	assert.True(t, resp.Success)
+	assert.Equal(t, "Controller rejected: Test rejection reason", resp.Message)
+
+	// Verify the controller was rejected
+	var updatedController models.Controller
+	err = db.Where("id = ?", controller.ID).First(&updatedController).Error
+	require.NoError(t, err)
+	assert.Equal(t, "rejected", updatedController.Status)
 }

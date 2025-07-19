@@ -16,6 +16,8 @@ const {
   isLoading, 
   error,
   fetchControllers, 
+  approveController,
+  rejectController,
   clearError
 } = useAdmin()
 
@@ -100,9 +102,14 @@ const controllerStats = computed(() => {
     {
       key: 'status',
       label: 'Status',
-      value: controller.value.is_online ? 'Online' : 'Offline',
-      icon: controller.value.is_online ? 'i-heroicons-check-circle-20-solid' : 'i-heroicons-x-circle-20-solid',
-      color: 'green'
+      value: controller.value.status === 'pending_approval' ? 'Pending Approval' : 
+             controller.value.status === 'active' ? 'Active' :
+             controller.value.status === 'rejected' ? 'Rejected' :
+             controller.value.status,
+      icon: controller.value.status === 'pending_approval' ? 'i-heroicons-clock-20-solid' :
+            controller.value.is_online ? 'i-heroicons-check-circle-20-solid' : 'i-heroicons-x-circle-20-solid',
+      color: controller.value.status === 'pending_approval' ? 'yellow' :
+             controller.value.is_online ? 'green' : 'red'
     },
     {
       key: 'uptime',
@@ -129,22 +136,46 @@ const controllerStats = computed(() => {
 })
 
 // Page header actions
-const headerActions = computed(() => [
-  {
-    label: 'Back to Controllers',
-    icon: 'i-heroicons-arrow-left-20-solid',
-    color: 'neutral' as const,
-    variant: 'ghost' as const,
-    onClick: () => router.push('/admin/controllers')
-  },
-  {
-    label: 'Refresh',
-    icon: 'i-heroicons-arrow-path-20-solid',
-    color: 'primary' as const,
-    onClick: () => fetchControllers(),
-    loading: isLoading.value
+const headerActions = computed(() => {
+  const actions = [
+    {
+      label: 'Back to Controllers',
+      icon: 'i-heroicons-arrow-left-20-solid',
+      color: 'neutral' as const,
+      variant: 'ghost' as const,
+      onClick: () => router.push('/admin/controllers')
+    },
+    {
+      label: 'Refresh',
+      icon: 'i-heroicons-arrow-path-20-solid',
+      color: 'primary' as const,
+      onClick: () => fetchControllers(),
+      loading: isLoading.value
+    }
+  ]
+
+  // Add approval actions if controller is pending
+  if (controller.value?.status === 'pending_approval') {
+    actions.push(
+      {
+        label: 'Approve',
+        icon: 'i-heroicons-check-circle-20-solid',
+        color: 'success' as const,
+        onClick: () => handleApproveController(),
+        loading: isLoading.value
+      },
+      {
+        label: 'Reject',
+        icon: 'i-heroicons-x-circle-20-solid',
+        color: 'error' as const,
+        onClick: () => handleRejectController(),
+        loading: isLoading.value
+      }
+    )
   }
-])
+
+  return actions
+})
 
 // Handle not found
 watch(controller, (newController) => {
@@ -156,6 +187,56 @@ watch(controller, (newController) => {
 // Handler functions
 const handleRefresh = async () => {
   await fetchControllers()
+}
+
+const handleApproveController = async () => {
+  if (!controller.value) return
+  
+  const confirmed = confirm(`Are you sure you want to approve ${controller.value.cluster_name}? This action cannot be undone.`)
+  if (!confirmed) return
+
+  try {
+    await approveController(controller.value.id)
+    const toast = useToast()
+    toast.add({
+      title: 'Controller Approved',
+      description: `${controller.value.cluster_name} has been approved`,
+      color: 'success'
+    })
+    await fetchControllers()
+  } catch (err: any) {
+    const toast = useToast()
+    toast.add({
+      title: 'Approve Failed',
+      description: err?.data?.message || 'Failed to approve controller',
+      color: 'error'
+    })
+  }
+}
+
+const handleRejectController = async () => {
+  if (!controller.value) return
+  
+  const confirmed = confirm(`Are you sure you want to reject ${controller.value.cluster_name}? This action cannot be undone.`)
+  if (!confirmed) return
+
+  try {
+    await rejectController(controller.value.id)
+    const toast = useToast()
+    toast.add({
+      title: 'Controller Rejected',
+      description: `${controller.value.cluster_name} has been rejected`,
+      color: 'error'
+    })
+    await fetchControllers()
+  } catch (err: any) {
+    const toast = useToast()
+    toast.add({
+      title: 'Reject Failed',
+      description: err?.data?.message || 'Failed to reject controller',
+      color: 'error'
+    })
+  }
 }
 </script>
 
@@ -185,15 +266,20 @@ const handleRefresh = async () => {
       >
         <template #extra>
           <UBadge 
-            :color="controller.is_online ? 'success' : 'error'" 
+            :color="controller.status === 'pending_approval' ? 'warning' : 
+                    controller.is_online ? 'success' : 'error'" 
             variant="subtle"
             class="ml-2"
           >
             <UIcon 
-              :name="controller.is_online ? 'i-heroicons-check-circle-20-solid' : 'i-heroicons-x-circle-20-solid'" 
+              :name="controller.status === 'pending_approval' ? 'i-heroicons-clock-20-solid' :
+                      controller.is_online ? 'i-heroicons-check-circle-20-solid' : 'i-heroicons-x-circle-20-solid'" 
               class="w-4 h-4 mr-1" 
             />
-            {{ controller.is_online ? 'Online' : 'Offline' }}
+            {{ controller.status === 'pending_approval' ? 'Pending Approval' : 
+               controller.status === 'active' ? 'Active' :
+               controller.status === 'rejected' ? 'Rejected' :
+               controller.status }}
           </UBadge>
         </template>
       </PageHeader>
@@ -235,9 +321,21 @@ const handleRefresh = async () => {
                 </div>
                 <div class="flex justify-between">
                   <span class="text-gray-600 dark:text-gray-400">Status:</span>
-                  <UBadge :color="controller.is_online ? 'success' : 'error'" variant="subtle">
-                    {{ controller.is_online ? 'Online' : 'Offline' }}
+                  <UBadge :color="controller.status === 'pending_approval' ? 'warning' : 
+                                   controller.is_online ? 'success' : 'error'" variant="subtle">
+                    {{ controller.status === 'pending_approval' ? 'Pending Approval' : 
+                       controller.status === 'active' ? 'Active' :
+                       controller.status === 'rejected' ? 'Rejected' :
+                       controller.status }}
                   </UBadge>
+                </div>
+                <div v-if="controller.approved_at" class="flex justify-between">
+                  <span class="text-gray-600 dark:text-gray-400">Approved:</span>
+                  <span>{{ formatCreatedAt(controller.approved_at) }}</span>
+                </div>
+                <div v-if="controller.approved_by" class="flex justify-between">
+                  <span class="text-gray-600 dark:text-gray-400">Approved By:</span>
+                  <span class="font-mono text-sm">{{ controller.approved_by }}</span>
                 </div>
                 <div class="flex justify-between">
                   <span class="text-gray-600 dark:text-gray-400">Created:</span>

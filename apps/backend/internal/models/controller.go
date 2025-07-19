@@ -11,8 +11,10 @@ type Controller struct {
 	ClusterName    string    `json:"cluster_name" gorm:"not null"`
 	Version        string    `json:"version" gorm:"not null"`
 	LastHeartbeat  time.Time `json:"last_heartbeat" gorm:"not null"`
-	Status         string    `json:"status" gorm:"not null;default:'active'"` // active, inactive, error
+	Status         string    `json:"status" gorm:"not null;default:'pending_approval'"` // pending_approval, active, inactive, error, rejected
 	HandshakeToken string    `json:"-" gorm:"not null"`                       // JWT token for secure communication
+	ApprovedAt     *time.Time `json:"approved_at,omitempty" gorm:"index"`     // When the controller was approved
+	ApprovedBy     *string    `json:"approved_by,omitempty" gorm:"index"`     // User ID who approved the controller
 	CreatedAt      time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt      time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
@@ -51,15 +53,29 @@ type HeartbeatResponse struct {
 
 // ControllerStatus represents the current status of a controller
 type ControllerStatus struct {
-	ID            string    `json:"id"`
-	ClusterID     string    `json:"cluster_id"`
-	ClusterName   string    `json:"cluster_name"`
-	Version       string    `json:"version"`
-	Status        string    `json:"status"`
-	LastHeartbeat time.Time `json:"last_heartbeat"`
-	IsOnline      bool      `json:"is_online"`
-	Uptime        string    `json:"uptime,omitempty"`
-	CreatedAt     time.Time `json:"created_at"`
+	ID            string     `json:"id"`
+	ClusterID     string     `json:"cluster_id"`
+	ClusterName   string     `json:"cluster_name"`
+	Version       string     `json:"version"`
+	Status        string     `json:"status"`
+	LastHeartbeat time.Time  `json:"last_heartbeat"`
+	IsOnline      bool       `json:"is_online"`
+	Uptime        string     `json:"uptime,omitempty"`
+	ApprovedAt    *time.Time `json:"approved_at,omitempty"`
+	ApprovedBy    *string    `json:"approved_by,omitempty"`
+	CreatedAt     time.Time  `json:"created_at"`
+}
+
+// ControllerApprovalRequest represents a request to approve or reject a controller
+type ControllerApprovalRequest struct {
+	Action string `json:"action" binding:"required,oneof=approve reject"` // approve or reject
+	Reason string `json:"reason,omitempty"`                               // Optional reason for rejection
+}
+
+// ControllerApprovalResponse represents the response to a controller approval action
+type ControllerApprovalResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message,omitempty"`
 }
 
 // AdminStats represents admin-level statistics
