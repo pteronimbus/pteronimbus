@@ -79,12 +79,6 @@ const headerActions = computed(() => [
     onClick: () => handleRefreshControllers(),
     loading: isLoading.value
   },
-  {
-    label: t('admin.controllers.cleanupInactive'),
-    icon: 'i-heroicons-trash-20-solid',
-    color: 'warning' as const,
-    onClick: () => handleCleanupInactiveControllers()
-  }
 ])
 
 // Controller stats for StatsCard components

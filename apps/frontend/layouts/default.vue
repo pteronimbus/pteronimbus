@@ -60,14 +60,14 @@ const userMenuItems = computed(() => [
   [{
     label: 'Admin',
     icon: 'i-heroicons-shield-check',
-    click: () => router.push('/admin/controllers'),
+    onClick: () => router.push('/admin/controllers'),
     // TODO: Check if user has admin permissions
     // For now, show to all users - this should be filtered based on actual permissions
   }],
   [{
     label: 'Sign out',
     icon: 'i-heroicons-arrow-left-on-rectangle',
-    click: async () => {
+    onClick: async () => {
       await signOut()
     }
   }]
