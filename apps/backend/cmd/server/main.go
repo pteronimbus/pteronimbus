@@ -76,6 +76,7 @@ func main() {
 	authService := services.NewAuthService(dbService.GetDB(), discordService, jwtService, redisService)
 	tenantService := services.NewTenantService(dbService.GetDB(), discordService)
 	gameServerService := services.NewGameServerService(dbService.GetDB())
+	controllerService := services.NewControllerService(dbService.GetDB(), cfg, jwtService)
 
 	// Test Redis connection
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -93,10 +94,12 @@ func main() {
 	authHandler := handlers.NewAuthHandler(authService)
 	tenantHandler := handlers.NewTenantHandler(tenantService, discordService, authService, redisService)
 	gameServerHandler := handlers.NewGameServerHandler(gameServerService, tenantService)
+	controllerHandler := handlers.NewControllerHandler(controllerService)
 
 	// Initialize middleware
 	authMiddleware := middleware.NewAuthMiddleware(authService)
 	tenantMiddleware := middleware.NewTenantMiddleware(tenantService)
+	controllerMiddleware := middleware.NewControllerMiddleware(controllerService)
 
 	// Setup Gin router
 	router := gin.Default()
@@ -171,6 +174,20 @@ func main() {
 				"user":    user,
 			})
 		})
+
+		// Controller management routes (admin only)
+		controllerRoutes := apiRoutes.Group("/controllers")
+		{
+			controllerRoutes.GET("", controllerHandler.GetAllControllers)
+			controllerRoutes.GET("/:id", controllerHandler.GetControllerStatus)
+		}
+	}
+
+	// Controller routes (unprotected - for controller handshake and heartbeat)
+	controllerRoutes := router.Group("/api/controller")
+	{
+		controllerRoutes.POST("/handshake", controllerHandler.Handshake)
+		controllerRoutes.POST("/heartbeat", controllerMiddleware.RequireControllerAuth(), controllerHandler.Heartbeat)
 	}
 
 	// Setup HTTP server

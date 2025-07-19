@@ -9,11 +9,12 @@ import (
 
 // Config holds all configuration for the application
 type Config struct {
-	Server   ServerConfig
-	Discord  DiscordConfig
-	JWT      JWTConfig
-	Redis    RedisConfig
-	Database DatabaseConfig
+	Server     ServerConfig
+	Discord    DiscordConfig
+	JWT        JWTConfig
+	Redis      RedisConfig
+	Database   DatabaseConfig
+	Controller ControllerConfig
 }
 
 // ServerConfig holds server configuration
@@ -59,6 +60,13 @@ type DatabaseConfig struct {
 	SSLMode  string
 }
 
+// ControllerConfig holds controller integration configuration
+type ControllerConfig struct {
+	HandshakeSecret string
+	HeartbeatTTL    time.Duration
+	MaxHeartbeatAge time.Duration
+}
+
 // Load loads configuration from environment variables
 func Load() *Config {
 	return &Config{
@@ -94,6 +102,11 @@ func Load() *Config {
 			Password: getEnv("DB_PASSWORD", ""),
 			DBName:   getEnv("DB_NAME", "pteronimbus"),
 			SSLMode:  getEnv("DB_SSLMODE", "disable"),
+		},
+		Controller: ControllerConfig{
+			HandshakeSecret: getEnv("CONTROLLER_HANDSHAKE_SECRET", ""),
+			HeartbeatTTL:    time.Minute * 5,  // 5 minutes
+			MaxHeartbeatAge: time.Minute * 10, // 10 minutes
 		},
 	}
 }
