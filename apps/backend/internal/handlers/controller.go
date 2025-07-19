@@ -150,6 +150,11 @@ func (h *ControllerHandler) GetAllControllers(c *gin.Context) {
 		return
 	}
 
+	// Ensure we always return an array, even if empty
+	if controllers == nil {
+		controllers = []*models.ControllerStatus{}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success":     true,
 		"controllers": controllers,

@@ -207,6 +207,31 @@ export default defineI18nConfig(() => ({
         comingSoon: 'Tenant Settings Coming Soon',
         comingSoonDesc: 'The ability to manage tenant settings will be available here shortly.'
       },
+      admin: {
+        title: 'Admin Panel',
+        controllers: {
+          title: 'Controller Management',
+          description: 'Monitor and manage Kubernetes controllers across all clusters',
+          totalControllers: 'Total Controllers',
+          online: 'Online',
+          offline: 'Offline',
+          errors: 'Errors',
+          refreshControllers: 'Refresh Controllers',
+          cleanupInactive: 'Cleanup Inactive',
+          viewDetails: 'View Details',
+          viewLogs: 'View Logs',
+          restartController: 'Restart Controller',
+          removeController: 'Remove Controller',
+          noControllers: 'No controllers registered',
+          noControllersDesc: 'Controllers will appear here once they register with the backend',
+          clusterName: 'Cluster Name',
+          status: 'Status',
+          version: 'Version',
+          uptime: 'Uptime',
+          lastHeartbeat: 'Last Heartbeat',
+          actions: 'Actions'
+        }
+      },
       tenants: {
         title: 'Discord Servers',
         addServer: 'Add Server',

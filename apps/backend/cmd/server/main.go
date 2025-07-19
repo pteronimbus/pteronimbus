@@ -77,6 +77,7 @@ func main() {
 	tenantService := services.NewTenantService(dbService.GetDB(), discordService)
 	gameServerService := services.NewGameServerService(dbService.GetDB())
 	controllerService := services.NewControllerService(dbService.GetDB(), cfg, jwtService)
+	adminService := services.NewAdminService(dbService.GetDB())
 
 	// Test Redis connection
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -95,6 +96,7 @@ func main() {
 	tenantHandler := handlers.NewTenantHandler(tenantService, discordService, authService, redisService)
 	gameServerHandler := handlers.NewGameServerHandler(gameServerService, tenantService)
 	controllerHandler := handlers.NewControllerHandler(controllerService)
+	adminHandler := handlers.NewAdminHandler(adminService)
 
 	// Initialize middleware
 	authMiddleware := middleware.NewAuthMiddleware(authService)
@@ -180,6 +182,14 @@ func main() {
 		{
 			controllerRoutes.GET("", controllerHandler.GetAllControllers)
 			controllerRoutes.GET("/:id", controllerHandler.GetControllerStatus)
+		}
+
+		// Admin routes (superadmin only)
+		adminRoutes := apiRoutes.Group("/admin")
+		{
+			adminRoutes.GET("/check-access", adminHandler.CheckAccess)
+			adminRoutes.GET("/stats", adminHandler.GetStats)
+			adminRoutes.POST("/cleanup-controllers", adminHandler.CleanupInactiveControllers)
 		}
 	}
 

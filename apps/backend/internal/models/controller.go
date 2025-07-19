@@ -61,3 +61,11 @@ type ControllerStatus struct {
 	Uptime        string    `json:"uptime,omitempty"`
 	CreatedAt     time.Time `json:"created_at"`
 }
+
+// AdminStats represents admin-level statistics
+type AdminStats struct {
+	TotalTenants      int64 `json:"total_tenants"`
+	TotalUsers        int64 `json:"total_users"`
+	TotalGameServers  int64 `json:"total_game_servers"`
+	ActiveControllers int64 `json:"active_controllers"`
+}

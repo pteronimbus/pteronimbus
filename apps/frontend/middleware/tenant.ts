@@ -1,8 +1,20 @@
 export default defineNuxtRouteMiddleware(async (to) => {
-  const { currentTenant, initializeTenant, fetchTenant, storeCurrentTenant } = useTenant()
+  const { currentTenant, initializeTenant, fetchTenant } = useTenant()
+  const { initializeAuth } = useAuth()
+  
+  // Initialize auth state first to ensure it's loaded
+  initializeAuth()
   
   // Initialize tenant state from localStorage
   initializeTenant()
+  
+  // Wait a tick to ensure the states are properly set
+  await nextTick()
+  
+  // Skip tenant middleware for admin routes
+  if (to.path.startsWith('/admin/')) {
+    return
+  }
   
   // Check if route requires tenant context
   const requiresTenant = to.path.startsWith('/tenant/') || 
@@ -27,8 +39,8 @@ export default defineNuxtRouteMiddleware(async (to) => {
       try {
         // Try to fetch and switch to the tenant from the route
         const tenant = await fetchTenant(tenantIdFromRoute)
-        storeCurrentTenant(tenant)
-        console.log('Successfully switched to tenant:', tenant.name)
+        console.log('Successfully fetched tenant:', tenant.name)
+        // Note: We don't need to store it here since the route will handle the switch
       } catch (error) {
         console.error('Failed to switch tenant:', error)
         // If we can't fetch the tenant, redirect to tenant selection

@@ -103,6 +103,10 @@ services:
       PORT: 8080
       HOST: 0.0.0.0
       ENVIRONMENT: development
+      BACKEND_URL: http://backend:8080
+      CLUSTER_ID: default-cluster
+      CLUSTER_NAME: Default Cluster
+      CONTROLLER_VERSION: 0.1.0
     ports:
       - "8081:8080"
     depends_on:
