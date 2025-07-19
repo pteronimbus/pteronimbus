@@ -60,7 +60,7 @@ const userMenuItems = computed(() => [
   [{
     label: 'Admin',
     icon: 'i-heroicons-shield-check',
-    onClick: () => router.push('/admin/controllers'),
+    onClick: () => router.push('/admin'),
     // TODO: Check if user has admin permissions
     // For now, show to all users - this should be filtered based on actual permissions
   }],

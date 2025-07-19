@@ -209,6 +209,24 @@ export default defineI18nConfig(() => ({
       },
       admin: {
         title: 'Admin Panel',
+        dashboard: {
+          controllers: {
+            title: 'Controller Management',
+            description: 'Monitor and manage Kubernetes controllers across all clusters'
+          },
+          users: {
+            title: 'User Management',
+            description: 'Manage system users, permissions, and account administration'
+          },
+          tenants: {
+            title: 'Tenant Management',
+            description: 'Oversee Discord server tenants and their configurations'
+          },
+          moderation: {
+            title: 'Moderation Tools',
+            description: 'Handle user reports, bans, and community moderation'
+          }
+        },
         controllers: {
           title: 'Controller Management',
           description: 'Monitor and manage Kubernetes controllers across all clusters',
@@ -474,6 +492,24 @@ export default defineI18nConfig(() => ({
       },
       admin: {
         title: 'Panneau d\'administration',
+        dashboard: {
+          controllers: {
+            title: 'Gestion des contrôleurs',
+            description: 'Surveiller et gérer les contrôleurs Kubernetes sur tous les clusters'
+          },
+          users: {
+            title: 'Gestion des utilisateurs',
+            description: 'Gérer les utilisateurs système, les permissions et l\'administration des comptes'
+          },
+          tenants: {
+            title: 'Gestion des locataires',
+            description: 'Superviser les serveurs Discord et leurs configurations'
+          },
+          moderation: {
+            title: 'Outils de modération',
+            description: 'Gérer les signalements d\'utilisateurs, les bannissements et la modération communautaire'
+          }
+        },
         controllers: {
           title: 'Gestion des contrôleurs',
           description: 'Surveiller et gérer les contrôleurs Kubernetes sur tous les clusters',
