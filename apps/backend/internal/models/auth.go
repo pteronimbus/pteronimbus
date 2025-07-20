@@ -42,10 +42,12 @@ type Session struct {
 
 // JWTClaims represents JWT token claims
 type JWTClaims struct {
-	UserID        string `json:"user_id"`
-	DiscordUserID string `json:"discord_user_id"`
-	Username      string `json:"username"`
-	SessionID     string `json:"session_id"`
+	UserID        string   `json:"user_id"`
+	DiscordUserID string   `json:"discord_user_id"`
+	Username      string   `json:"username"`
+	SessionID     string   `json:"session_id"`
+	IsSuperAdmin  bool     `json:"is_super_admin"`
+	SystemRoles   []string `json:"system_roles,omitempty"`
 	jwt.RegisteredClaims
 }
 

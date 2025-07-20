@@ -47,29 +47,36 @@ import ThemeSwitcher from '~/components/ThemeSwitcher.vue'
 import TenantSelector from '~/components/TenantSelector.vue'
 
 const router = useRouter()
-const { user, signOut, initializeAuth } = useAuth()
+const { user, signOut, initializeAuth, isSuperAdmin } = useAuth()
 
 // Initialize auth state
 initializeAuth()
 
-const userMenuItems = computed(() => [
-  [{
-    label: user.value?.email || user.value?.username || 'User',
-    disabled: true
-  }],
-  [{
-    label: 'Admin',
-    icon: 'i-heroicons-shield-check',
-    onClick: () => router.push('/admin'),
-    // TODO: Check if user has admin permissions
-    // For now, show to all users - this should be filtered based on actual permissions
-  }],
-  [{
+const userMenuItems = computed(() => {
+  const items = [
+    [{
+      label: user.value?.email || user.value?.username || 'User',
+      disabled: true
+    }]
+  ]
+  
+  // Only show Admin menu item for super admins
+  if (isSuperAdmin.value) {
+    items.push([{
+      label: 'Admin',
+      icon: 'i-heroicons-shield-check',
+      onClick: () => router.push('/admin')
+    }])
+  }
+  
+  items.push([{
     label: 'Sign out',
     icon: 'i-heroicons-arrow-left-on-rectangle',
     onClick: async () => {
       await signOut()
     }
-  }]
-])
+  }])
+  
+  return items
+})
 </script> 

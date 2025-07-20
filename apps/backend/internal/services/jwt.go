@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -15,6 +16,7 @@ type JWTService struct {
 	accessTokenTTL   time.Duration
 	refreshTokenTTL  time.Duration
 	issuer           string
+	rbacService      *RBACService
 }
 
 // NewJWTService creates a new JWT service
@@ -27,19 +29,61 @@ func NewJWTService(cfg *config.Config) *JWTService {
 	}
 }
 
+// NewJWTServiceWithRBAC creates a new JWT service with RBAC integration
+func NewJWTServiceWithRBAC(cfg *config.Config, rbacService *RBACService) *JWTService {
+	return &JWTService{
+		secret:           []byte(cfg.JWT.Secret),
+		accessTokenTTL:   cfg.JWT.AccessTokenTTL,
+		refreshTokenTTL:  cfg.JWT.RefreshTokenTTL,
+		issuer:           cfg.JWT.Issuer,
+		rbacService:      rbacService,
+	}
+}
+
 // GenerateAccessToken generates a new access token
 func (j *JWTService) GenerateAccessToken(user *models.User, sessionID string) (string, time.Time, error) {
-	expiresAt := time.Now().Add(j.accessTokenTTL)
+	now := time.Now()
+	expiresAt := now.Add(j.accessTokenTTL)
+	
+	// Debug output
+	fmt.Printf("JWT Debug: now=%v, expiresAt=%v, TTL=%v\n", now, expiresAt, j.accessTokenTTL)
+	
+	// Check if user is super admin if RBAC service is available
+	isSuperAdmin := false
+	var systemRoles []string
+	if j.rbacService != nil {
+		var err error
+		isSuperAdmin, err = j.rbacService.IsSuperAdmin(context.Background(), user.ID)
+		if err != nil {
+			// Log error but don't fail token generation
+			// In production, you might want to handle this differently
+			fmt.Printf("Warning: failed to check super admin status for user %s: %v\n", user.ID, err)
+		}
+
+		// Get user's system roles
+		userSystemRoles, err := j.rbacService.GetUserSystemRoles(context.Background(), user.ID)
+		if err != nil {
+			// Log error but don't fail token generation
+			fmt.Printf("Warning: failed to get system roles for user %s: %v\n", user.ID, err)
+		} else {
+			systemRoles = make([]string, len(userSystemRoles))
+			for i, role := range userSystemRoles {
+				systemRoles[i] = role.Name
+			}
+		}
+	}
 	
 	claims := &models.JWTClaims{
 		UserID:        user.ID,
 		DiscordUserID: user.DiscordUserID,
 		Username:      user.Username,
 		SessionID:     sessionID,
+		IsSuperAdmin:  isSuperAdmin,
+		SystemRoles:   systemRoles,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			NotBefore: jwt.NewNumericDate(time.Now()),
+			IssuedAt:  jwt.NewNumericDate(now),
+			NotBefore: jwt.NewNumericDate(now),
 			Issuer:    j.issuer,
 			Subject:   user.ID,
 		},
@@ -56,17 +100,44 @@ func (j *JWTService) GenerateAccessToken(user *models.User, sessionID string) (s
 
 // GenerateRefreshToken generates a new refresh token
 func (j *JWTService) GenerateRefreshToken(user *models.User, sessionID string) (string, time.Time, error) {
-	expiresAt := time.Now().Add(j.refreshTokenTTL)
+	now := time.Now()
+	expiresAt := now.Add(j.refreshTokenTTL)
+	
+	// Check if user is super admin if RBAC service is available
+	isSuperAdmin := false
+	var systemRoles []string
+	if j.rbacService != nil {
+		var err error
+		isSuperAdmin, err = j.rbacService.IsSuperAdmin(context.Background(), user.ID)
+		if err != nil {
+			// Log error but don't fail token generation
+			fmt.Printf("Warning: failed to check super admin status for user %s: %v\n", user.ID, err)
+		}
+
+		// Get user's system roles
+		userSystemRoles, err := j.rbacService.GetUserSystemRoles(context.Background(), user.ID)
+		if err != nil {
+			// Log error but don't fail token generation
+			fmt.Printf("Warning: failed to get system roles for user %s: %v\n", user.ID, err)
+		} else {
+			systemRoles = make([]string, len(userSystemRoles))
+			for i, role := range userSystemRoles {
+				systemRoles[i] = role.Name
+			}
+		}
+	}
 	
 	claims := &models.JWTClaims{
 		UserID:        user.ID,
 		DiscordUserID: user.DiscordUserID,
 		Username:      user.Username,
 		SessionID:     sessionID,
+		IsSuperAdmin:  isSuperAdmin,
+		SystemRoles:   systemRoles,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			NotBefore: jwt.NewNumericDate(time.Now()),
+			IssuedAt:  jwt.NewNumericDate(now),
+			NotBefore: jwt.NewNumericDate(now),
 			Issuer:    j.issuer,
 			Subject:   user.ID,
 		},

@@ -44,6 +44,7 @@ func TestJWTService_GenerateAccessToken(t *testing.T) {
 	assert.Equal(t, user.Username, claims.Username)
 	assert.Equal(t, sessionID, claims.SessionID)
 	assert.Equal(t, cfg.JWT.Issuer, claims.Issuer)
+	assert.False(t, claims.IsSuperAdmin) // Default should be false
 }
 
 func TestJWTService_GenerateRefreshToken(t *testing.T) {
@@ -80,6 +81,7 @@ func TestJWTService_GenerateRefreshToken(t *testing.T) {
 	assert.Equal(t, user.Username, claims.Username)
 	assert.Equal(t, sessionID, claims.SessionID)
 	assert.Equal(t, cfg.JWT.Issuer, claims.Issuer)
+	assert.False(t, claims.IsSuperAdmin) // Default should be false
 }
 
 func TestJWTService_ValidateToken(t *testing.T) {
@@ -117,6 +119,7 @@ func TestJWTService_ValidateToken(t *testing.T) {
 				assert.Equal(t, "discord_user_id", claims.DiscordUserID)
 				assert.Equal(t, "testuser", claims.Username)
 				assert.Equal(t, "session_id", claims.SessionID)
+				assert.False(t, claims.IsSuperAdmin) // Default should be false
 			},
 		},
 		{
@@ -290,6 +293,7 @@ func TestJWTService_ClaimsValidation(t *testing.T) {
 	assert.Equal(t, sessionID, claims.SessionID)
 	assert.Equal(t, cfg.JWT.Issuer, claims.Issuer)
 	assert.Equal(t, user.ID, claims.Subject)
+	assert.False(t, claims.IsSuperAdmin) // Default should be false
 
 	// Check time claims
 	assert.NotNil(t, claims.ExpiresAt)

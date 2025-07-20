@@ -16,6 +16,7 @@ type AuthService struct {
 	discordService DiscordServiceInterface
 	jwtService     JWTServiceInterface
 	redisService   RedisServiceInterface
+	rbacService    *RBACService
 }
 
 // NewAuthService creates a new authentication service
@@ -25,6 +26,17 @@ func NewAuthService(db *gorm.DB, discordService DiscordServiceInterface, jwtServ
 		discordService: discordService,
 		jwtService:     jwtService,
 		redisService:   redisService,
+	}
+}
+
+// NewAuthServiceWithRBAC creates a new auth service with RBAC integration
+func NewAuthServiceWithRBAC(db *gorm.DB, discordService DiscordServiceInterface, jwtService JWTServiceInterface, redisService RedisServiceInterface, rbacService *RBACService) *AuthService {
+	return &AuthService{
+		db:             db,
+		discordService: discordService,
+		jwtService:     jwtService,
+		redisService:   redisService,
+		rbacService:    rbacService,
 	}
 }
 
@@ -47,12 +59,44 @@ func (a *AuthService) HandleCallback(ctx context.Context, code string) (*models.
 		return nil, fmt.Errorf("failed to get user info: %w", err)
 	}
 
-	// Create or update user in database (skip if db is nil for testing)
-	var user models.User
-	if a.db != nil {
-		err = a.db.Where("discord_user_id = ?", discordUser.ID).First(&user).Error
-		if err == gorm.ErrRecordNotFound {
-			// Create new user
+			// Create or update user in database (skip if db is nil for testing)
+		var user models.User
+		var isNewUser bool
+		if a.db != nil {
+			err = a.db.Where("discord_user_id = ?", discordUser.ID).First(&user).Error
+			if err == gorm.ErrRecordNotFound {
+				// Create new user
+				user = models.User{
+					ID:            uuid.New().String(),
+					DiscordUserID: discordUser.ID,
+					Username:      discordUser.Username,
+					Avatar:        discordUser.Avatar,
+					Email:         discordUser.Email,
+					CreatedAt:     time.Now(),
+					UpdatedAt:     time.Now(),
+				}
+				
+				err = a.db.Create(&user).Error
+				if err != nil {
+					return nil, fmt.Errorf("failed to create user: %w", err)
+				}
+				isNewUser = true
+			} else if err == nil {
+				// Update existing user
+				user.Username = discordUser.Username
+				user.Avatar = discordUser.Avatar
+				user.Email = discordUser.Email
+				user.UpdatedAt = time.Now()
+				
+				err = a.db.Save(&user).Error
+				if err != nil {
+					return nil, fmt.Errorf("failed to update user: %w", err)
+				}
+			} else {
+				return nil, fmt.Errorf("failed to check existing user: %w", err)
+			}
+		} else {
+			// For testing without database - create user in memory only
 			user = models.User{
 				ID:            uuid.New().String(),
 				DiscordUserID: discordUser.ID,
@@ -62,48 +106,45 @@ func (a *AuthService) HandleCallback(ctx context.Context, code string) (*models.
 				CreatedAt:     time.Now(),
 				UpdatedAt:     time.Now(),
 			}
-			
-			err = a.db.Create(&user).Error
-			if err != nil {
-				return nil, fmt.Errorf("failed to create user: %w", err)
-			}
-		} else if err == nil {
-			// Update existing user
-			user.Username = discordUser.Username
-			user.Avatar = discordUser.Avatar
-			user.Email = discordUser.Email
-			user.UpdatedAt = time.Now()
-			
-			err = a.db.Save(&user).Error
-			if err != nil {
-				return nil, fmt.Errorf("failed to update user: %w", err)
-			}
-		} else {
-			return nil, fmt.Errorf("failed to check existing user: %w", err)
+			isNewUser = true
 		}
-	} else {
-		// For testing without database - create user in memory only
-		user = models.User{
-			ID:            uuid.New().String(),
-			DiscordUserID: discordUser.ID,
-			Username:      discordUser.Username,
-			Avatar:        discordUser.Avatar,
-			Email:         discordUser.Email,
-			CreatedAt:     time.Now(),
-			UpdatedAt:     time.Now(),
+
+		// If this is a new user and RBAC service is available, check for super admin assignment
+		if isNewUser && a.rbacService != nil {
+			// Check if this user should be a super admin (by Discord ID)
+			isSuperAdmin := user.DiscordUserID == a.rbacService.config.SuperAdminDiscordID
+			
+			// Debug logging
+			fmt.Printf("Super admin check: user.DiscordUserID='%s', config.SuperAdminDiscordID='%s', isSuperAdmin=%t\n", 
+				user.DiscordUserID, a.rbacService.config.SuperAdminDiscordID, isSuperAdmin)
+			
+			if isSuperAdmin {
+				// Assign super admin role to the new user
+				err = a.rbacService.AssignInitialSuperAdminRole(ctx, user.ID)
+				if err != nil {
+					fmt.Printf("Warning: failed to assign super admin role to new user %s: %v\n", user.ID, err)
+				} else {
+					fmt.Printf("Successfully assigned super admin role to new user %s (%s)\n", user.Username, user.DiscordUserID)
+				}
+			}
 		}
-	}
 
 	// Create session
 	sessionID := uuid.New().String()
 	
-	// Generate JWT tokens
-	accessToken, accessExpiresAt, err := a.jwtService.GenerateAccessToken(&user, sessionID)
+	// Generate JWT tokens with RBAC integration if available
+	var accessToken string
+	var accessExpiresAt time.Time
+	var refreshToken string
+	var refreshExpiresAt time.Time
+
+	// Generate JWT tokens using the JWT service (which includes RBAC integration)
+	accessToken, accessExpiresAt, err = a.jwtService.GenerateAccessToken(&user, sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate access token: %w", err)
 	}
 
-	refreshToken, refreshExpiresAt, err := a.jwtService.GenerateRefreshToken(&user, sessionID)
+	refreshToken, refreshExpiresAt, err = a.jwtService.GenerateRefreshToken(&user, sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate refresh token: %w", err)
 	}
@@ -162,7 +203,7 @@ func (a *AuthService) RefreshToken(ctx context.Context, refreshTokenString strin
 		Username:      claims.Username,
 	}
 
-	// Generate new access token
+	// Generate new access token using the JWT service (which includes RBAC integration)
 	newAccessToken, accessExpiresAt, err := a.jwtService.GenerateAccessToken(user, session.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate new access token: %w", err)

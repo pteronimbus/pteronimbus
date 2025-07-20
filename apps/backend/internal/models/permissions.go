@@ -47,6 +47,9 @@ const (
 	PermissionRoleWrite  = "role:write"
 	PermissionRoleDelete = "role:delete"
 
+	// System permissions (system-wide, not tenant-scoped)
+	PermissionSystemAdmin = "system:admin"
+
 	// Admin permissions
 	PermissionAdminAll = "*"
 	PermissionSuperAdmin = "superadmin"

@@ -47,6 +47,8 @@ func (ds *DatabaseService) AutoMigrate() error {
 		&models.Controller{},
 		&models.Permission{},
 		&models.Role{},
+		&models.SystemRole{},
+		&models.UserSystemRole{},
 		&models.PermissionAuditLog{},
 		&models.GuildMembershipCache{},
 	)

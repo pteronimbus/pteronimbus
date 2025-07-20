@@ -29,7 +29,6 @@ func main() {
 
 	// Initialize services
 	redisService := services.NewRedisService(cfg)
-	jwtService := services.NewJWTService(cfg)
 	discordService := services.NewDiscordService(cfg)
 
 	// Initialize database service
@@ -73,7 +72,14 @@ func main() {
 		syncService = services.NewSyncService(dbService.GetDB(), nil)
 	}
 
-	authService := services.NewAuthService(dbService.GetDB(), discordService, jwtService, redisService)
+	// Initialize RBAC service first
+	rbacService := services.NewRBACService(dbService.GetDB(), &cfg.RBAC)
+	
+	// Initialize JWT service with RBAC integration
+	jwtService := services.NewJWTServiceWithRBAC(cfg, rbacService)
+	
+	// Initialize auth service with RBAC integration
+	authService := services.NewAuthServiceWithRBAC(dbService.GetDB(), discordService, jwtService, redisService, rbacService)
 	tenantService := services.NewTenantService(dbService.GetDB(), discordService)
 	gameServerService := services.NewGameServerService(dbService.GetDB())
 	controllerService := services.NewControllerService(dbService.GetDB(), cfg, jwtService)

@@ -33,11 +33,36 @@ type Role struct {
 	Tenant Tenant `json:"tenant,omitempty" gorm:"foreignKey:TenantID"`
 }
 
+// SystemRole represents a system-wide role (not tenant-scoped)
+type SystemRole struct {
+	ID          string         `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
+	Name        string         `json:"name" gorm:"uniqueIndex;not null"`
+	Description string         `json:"description"`
+	Permissions StringArray    `json:"permissions" gorm:"type:text[]"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `json:"-" gorm:"index"`
+}
+
+// UserSystemRole represents the relationship between users and system roles
+type UserSystemRole struct {
+	ID         string         `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
+	UserID     string         `json:"user_id" gorm:"not null;index"`
+	SystemRoleID string       `json:"system_role_id" gorm:"not null;index"`
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at"`
+	DeletedAt  gorm.DeletedAt `json:"-" gorm:"index"`
+
+	// Relationships
+	User       User       `json:"user,omitempty" gorm:"foreignKey:UserID"`
+	SystemRole SystemRole `json:"system_role,omitempty" gorm:"foreignKey:SystemRoleID"`
+}
+
 // PermissionAuditLog represents audit logging for permission changes
 type PermissionAuditLog struct {
 	ID           string         `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
 	UserID       string         `json:"user_id" gorm:"index"`
-	TenantID     string         `json:"tenant_id" gorm:"index"`
+	TenantID     *string        `json:"tenant_id" gorm:"index"` // Nullable for system-level operations
 	Action       string         `json:"action" gorm:"not null"`
 	ResourceType string         `json:"resource_type" gorm:"not null"`
 	ResourceID   string         `json:"resource_id"`
@@ -80,6 +105,16 @@ func (Permission) TableName() string {
 // TableName returns the table name for Role
 func (Role) TableName() string {
 	return "roles"
+}
+
+// TableName returns the table name for SystemRole
+func (SystemRole) TableName() string {
+	return "system_roles"
+}
+
+// TableName returns the table name for UserSystemRole
+func (UserSystemRole) TableName() string {
+	return "user_system_roles"
 }
 
 // TableName returns the table name for PermissionAuditLog

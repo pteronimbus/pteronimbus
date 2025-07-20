@@ -83,6 +83,8 @@ func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 		c.Set("user_id", user.ID)
 		c.Set("discord_user_id", user.DiscordUserID)
 		c.Set("session_id", claims.SessionID)
+		c.Set("is_super_admin", claims.IsSuperAdmin)
+		c.Set("system_roles", claims.SystemRoles)
 
 		c.Next()
 	}
@@ -133,4 +135,30 @@ func GetUserFromContext(c *gin.Context) (*models.User, bool) {
 
 	u, ok := user.(*models.User)
 	return u, ok
+}
+
+// IsSuperAdminFromContext gets the super admin status from context
+func IsSuperAdminFromContext(c *gin.Context) bool {
+	isSuperAdmin, exists := c.Get("is_super_admin")
+	if !exists {
+		return false
+	}
+
+	admin, ok := isSuperAdmin.(bool)
+	return ok && admin
+}
+
+// GetSystemRolesFromContext gets the system roles from context
+func GetSystemRolesFromContext(c *gin.Context) []string {
+	systemRoles, exists := c.Get("system_roles")
+	if !exists {
+		return []string{}
+	}
+
+	roles, ok := systemRoles.([]string)
+	if !ok {
+		return []string{}
+	}
+
+	return roles
 }

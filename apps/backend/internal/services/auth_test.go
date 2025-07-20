@@ -9,6 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/models"
+	"github.com/pteronimbus/pteronimbus/apps/backend/internal/config"
+	"github.com/pteronimbus/pteronimbus/apps/backend/internal/testutils"
+	"gorm.io/gorm"
 )
 
 // Mock services for testing
@@ -566,4 +569,269 @@ func TestAuthService_Logout(t *testing.T) {
 			mockRedis.AssertExpectations(t)
 		})
 	}
+}
+
+func TestAuthService_SuperAdminRoleAssignment(t *testing.T) {
+	// Setup test database
+	db, cleanup := setupTestDatabaseWithModels(t)
+	defer cleanup()
+
+	// Create test configuration with super admin Discord ID
+	cfg := &config.Config{
+		RBAC: config.RBACConfig{
+			SuperAdminDiscordID: "197918357025062922", // Your Discord ID
+			RoleSyncTTL:         time.Minute * 5,
+			GuildCacheTTL:       time.Minute * 5,
+			GracePeriod:         time.Minute * 2,
+		},
+	}
+
+	// Create services
+	rbacService := NewRBACService(db, &cfg.RBAC)
+	mockDiscord := new(MockDiscordService)
+	mockRedis := new(MockRedisService)
+
+	// Create JWT service with RBAC integration
+	jwtService := NewJWTServiceWithRBAC(cfg, rbacService)
+
+	// Create auth service with RBAC integration
+	authService := NewAuthServiceWithRBAC(db, mockDiscord, jwtService, mockRedis, rbacService)
+
+	tests := []struct {
+		name                    string
+		discordUserID           string
+		expectSuperAdminRole    bool
+		setupMocks              func(*MockDiscordService, *MockRedisService)
+		checkSuperAdminStatus   func(*testing.T, string)
+	}{
+		{
+			name:                 "new user with super admin Discord ID should get super admin role",
+			discordUserID:        "197918357025062922",
+			expectSuperAdminRole: true,
+			setupMocks: func(mockDiscord *MockDiscordService, mockRedis *MockRedisService) {
+				// Mock Discord token exchange
+				mockDiscord.On("ExchangeCodeForToken", mock.Anything, "test_code").Return(&models.DiscordTokenResponse{
+					AccessToken:  "test_access_token",
+					RefreshToken: "test_refresh_token",
+					ExpiresIn:    3600,
+				}, nil)
+
+				// Mock Discord user info
+				mockDiscord.On("GetUserInfo", mock.Anything, "test_access_token").Return(&models.DiscordUser{
+					ID:       "197918357025062922",
+					Username: "testuser",
+					Avatar:   "test_avatar",
+					Email:    "test@example.com",
+				}, nil)
+
+				// Mock Redis session storage
+				mockRedis.On("StoreSession", mock.Anything, mock.Anything).Return(nil)
+			},
+			checkSuperAdminStatus: func(t *testing.T, userID string) {
+				// Check that the user has super admin role (system-wide, not tenant-scoped)
+				isSuperAdmin, err := rbacService.IsSuperAdmin(context.Background(), userID)
+				assert.NoError(t, err)
+				assert.True(t, isSuperAdmin, "User should have super admin role")
+
+				// Super admin role is system-wide, not tenant-scoped, so no tenant role should exist
+				var userTenant models.UserTenant
+				err = db.Where("user_id = ?", userID).First(&userTenant).Error
+				assert.Error(t, err)
+				assert.Equal(t, gorm.ErrRecordNotFound, err, "Super admin should not have tenant-scoped roles")
+			},
+		},
+		{
+			name:                 "new user without super admin Discord ID should not get super admin role",
+			discordUserID:        "123456789012345678",
+			expectSuperAdminRole: false,
+			setupMocks: func(mockDiscord *MockDiscordService, mockRedis *MockRedisService) {
+				// Mock Discord token exchange
+				mockDiscord.On("ExchangeCodeForToken", mock.Anything, "test_code").Return(&models.DiscordTokenResponse{
+					AccessToken:  "test_access_token",
+					RefreshToken: "test_refresh_token",
+					ExpiresIn:    3600,
+				}, nil)
+
+				// Mock Discord user info
+				mockDiscord.On("GetUserInfo", mock.Anything, "test_access_token").Return(&models.DiscordUser{
+					ID:       "123456789012345678",
+					Username: "regularuser",
+					Avatar:   "test_avatar",
+					Email:    "regular@example.com",
+				}, nil)
+
+				// Mock Redis session storage
+				mockRedis.On("StoreSession", mock.Anything, mock.Anything).Return(nil)
+			},
+			checkSuperAdminStatus: func(t *testing.T, userID string) {
+				// Check that the user does not have super admin role
+				isSuperAdmin, err := rbacService.IsSuperAdmin(context.Background(), userID)
+				if err != nil {
+					t.Logf("IsSuperAdmin error: %v", err)
+				}
+				t.Logf("User %s isSuperAdmin: %v", userID, isSuperAdmin)
+				assert.NoError(t, err)
+				assert.False(t, isSuperAdmin, "User should not have super admin role")
+
+				// Regular users should not have any tenant roles (since they're not in any tenant)
+				var userTenant models.UserTenant
+				err = db.Where("user_id = ?", userID).First(&userTenant).Error
+				assert.Error(t, err)
+				assert.Equal(t, gorm.ErrRecordNotFound, err, "Regular user should not have any tenant roles")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup mocks
+			tt.setupMocks(mockDiscord, mockRedis)
+
+			// Call HandleCallback
+			authResponse, err := authService.HandleCallback(context.Background(), "test_code")
+
+			// Assertions
+			assert.NoError(t, err)
+			assert.NotNil(t, authResponse)
+			assert.NotEmpty(t, authResponse.AccessToken)
+			assert.NotEmpty(t, authResponse.RefreshToken)
+			assert.NotNil(t, authResponse.User)
+
+			// Check super admin status
+			tt.checkSuperAdminStatus(t, authResponse.User.ID)
+
+			// Verify mocks
+			mockDiscord.AssertExpectations(t)
+			mockRedis.AssertExpectations(t)
+		})
+	}
+}
+
+func TestAuthService_SuperAdminJWTInclusion(t *testing.T) {
+	// Setup test database
+	db, cleanup := setupTestDatabaseWithModels(t)
+	defer cleanup()
+
+	// Create test configuration with super admin Discord ID
+	cfg := &config.Config{
+		RBAC: config.RBACConfig{
+			SuperAdminDiscordID: "197918357025062922",
+			RoleSyncTTL:         time.Minute * 5,
+			GuildCacheTTL:       time.Minute * 5,
+			GracePeriod:         time.Minute * 2,
+		},
+	}
+
+	// Create services
+	rbacService := NewRBACService(db, &cfg.RBAC)
+	mockDiscord := new(MockDiscordService)
+	mockRedis := new(MockRedisService)
+
+	// Create JWT service with RBAC integration
+	jwtService := NewJWTServiceWithRBAC(cfg, rbacService)
+
+	// Create auth service with RBAC integration
+	authService := NewAuthServiceWithRBAC(db, mockDiscord, jwtService, mockRedis, rbacService)
+
+	tests := []struct {
+		name                 string
+		discordUserID        string
+		expectSuperAdminJWT  bool
+		setupMocks           func(*MockDiscordService, *MockRedisService)
+	}{
+		{
+			name:                "super admin user should have IsSuperAdmin in JWT",
+			discordUserID:       "197918357025062922",
+			expectSuperAdminJWT: true,
+			setupMocks: func(mockDiscord *MockDiscordService, mockRedis *MockRedisService) {
+				// Mock Discord token exchange
+				mockDiscord.On("ExchangeCodeForToken", mock.Anything, "test_code").Return(&models.DiscordTokenResponse{
+					AccessToken:  "test_access_token",
+					RefreshToken: "test_refresh_token",
+					ExpiresIn:    3600,
+				}, nil)
+
+				// Mock Discord user info
+				mockDiscord.On("GetUserInfo", mock.Anything, "test_access_token").Return(&models.DiscordUser{
+					ID:       "197918357025062922",
+					Username: "testuser",
+					Avatar:   "test_avatar",
+					Email:    "test@example.com",
+				}, nil)
+
+				// Mock Redis session storage
+				mockRedis.On("StoreSession", mock.Anything, mock.Anything).Return(nil)
+			},
+		},
+		{
+			name:                "regular user should not have IsSuperAdmin in JWT",
+			discordUserID:       "123456789012345678",
+			expectSuperAdminJWT: false,
+			setupMocks: func(mockDiscord *MockDiscordService, mockRedis *MockRedisService) {
+				// Mock Discord token exchange
+				mockDiscord.On("ExchangeCodeForToken", mock.Anything, "test_code").Return(&models.DiscordTokenResponse{
+					AccessToken:  "test_access_token",
+					RefreshToken: "test_refresh_token",
+					ExpiresIn:    3600,
+				}, nil)
+
+				// Mock Discord user info
+				mockDiscord.On("GetUserInfo", mock.Anything, "test_access_token").Return(&models.DiscordUser{
+					ID:       "123456789012345678",
+					Username: "regularuser",
+					Avatar:   "test_avatar",
+					Email:    "regular@example.com",
+				}, nil)
+
+				// Mock Redis session storage
+				mockRedis.On("StoreSession", mock.Anything, mock.Anything).Return(nil)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup mocks
+			tt.setupMocks(mockDiscord, mockRedis)
+
+			// Call HandleCallback
+			authResponse, err := authService.HandleCallback(context.Background(), "test_code")
+
+			// Assertions
+			assert.NoError(t, err)
+			assert.NotNil(t, authResponse)
+			assert.NotEmpty(t, authResponse.AccessToken)
+
+			// Decode JWT to check super admin status
+			claims, err := jwtService.ValidateToken(authResponse.AccessToken)
+			if err != nil {
+				t.Logf("JWT validation error: %v", err)
+				t.Logf("Access token: %s", authResponse.AccessToken)
+			}
+			assert.NoError(t, err)
+			assert.NotNil(t, claims)
+
+			// Check IsSuperAdmin field in JWT claims
+			assert.Equal(t, tt.expectSuperAdminJWT, claims.IsSuperAdmin, 
+				"JWT IsSuperAdmin should be %v for user %s", tt.expectSuperAdminJWT, tt.discordUserID)
+
+			// Verify mocks
+			mockDiscord.AssertExpectations(t)
+			mockRedis.AssertExpectations(t)
+		})
+	}
+}
+
+func setupTestDatabaseWithModels(t *testing.T) (*gorm.DB, func()) {
+	return testutils.SetupTestDatabaseWithModels(t,
+		&models.User{},
+		&models.Session{},
+		&models.UserTenant{},
+		&models.Tenant{},
+		&models.UserTenant{},
+		&models.Permission{},
+		&models.Role{},
+		&models.PermissionAuditLog{},
+		&models.GuildMembershipCache{},
+	)
 }

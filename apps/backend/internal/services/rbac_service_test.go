@@ -10,6 +10,7 @@ import (
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/models"
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/testutils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )
@@ -23,6 +24,8 @@ func setupRBACTest(t *testing.T) (*RBACService, *gorm.DB, func()) {
 		&models.TenantDiscordUser{},
 		&models.Permission{},
 		&models.Role{},
+		&models.SystemRole{},
+		&models.UserSystemRole{},
 		&models.PermissionAuditLog{},
 		&models.GuildMembershipCache{},
 	)
@@ -129,7 +132,7 @@ func TestRBACService_IsSuperAdmin(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, isSuperAdmin)
 
-	// Test super admin by role assignment
+	// Test super admin by system role assignment
 	roleAdmin := &models.User{
 		DiscordUserID: "roleadmin123",
 		Username:      "roleadmin",
@@ -137,37 +140,15 @@ func TestRBACService_IsSuperAdmin(t *testing.T) {
 	err = db.Create(roleAdmin).Error
 	require.NoError(t, err)
 
-	// Assign super admin role
-	userTenant := &models.UserTenant{
-		UserID:   roleAdmin.ID,
-		TenantID: tenant.ID,
-		Roles:    models.StringArray{"superadmin"},
-	}
-	err = db.Create(userTenant).Error
+	// Create super admin system role first
+	_, err = rbacService.CreateSystemRole(context.Background(), "superadmin", "Super administrator", []string{models.PermissionSystemAdmin})
+	require.NoError(t, err)
+
+	// Assign super admin system role
+	err = rbacService.AssignSystemRoleToUser(context.Background(), roleAdmin.ID, "superadmin")
 	require.NoError(t, err)
 
 	isSuperAdmin, err = rbacService.IsSuperAdmin(context.Background(), roleAdmin.ID)
-	require.NoError(t, err)
-	assert.True(t, isSuperAdmin)
-
-	// Test super admin by wildcard permission
-	permAdmin := &models.User{
-		DiscordUserID: "permadmin123",
-		Username:      "permadmin",
-	}
-	err = db.Create(permAdmin).Error
-	require.NoError(t, err)
-
-	// Assign wildcard permission
-	permUserTenant := &models.UserTenant{
-		UserID:      permAdmin.ID,
-		TenantID:    tenant.ID,
-		Permissions: models.StringArray{models.PermissionAdminAll},
-	}
-	err = db.Create(permUserTenant).Error
-	require.NoError(t, err)
-
-	isSuperAdmin, err = rbacService.IsSuperAdmin(context.Background(), permAdmin.ID)
 	require.NoError(t, err)
 	assert.True(t, isSuperAdmin)
 
@@ -533,54 +514,20 @@ func TestRBACService_GetRoles(t *testing.T) {
 	assert.Equal(t, "Role2", roles[1].Name)
 }
 
-func TestRBACService_AssignSuperAdminRole(t *testing.T) {
+// Removed old failing tests - replaced with TestRBACService_SuperAdminAutoAssignmentDuringSignup and TestRBACService_ManualSuperAdminRoleAssignment 
+
+func TestRBACService_SystemRoles(t *testing.T) {
 	rbacService, db, cleanup := setupRBACTest(t)
 	defer cleanup()
 
-	// Create test tenant
-	tenant := &models.Tenant{
-		DiscordServerID: "guild-123",
-		Name:            "Test Guild",
-		OwnerID:         uuid.New().String(),
-	}
-	err := db.Create(tenant).Error
-	require.NoError(t, err)
-
-	// Create super admin user (by Discord ID)
+	// Create test users
 	superAdmin := &models.User{
 		DiscordUserID: "superadmin123",
 		Username:      "superadmin",
 	}
-	err = db.Create(superAdmin).Error
+	err := db.Create(superAdmin).Error
 	require.NoError(t, err)
 
-	// Create target user
-	targetUser := &models.User{
-		DiscordUserID: "target123",
-		Username:      "targetuser",
-	}
-	err = db.Create(targetUser).Error
-	require.NoError(t, err)
-
-	// Create context with super admin user
-	ctx := context.WithValue(context.Background(), "user_id", superAdmin.ID)
-
-	// Assign super admin role
-	err = rbacService.AssignSuperAdminRole(ctx, targetUser.ID, tenant.ID)
-	require.NoError(t, err)
-
-	// Verify role was assigned
-	var userTenant models.UserTenant
-	err = db.Where("user_id = ? AND tenant_id = ?", targetUser.ID, tenant.ID).First(&userTenant).Error
-	require.NoError(t, err)
-	assert.Contains(t, userTenant.Roles, "superadmin")
-
-	// Verify target user is now super admin
-	isSuperAdmin, err := rbacService.IsSuperAdmin(context.Background(), targetUser.ID)
-	require.NoError(t, err)
-	assert.True(t, isSuperAdmin)
-
-	// Test assigning to non-super admin (should fail)
 	regularUser := &models.User{
 		DiscordUserID: "regular123",
 		Username:      "regularuser",
@@ -588,34 +535,123 @@ func TestRBACService_AssignSuperAdminRole(t *testing.T) {
 	err = db.Create(regularUser).Error
 	require.NoError(t, err)
 
-	regularCtx := context.WithValue(context.Background(), "user_id", regularUser.ID)
-	err = rbacService.AssignSuperAdminRole(regularCtx, targetUser.ID, tenant.ID)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "only super admins can assign super admin role")
+	// Test creating system role
+	t.Run("CreateSystemRole", func(t *testing.T) {
+		systemRole, err := rbacService.CreateSystemRole(context.Background(), "test_admin", "Test admin role", []string{models.PermissionSystemAdmin})
+		require.NoError(t, err)
+		assert.Equal(t, "test_admin", systemRole.Name)
+		assert.Equal(t, "Test admin role", systemRole.Description)
+		assert.Contains(t, systemRole.Permissions, models.PermissionSystemAdmin)
+	})
+
+	// Test assigning system role to user
+	t.Run("AssignSystemRoleToUser", func(t *testing.T) {
+		// Create system role first
+		_, err := rbacService.CreateSystemRole(context.Background(), "test_role", "Test role", []string{"test:permission"})
+		require.NoError(t, err)
+
+		// Assign role to user
+		err = rbacService.AssignSystemRoleToUser(context.Background(), regularUser.ID, "test_role")
+		require.NoError(t, err)
+
+		// Verify role was assigned
+		systemRoles, err := rbacService.GetUserSystemRoles(context.Background(), regularUser.ID)
+		require.NoError(t, err)
+		assert.Len(t, systemRoles, 1)
+		assert.Equal(t, "test_role", systemRoles[0].Name)
+	})
+
+	// Test removing system role from user
+	t.Run("RemoveSystemRoleFromUser", func(t *testing.T) {
+		// Create and assign role
+		_, err := rbacService.CreateSystemRole(context.Background(), "remove_test", "Remove test", []string{"test:permission"})
+		require.NoError(t, err)
+		err = rbacService.AssignSystemRoleToUser(context.Background(), regularUser.ID, "remove_test")
+		require.NoError(t, err)
+
+		// Remove role
+		err = rbacService.RemoveSystemRoleFromUser(context.Background(), regularUser.ID, "remove_test")
+		require.NoError(t, err)
+
+		// Verify role was removed
+		systemRoles, err := rbacService.GetUserSystemRoles(context.Background(), regularUser.ID)
+		require.NoError(t, err)
+		// Should only have the test_role from previous test
+		assert.Len(t, systemRoles, 1)
+		assert.Equal(t, "test_role", systemRoles[0].Name)
+	})
+
+	// Test system permission checking
+	t.Run("HasSystemPermission", func(t *testing.T) {
+		// Create system role with specific permission
+		_, err := rbacService.CreateSystemRole(context.Background(), "permission_test", "Permission test", []string{"custom:permission"})
+		require.NoError(t, err)
+
+		// Assign role to user
+		err = rbacService.AssignSystemRoleToUser(context.Background(), regularUser.ID, "permission_test")
+		require.NoError(t, err)
+
+		// Check permission
+		hasPermission, err := rbacService.HasSystemPermission(context.Background(), regularUser.ID, "custom:permission")
+		require.NoError(t, err)
+		assert.True(t, hasPermission)
+
+		// Check non-existent permission
+		hasPermission, err = rbacService.HasSystemPermission(context.Background(), regularUser.ID, "nonexistent:permission")
+		require.NoError(t, err)
+		assert.False(t, hasPermission)
+	})
+
+	// Test super admin through system role
+	t.Run("SuperAdminThroughSystemRole", func(t *testing.T) {
+		// Create super admin system role
+		_, err := rbacService.CreateSystemRole(context.Background(), "superadmin", "Super administrator", []string{models.PermissionSystemAdmin})
+		require.NoError(t, err)
+
+		// Assign super admin role to user
+		err = rbacService.AssignSystemRoleToUser(context.Background(), regularUser.ID, "superadmin")
+		require.NoError(t, err)
+
+		// Check if user is super admin
+		isSuperAdmin, err := rbacService.IsSuperAdmin(context.Background(), regularUser.ID)
+		require.NoError(t, err)
+		assert.True(t, isSuperAdmin)
+
+		// Check system admin permission
+		hasPermission, err := rbacService.HasSystemPermission(context.Background(), regularUser.ID, models.PermissionSystemAdmin)
+		require.NoError(t, err)
+		assert.True(t, hasPermission)
+	})
+
+	// Test getting all system roles
+	t.Run("GetSystemRoles", func(t *testing.T) {
+		systemRoles, err := rbacService.GetSystemRoles(context.Background())
+		require.NoError(t, err)
+		assert.GreaterOrEqual(t, len(systemRoles), 3) // Should have at least the roles we created
+		
+		// Check for specific roles
+		roleNames := make([]string, len(systemRoles))
+		for i, role := range systemRoles {
+			roleNames[i] = role.Name
+		}
+		assert.Contains(t, roleNames, "superadmin")
+		assert.Contains(t, roleNames, "test_role")
+		assert.Contains(t, roleNames, "permission_test")
+	})
 }
 
-func TestRBACService_RemoveSuperAdminRole(t *testing.T) {
+func TestRBACService_AssignSuperAdminRole_SystemRoles(t *testing.T) {
 	rbacService, db, cleanup := setupRBACTest(t)
 	defer cleanup()
 
-	// Create test tenant
-	tenant := &models.Tenant{
-		DiscordServerID: "guild-123",
-		Name:            "Test Guild",
-		OwnerID:         uuid.New().String(),
-	}
-	err := db.Create(tenant).Error
-	require.NoError(t, err)
-
-	// Create super admin user (by Discord ID)
+	// Create test users
 	superAdmin := &models.User{
 		DiscordUserID: "superadmin123",
 		Username:      "superadmin",
 	}
-	err = db.Create(superAdmin).Error
+	err := db.Create(superAdmin).Error
 	require.NoError(t, err)
 
-	// Create target user with super admin role
 	targetUser := &models.User{
 		DiscordUserID: "target123",
 		Username:      "targetuser",
@@ -623,47 +659,306 @@ func TestRBACService_RemoveSuperAdminRole(t *testing.T) {
 	err = db.Create(targetUser).Error
 	require.NoError(t, err)
 
-	userTenant := &models.UserTenant{
-		UserID:   targetUser.ID,
-		TenantID: tenant.ID,
-		Roles:    models.StringArray{"superadmin", "admin"},
+	// Create context with super admin user
+	ctx := context.WithValue(context.Background(), "user_id", superAdmin.ID)
+
+	// Test assigning super admin role
+	t.Run("AssignSuperAdminRole", func(t *testing.T) {
+		err = rbacService.AssignSuperAdminRole(ctx, targetUser.ID)
+		require.NoError(t, err)
+
+		// Verify role was assigned
+		systemRoles, err := rbacService.GetUserSystemRoles(context.Background(), targetUser.ID)
+		require.NoError(t, err)
+		assert.Len(t, systemRoles, 1)
+		assert.Equal(t, "superadmin", systemRoles[0].Name)
+
+		// Verify user is now super admin
+		isSuperAdmin, err := rbacService.IsSuperAdmin(context.Background(), targetUser.ID)
+		require.NoError(t, err)
+		assert.True(t, isSuperAdmin)
+	})
+
+	// Test removing super admin role
+	t.Run("RemoveSuperAdminRole", func(t *testing.T) {
+		err = rbacService.RemoveSuperAdminRole(ctx, targetUser.ID)
+		require.NoError(t, err)
+
+		// Verify role was removed
+		systemRoles, err := rbacService.GetUserSystemRoles(context.Background(), targetUser.ID)
+		require.NoError(t, err)
+		assert.Len(t, systemRoles, 0)
+
+		// Verify user is no longer super admin
+		isSuperAdmin, err := rbacService.IsSuperAdmin(context.Background(), targetUser.ID)
+		require.NoError(t, err)
+		assert.False(t, isSuperAdmin)
+	})
+
+	// Test permission checks
+	t.Run("PermissionChecks", func(t *testing.T) {
+		// Non-super admin should not be able to assign super admin role
+		regularUser := &models.User{
+			DiscordUserID: "regular123",
+			Username:      "regularuser",
+		}
+		err = db.Create(regularUser).Error
+		require.NoError(t, err)
+
+		regularCtx := context.WithValue(context.Background(), "user_id", regularUser.ID)
+		err = rbacService.AssignSuperAdminRole(regularCtx, targetUser.ID)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "only super admins can assign super admin role")
+	})
+}
+
+func TestRBACService_AssignInitialSuperAdminRole(t *testing.T) {
+	rbacService, db, cleanup := setupRBACTest(t)
+	defer cleanup()
+
+	// Create test user
+	user := &models.User{
+		DiscordUserID: "test123",
+		Username:      "testuser",
 	}
-	err = db.Create(userTenant).Error
+	err := db.Create(user).Error
+	require.NoError(t, err)
+
+	t.Run("AssignInitialSuperAdminRole", func(t *testing.T) {
+		err = rbacService.AssignInitialSuperAdminRole(context.Background(), user.ID)
+		require.NoError(t, err)
+
+		// Verify super admin system role was created
+		var systemRole models.SystemRole
+		err = db.Where("name = ?", "superadmin").First(&systemRole).Error
+		require.NoError(t, err)
+		assert.Equal(t, "superadmin", systemRole.Name)
+		assert.Equal(t, "Super administrator with full system access", systemRole.Description)
+		assert.Contains(t, systemRole.Permissions, models.PermissionSystemAdmin)
+
+		// Verify role was assigned to user
+		systemRoles, err := rbacService.GetUserSystemRoles(context.Background(), user.ID)
+		require.NoError(t, err)
+		assert.Len(t, systemRoles, 1)
+		assert.Equal(t, "superadmin", systemRoles[0].Name)
+
+		// Verify user is super admin
+		isSuperAdmin, err := rbacService.IsSuperAdmin(context.Background(), user.ID)
+		require.NoError(t, err)
+		assert.True(t, isSuperAdmin)
+	})
+
+	t.Run("AssignInitialSuperAdminRole_SecondTime", func(t *testing.T) {
+		// Should not fail when called again (idempotent)
+		err = rbacService.AssignInitialSuperAdminRole(context.Background(), user.ID)
+		require.NoError(t, err)
+
+		// Verify user still has super admin role
+		systemRoles, err := rbacService.GetUserSystemRoles(context.Background(), user.ID)
+		require.NoError(t, err)
+		assert.Len(t, systemRoles, 1)
+		assert.Equal(t, "superadmin", systemRoles[0].Name)
+	})
+} 
+
+func TestRBACService_SuperAdminAutoAssignmentDuringSignup(t *testing.T) {
+	rbacService, db, cleanup := setupRBACTest(t)
+	defer cleanup()
+
+	t.Run("SuperAdminSignupCreatesRoleAutomatically", func(t *testing.T) {
+		// Create mock services for auth flow
+		mockDiscord := new(MockDiscordService)
+		mockJWT := new(MockJWTService)
+		mockRedis := new(MockRedisService)
+
+		// Setup Discord service mocks for super admin user
+		discordToken := &models.DiscordTokenResponse{
+			AccessToken:  "access_token",
+			RefreshToken: "refresh_token",
+			ExpiresIn:    3600,
+		}
+		discordUser := &models.DiscordUser{
+			ID:       "superadmin123", // Matches config
+			Username: "superadmin",
+			Avatar:   "avatar123",
+			Email:    "superadmin@example.com",
+		}
+
+		mockDiscord.On("ExchangeCodeForToken", mock.Anything, "fake_code").Return(discordToken, nil)
+		mockDiscord.On("GetUserInfo", mock.Anything, "access_token").Return(discordUser, nil)
+
+		// Setup JWT service mocks
+		expiresAt := time.Now().Add(time.Hour)
+		mockJWT.On("GenerateAccessToken", mock.AnythingOfType("*models.User"), mock.AnythingOfType("string")).Return("access_token", expiresAt, nil)
+		mockJWT.On("GenerateRefreshToken", mock.AnythingOfType("*models.User"), mock.AnythingOfType("string")).Return("refresh_token", expiresAt, nil)
+
+		// Setup Redis service mocks
+		mockRedis.On("StoreSession", mock.Anything, mock.AnythingOfType("*models.Session")).Return(nil)
+
+		// Create auth service with RBAC integration
+		authService := NewAuthServiceWithRBAC(db, mockDiscord, mockJWT, mockRedis, rbacService)
+
+		// Simulate Discord OAuth2 callback for super admin user
+		authResponse, err := authService.HandleCallback(context.Background(), "fake_code")
+		require.NoError(t, err)
+		assert.NotNil(t, authResponse)
+
+		// Verify the super admin system role was created
+		var systemRole models.SystemRole
+		err = db.Where("name = ?", "superadmin").First(&systemRole).Error
+		require.NoError(t, err)
+		assert.Equal(t, "superadmin", systemRole.Name)
+		assert.Equal(t, "Super administrator with full system access", systemRole.Description)
+		assert.Contains(t, systemRole.Permissions, models.PermissionSystemAdmin)
+
+		// Verify the role was assigned to the user
+		systemRoles, err := rbacService.GetUserSystemRoles(context.Background(), authResponse.User.ID)
+		require.NoError(t, err)
+		assert.Len(t, systemRoles, 1)
+		assert.Equal(t, "superadmin", systemRoles[0].Name)
+
+		// Verify user is super admin
+		isSuperAdmin, err := rbacService.IsSuperAdmin(context.Background(), authResponse.User.ID)
+		require.NoError(t, err)
+		assert.True(t, isSuperAdmin)
+
+		// Verify mocks were called as expected
+		mockDiscord.AssertExpectations(t)
+		mockJWT.AssertExpectations(t)
+		mockRedis.AssertExpectations(t)
+	})
+
+	t.Run("RegularUserSignupDoesNotCreateSuperAdminRole", func(t *testing.T) {
+		// Create mock services for auth flow
+		mockDiscord := new(MockDiscordService)
+		mockJWT := new(MockJWTService)
+		mockRedis := new(MockRedisService)
+
+		// Setup Discord service mocks for regular user
+		discordToken := &models.DiscordTokenResponse{
+			AccessToken:  "access_token",
+			RefreshToken: "refresh_token",
+			ExpiresIn:    3600,
+		}
+		discordUser := &models.DiscordUser{
+			ID:       "regular123", // Not matching super admin Discord ID
+			Username: "regularuser",
+			Avatar:   "avatar123",
+			Email:    "regular@example.com",
+		}
+
+		mockDiscord.On("ExchangeCodeForToken", mock.Anything, "fake_code").Return(discordToken, nil)
+		mockDiscord.On("GetUserInfo", mock.Anything, "access_token").Return(discordUser, nil)
+
+		// Setup JWT service mocks
+		expiresAt := time.Now().Add(time.Hour)
+		mockJWT.On("GenerateAccessToken", mock.AnythingOfType("*models.User"), mock.AnythingOfType("string")).Return("access_token", expiresAt, nil)
+		mockJWT.On("GenerateRefreshToken", mock.AnythingOfType("*models.User"), mock.AnythingOfType("string")).Return("refresh_token", expiresAt, nil)
+
+		// Setup Redis service mocks
+		mockRedis.On("StoreSession", mock.Anything, mock.AnythingOfType("*models.Session")).Return(nil)
+
+		// Create auth service with RBAC integration
+		authService := NewAuthServiceWithRBAC(db, mockDiscord, mockJWT, mockRedis, rbacService)
+
+		// Simulate Discord OAuth2 callback for regular user
+		authResponse, err := authService.HandleCallback(context.Background(), "fake_code")
+		require.NoError(t, err)
+		assert.NotNil(t, authResponse)
+
+		// Verify the user does NOT have super admin role
+		systemRoles, err := rbacService.GetUserSystemRoles(context.Background(), authResponse.User.ID)
+		require.NoError(t, err)
+		assert.Len(t, systemRoles, 0)
+
+		// Verify user is not super admin
+		isSuperAdmin, err := rbacService.IsSuperAdmin(context.Background(), authResponse.User.ID)
+		require.NoError(t, err)
+		assert.False(t, isSuperAdmin)
+
+		// Verify mocks were called as expected
+		mockDiscord.AssertExpectations(t)
+		mockJWT.AssertExpectations(t)
+		mockRedis.AssertExpectations(t)
+	})
+}
+
+func TestRBACService_ManualSuperAdminRoleAssignment(t *testing.T) {
+	rbacService, db, cleanup := setupRBACTest(t)
+	defer cleanup()
+
+	// Create super admin user (by Discord ID) - this will be the one assigning roles
+	superAdmin := &models.User{
+		DiscordUserID: "superadmin123", // Matches config
+		Username:      "superadmin",
+	}
+	err := db.Create(superAdmin).Error
+	require.NoError(t, err)
+
+	// Create target user to assign role to
+	targetUser := &models.User{
+		DiscordUserID: "target123",
+		Username:      "targetuser",
+	}
+	err = db.Create(targetUser).Error
 	require.NoError(t, err)
 
 	// Create context with super admin user
 	ctx := context.WithValue(context.Background(), "user_id", superAdmin.ID)
 
-	// Remove super admin role
-	err = rbacService.RemoveSuperAdminRole(ctx, targetUser.ID, tenant.ID)
-	require.NoError(t, err)
+	t.Run("SuperAdminCanAssignSuperAdminRole", func(t *testing.T) {
+		// Assign super admin role to target user
+		err = rbacService.AssignSuperAdminRole(ctx, targetUser.ID)
+		require.NoError(t, err)
 
-	// Verify role was removed
-	err = db.Where("user_id = ? AND tenant_id = ?", targetUser.ID, tenant.ID).First(&userTenant).Error
-	require.NoError(t, err)
-	assert.NotContains(t, userTenant.Roles, "superadmin")
-	assert.Contains(t, userTenant.Roles, "admin") // Other roles should remain
+		// Verify role was assigned
+		systemRoles, err := rbacService.GetUserSystemRoles(context.Background(), targetUser.ID)
+		require.NoError(t, err)
+		assert.Len(t, systemRoles, 1)
+		assert.Equal(t, "superadmin", systemRoles[0].Name)
 
-	// Verify target user is no longer super admin
-	isSuperAdmin, err := rbacService.IsSuperAdmin(context.Background(), targetUser.ID)
-	require.NoError(t, err)
-	assert.False(t, isSuperAdmin)
+		// Verify target user is now super admin
+		isSuperAdmin, err := rbacService.IsSuperAdmin(context.Background(), targetUser.ID)
+		require.NoError(t, err)
+		assert.True(t, isSuperAdmin)
+	})
 
-	// Test removing from initial super admin (should fail)
-	err = rbacService.RemoveSuperAdminRole(ctx, superAdmin.ID, tenant.ID)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "cannot remove super admin role from the initial super admin")
+	t.Run("SuperAdminCanRemoveSuperAdminRole", func(t *testing.T) {
+		// Remove super admin role from target user
+		err = rbacService.RemoveSuperAdminRole(ctx, targetUser.ID)
+		require.NoError(t, err)
 
-	// Test removing by non-super admin (should fail)
-	regularUser := &models.User{
-		DiscordUserID: "regular123",
-		Username:      "regularuser",
-	}
-	err = db.Create(regularUser).Error
-	require.NoError(t, err)
+		// Verify role was removed
+		systemRoles, err := rbacService.GetUserSystemRoles(context.Background(), targetUser.ID)
+		require.NoError(t, err)
+		assert.Len(t, systemRoles, 0)
 
-	regularCtx := context.WithValue(context.Background(), "user_id", regularUser.ID)
-	err = rbacService.RemoveSuperAdminRole(regularCtx, targetUser.ID, tenant.ID)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "only super admins can remove super admin role")
-} 
+		// Verify target user is no longer super admin
+		isSuperAdmin, err := rbacService.IsSuperAdmin(context.Background(), targetUser.ID)
+		require.NoError(t, err)
+		assert.False(t, isSuperAdmin)
+	})
+
+	t.Run("NonSuperAdminCannotAssignSuperAdminRole", func(t *testing.T) {
+		// Create regular user
+		regularUser := &models.User{
+			DiscordUserID: "regular123",
+			Username:      "regularuser",
+		}
+		err = db.Create(regularUser).Error
+		require.NoError(t, err)
+
+		// Try to assign super admin role as regular user
+		regularCtx := context.WithValue(context.Background(), "user_id", regularUser.ID)
+		err = rbacService.AssignSuperAdminRole(regularCtx, targetUser.ID)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "only super admins can assign super admin role")
+	})
+
+	t.Run("CannotRemoveSuperAdminRoleFromInitialSuperAdmin", func(t *testing.T) {
+		// Try to remove super admin role from the initial super admin (by Discord ID)
+		err = rbacService.RemoveSuperAdminRole(ctx, superAdmin.ID)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "cannot remove super admin role from the initial super admin")
+	})
+}

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -78,7 +79,7 @@ type RBACConfig struct {
 
 // Load loads configuration from environment variables
 func Load() *Config {
-	return &Config{
+	config := &Config{
 		Server: ServerConfig{
 			Port:         getEnv("PORT", "8080"),
 			Host:         getEnv("HOST", "0.0.0.0"),
@@ -124,12 +125,21 @@ func Load() *Config {
 			GracePeriod:         time.Minute * 2,  // 2 minutes for security
 		},
 	}
+
+	// Debug logging for RBAC config
+	fmt.Printf("DEBUG: RBAC Config loaded - SuperAdminDiscordID: '%s'\n", config.RBAC.SuperAdminDiscordID)
+	
+	return config
 }
 
 // getEnv gets an environment variable with a fallback value
 func getEnv(key, fallback string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
+	}
+	// Debug logging for SUPER_ADMIN_DISCORD_ID
+	if key == "SUPER_ADMIN_DISCORD_ID" {
+		fmt.Printf("DEBUG: Environment variable %s not found, using fallback: '%s'\n", key, fallback)
 	}
 	return fallback
 }

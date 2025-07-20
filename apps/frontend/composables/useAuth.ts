@@ -1,5 +1,20 @@
 import { ref, computed } from 'vue'
 
+// JWT token decoder utility
+const decodeJWT = (token: string): any => {
+  try {
+    const base64Url = token.split('.')[1]
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+    }).join(''))
+    return JSON.parse(jsonPayload)
+  } catch (error) {
+    console.error('Failed to decode JWT token:', error)
+    return null
+  }
+}
+
 interface User {
   id: string
   discord_user_id: string
@@ -24,6 +39,7 @@ interface AuthState {
   isAuthenticated: boolean
   isLoading: boolean
   error: string | null
+  isSuperAdmin: boolean
 }
 
 
@@ -35,7 +51,8 @@ const authState = ref<AuthState>({
   refreshToken: null,
   isAuthenticated: false,
   isLoading: false,
-  error: null
+  error: null,
+  isSuperAdmin: false
 })
 
 export const useAuth = () => {
@@ -47,6 +64,7 @@ export const useAuth = () => {
   const isAuthenticated = computed(() => authState.value.isAuthenticated)
   const isLoading = computed(() => authState.value.isLoading)
   const error = computed(() => authState.value.error)
+  const isSuperAdmin = computed(() => authState.value.isSuperAdmin)
 
   // Initialize auth state from localStorage
   const initializeAuth = () => {
@@ -58,15 +76,20 @@ export const useAuth = () => {
       if (accessToken && refreshToken && userData) {
         try {
           const user = JSON.parse(userData)
+          // Decode JWT to get super admin status
+          const tokenPayload = decodeJWT(accessToken)
+          const isSuperAdmin = tokenPayload?.is_super_admin || false
+          
           authState.value = {
             user,
             accessToken,
             refreshToken,
             isAuthenticated: true,
             isLoading: false,
-            error: null
+            error: null,
+            isSuperAdmin
           }
-          console.log('Auth state initialized from localStorage:', { isAuthenticated: true, user: user.username })
+          console.log('Auth state initialized from localStorage:', { isAuthenticated: true, user: user.username, isSuperAdmin })
         } catch (error) {
           console.error('Failed to parse stored user data:', error)
           clearAuth()
@@ -85,7 +108,8 @@ export const useAuth = () => {
       refreshToken: null,
       isAuthenticated: false,
       isLoading: false,
-      error: null
+      error: null,
+      isSuperAdmin: false
     }
 
     if (import.meta.client) {
@@ -97,13 +121,18 @@ export const useAuth = () => {
 
   // Store auth data
   const storeAuth = (authResponse: AuthResponse) => {
+    // Decode JWT to get super admin status
+    const tokenPayload = decodeJWT(authResponse.access_token)
+    const isSuperAdmin = tokenPayload?.is_super_admin || false
+    
     authState.value = {
       user: authResponse.user,
       accessToken: authResponse.access_token,
       refreshToken: authResponse.refresh_token,
       isAuthenticated: true,
       isLoading: false,
-      error: null
+      error: null,
+      isSuperAdmin
     }
 
     if (import.meta.client) {
@@ -339,6 +368,7 @@ export const useAuth = () => {
     isAuthenticated: readonly(isAuthenticated),
     isLoading: readonly(isLoading),
     error: readonly(error),
+    isSuperAdmin: readonly(isSuperAdmin),
 
     // Methods
     signIn,

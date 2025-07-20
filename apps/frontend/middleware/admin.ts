@@ -4,7 +4,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return
   }
   
-  const { user, isAuthenticated, initializeAuth, apiRequest } = useAuth()
+  const { user, isAuthenticated, initializeAuth, apiRequest, isSuperAdmin } = useAuth()
   const config = useRuntimeConfig()
   
   // Initialize auth state to ensure it's loaded
@@ -21,6 +21,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     route: to.path, 
     user: user.value,
     isAuthenticated: isAuthenticated.value,
+    isSuperAdmin: isSuperAdmin.value,
     hasTokens: !!hasTokens,
     userData: !!userData,
     localStorageTokens: !!localStorage.getItem('access_token')
@@ -32,7 +33,13 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return navigateTo('/login')
   }
 
-  // Check admin permissions via backend API
+  // Quick check: if user is super admin from JWT, allow access immediately
+  if (isSuperAdmin.value) {
+    console.log('User is super admin, allowing access')
+    return
+  }
+
+  // Check admin permissions via backend API for non-super admins
   try {
     const response = await apiRequest<{ hasAdminAccess: boolean }>(`${config.public.backendUrl}/api/admin/check-access`)
     
