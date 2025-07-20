@@ -1,8 +1,11 @@
 <template>
-  <UCard class="h-full hover:shadow-lg transition-shadow cursor-pointer" @click="$emit('select', tenant)">
+  <UCard 
+    class="h-full transition-all duration-200 cursor-pointer overflow-hidden border border-gray-200 dark:border-gray-700 hover:shadow-lg hover:scale-105 hover:border-primary-300 dark:hover:border-primary-600" 
+    @click="$emit('select', tenant)"
+  >
     <div class="flex items-center space-x-4 mb-4">
       <UAvatar
-        :src="getTenantIcon(tenant)"
+        :src="getTenantIcon(tenant) || undefined"
         :alt="tenant.name"
         size="lg"
       />
@@ -25,27 +28,6 @@
         <UIcon name="heroicons:server" class="w-4 h-4 mr-2" />
         {{ tenant.config?.resource_limits?.max_game_servers || 5 }} server limit
       </div>
-    </div>
-
-    <div class="mt-6 flex space-x-2">
-      <UButton
-        class="flex-1"
-        @click.stop="$emit('select', tenant)"
-      >
-        Select Server
-      </UButton>
-      <UDropdown
-        v-if="isOwner"
-        :items="tenantActions"
-        :popper="{ placement: 'bottom-end' }"
-      >
-        <UButton
-          variant="ghost"
-          size="sm"
-          icon="heroicons:ellipsis-vertical"
-          @click.stop
-        />
-      </UDropdown>
     </div>
   </UCard>
 </template>
