@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/middleware"
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/models"
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/services"
+	"log/slog"
 )
 
 // stateEntry represents a stored OAuth state with expiration
@@ -25,13 +27,15 @@ type AuthHandler struct {
 	authService services.AuthServiceInterface
 	stateStore  map[string]stateEntry
 	stateMutex  sync.RWMutex
+	logger      *slog.Logger
 }
 
 // NewAuthHandler creates a new auth handler
-func NewAuthHandler(authService services.AuthServiceInterface) *AuthHandler {
+func NewAuthHandler(authService services.AuthServiceInterface, logger *slog.Logger) *AuthHandler {
 	h := &AuthHandler{
 		authService: authService,
 		stateStore:  make(map[string]stateEntry),
+		logger:      logger,
 	}
 	
 	// Start cleanup goroutine for expired states
@@ -81,15 +85,34 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 // Callback handles Discord OAuth2 callback
 func (h *AuthHandler) Callback(c *gin.Context) {
-	// Get code and state from query parameters
+	// Get code, state, and error from query parameters
 	code := c.Query("code")
 	state := c.Query("state")
+	discordError := c.Query("error")
+	discordErrorDescription := c.Query("error_description")
+
+	frontendURL := h.getFrontendURL(c)
+
+	// If Discord returned an error (e.g., user cancelled or denied access)
+	if discordError != "" {
+		// Optionally log the error for debugging/audit
+		if discordErrorDescription != "" {
+			h.logger.Warn("Discord OAuth error", "error", discordError, "description", discordErrorDescription)
+			// Redirect to login with error and error_description
+			descParam := "&error_description=" + url.QueryEscape(discordErrorDescription)
+			c.Redirect(http.StatusTemporaryRedirect, frontendURL+"/login?error="+discordError+descParam)
+			return
+		} else {
+			h.logger.Warn("Discord OAuth error", "error", discordError)
+			c.Redirect(http.StatusTemporaryRedirect, frontendURL+"/login?error="+discordError)
+			return
+		}
+	}
 
 	if code == "" {
-		c.JSON(http.StatusBadRequest, models.APIError{
-			Code:    "VALIDATION_ERROR",
-			Message: "Authorization code is required",
-		})
+		// If no code and no explicit error, treat as cancelled
+		h.logger.Warn("Discord OAuth callback missing code parameter (possible user cancel)")
+		c.Redirect(http.StatusTemporaryRedirect, frontendURL+"/login?error=cancelled")
 		return
 	}
 
@@ -151,7 +174,7 @@ func (h *AuthHandler) Callback(c *gin.Context) {
 	}
 
 	// Redirect to frontend callback with tokens as query parameters
-	frontendURL := h.getFrontendURL(c)
+	frontendURL = h.getFrontendURL(c)
 	callbackURL := frontendURL + "/auth/callback" +
 		"?access_token=" + authResponse.AccessToken +
 		"&refresh_token=" + authResponse.RefreshToken +

@@ -8,11 +8,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/models"
+	"log/slog"
+	"io"
 )
 
 // MockAuthService for testing
@@ -96,7 +99,8 @@ func TestAuthHandler_Login(t *testing.T) {
 			mockAuthService := new(MockAuthService)
 			tt.setupMock(mockAuthService)
 
-			handler := NewAuthHandler(mockAuthService)
+			logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
+			handler := NewAuthHandler(mockAuthService, logger)
 			router := setupTestRouter()
 			router.GET("/auth/login", handler.Login)
 
@@ -139,13 +143,12 @@ func TestAuthHandler_Callback(t *testing.T) {
 				}
 				m.On("HandleCallback", mock.Anything, "test_code").Return(authResponse, nil)
 			},
-			expectedStatus: http.StatusOK,
+			expectedStatus: http.StatusTemporaryRedirect,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
-				var response models.AuthResponse
-				err := json.Unmarshal(w.Body.Bytes(), &response)
-				assert.NoError(t, err)
-				assert.Equal(t, "access_token", response.AccessToken)
-				assert.Equal(t, "refresh_token", response.RefreshToken)
+				location := w.Header().Get("Location")
+				assert.Contains(t, location, "/auth/callback")
+				assert.Contains(t, location, "access_token=access_token")
+				assert.Contains(t, location, "refresh_token=refresh_token")
 			},
 		},
 		{
@@ -156,13 +159,10 @@ func TestAuthHandler_Callback(t *testing.T) {
 				req.URL.RawQuery = q.Encode()
 			},
 			setupMock:      func(m *MockAuthService) {},
-			expectedStatus: http.StatusBadRequest,
+			expectedStatus: http.StatusTemporaryRedirect,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
-				var response models.APIError
-				err := json.Unmarshal(w.Body.Bytes(), &response)
-				assert.NoError(t, err)
-				assert.Equal(t, "VALIDATION_ERROR", response.Code)
-				assert.Contains(t, response.Message, "Authorization code is required")
+				location := w.Header().Get("Location")
+				assert.Contains(t, location, "/login?error=cancelled")
 			},
 		},
 		{
@@ -193,12 +193,42 @@ func TestAuthHandler_Callback(t *testing.T) {
 			setupMock: func(m *MockAuthService) {
 				m.On("HandleCallback", mock.Anything, "test_code").Return(nil, errors.New("discord api error"))
 			},
-			expectedStatus: http.StatusInternalServerError,
+			expectedStatus: http.StatusTemporaryRedirect,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
-				var response models.APIError
-				err := json.Unmarshal(w.Body.Bytes(), &response)
-				assert.NoError(t, err)
-				assert.Equal(t, "DISCORD_API_ERROR", response.Code)
+				location := w.Header().Get("Location")
+				assert.Contains(t, location, "/login?error=discord_auth_failed")
+			},
+		},
+		{
+			name: "discord error in callback",
+			setupRequest: func(req *http.Request) {
+				q := req.URL.Query()
+				q.Add("error", "access_denied")
+				q.Add("error_description", "The resource owner or authorization server denied the request")
+				q.Add("state", "test_state")
+				req.URL.RawQuery = q.Encode()
+			},
+			setupMock:      func(m *MockAuthService) {},
+			expectedStatus: http.StatusTemporaryRedirect,
+			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
+				assert.Equal(t, http.StatusTemporaryRedirect, w.Code)
+				location := w.Header().Get("Location")
+				assert.Contains(t, location, "/login?error=access_denied")
+			},
+		},
+		{
+			name: "missing code and no error (cancelled)",
+			setupRequest: func(req *http.Request) {
+				q := req.URL.Query()
+				q.Add("state", "test_state")
+				req.URL.RawQuery = q.Encode()
+			},
+			setupMock:      func(m *MockAuthService) {},
+			expectedStatus: http.StatusTemporaryRedirect,
+			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
+				assert.Equal(t, http.StatusTemporaryRedirect, w.Code)
+				location := w.Header().Get("Location")
+				assert.Contains(t, location, "/login?error=cancelled")
 			},
 		},
 	}
@@ -208,13 +238,22 @@ func TestAuthHandler_Callback(t *testing.T) {
 			mockAuthService := new(MockAuthService)
 			tt.setupMock(mockAuthService)
 
-			handler := NewAuthHandler(mockAuthService)
+			logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
+			handler := NewAuthHandler(mockAuthService, logger)
 			router := setupTestRouter()
 			router.GET("/auth/callback", handler.Callback)
 
 			req, _ := http.NewRequest("GET", "/auth/callback", nil)
 			tt.setupRequest(req)
-			
+
+			// Pre-populate stateStore for tests that use 'test_state' and expect a redirect
+			if req.URL.Query().Get("state") == "test_state" && tt.expectedStatus == http.StatusTemporaryRedirect {
+				handler.stateStore["test_state"] = stateEntry{
+					value:     "test_state",
+					expiresAt: time.Now().Add(10 * time.Minute),
+				}
+			}
+
 			// Set the state cookie for tests that need it
 			if req.URL.Query().Get("state") == "test_state" {
 				req.AddCookie(&http.Cookie{
@@ -222,7 +261,7 @@ func TestAuthHandler_Callback(t *testing.T) {
 					Value: "test_state",
 				})
 			}
-			
+
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 
@@ -315,7 +354,8 @@ func TestAuthHandler_Refresh(t *testing.T) {
 			mockAuthService := new(MockAuthService)
 			tt.setupMock(mockAuthService)
 
-			handler := NewAuthHandler(mockAuthService)
+			logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
+			handler := NewAuthHandler(mockAuthService, logger)
 			router := setupTestRouter()
 			router.POST("/auth/refresh", handler.Refresh)
 
@@ -372,7 +412,8 @@ func TestAuthHandler_Me(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockAuthService := new(MockAuthService)
-			handler := NewAuthHandler(mockAuthService)
+			logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
+			handler := NewAuthHandler(mockAuthService, logger)
 			router := setupTestRouter()
 			
 			router.Use(func(c *gin.Context) {
@@ -459,7 +500,8 @@ func TestAuthHandler_Logout(t *testing.T) {
 			mockAuthService := new(MockAuthService)
 			tt.setupMock(mockAuthService)
 
-			handler := NewAuthHandler(mockAuthService)
+			logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
+			handler := NewAuthHandler(mockAuthService, logger)
 			router := setupTestRouter()
 			router.POST("/auth/logout", handler.Logout)
 

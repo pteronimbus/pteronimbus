@@ -16,6 +16,7 @@ import (
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/handlers"
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/middleware"
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/services"
+	"log/slog"
 )
 
 func main() {
@@ -96,9 +97,12 @@ func main() {
 		log.Println("Redis connection established")
 	}
 
+	// Initialize structured logger (JSON output)
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
 	// Initialize handlers
 	healthHandler := handlers.NewHealthHandler()
-	authHandler := handlers.NewAuthHandler(authService)
+	authHandler := handlers.NewAuthHandler(authService, logger)
 	tenantHandler := handlers.NewTenantHandler(tenantService, discordService, authService, redisService)
 	gameServerHandler := handlers.NewGameServerHandler(gameServerService, tenantService)
 	controllerHandler := handlers.NewControllerHandler(controllerService)

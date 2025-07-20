@@ -1,4 +1,23 @@
 <script setup lang="ts">
+import { useToast } from '#imports'
+const route = useRoute()
+const router = useRouter()
+
+onMounted(() => {
+  // Show a toast if error_description is present in the query
+  const errorDescription = route.query.error_description as string
+  if (errorDescription) {
+    const toast = useToast()
+    toast.add({
+      title: 'Login Error',
+      description: errorDescription,
+      color: 'error',
+    })
+    // Remove error_description from the URL after showing the toast
+    router.replace({ query: { ...route.query, error_description: undefined } })
+  }
+})
+
 const { signIn, isLoading, error, clearError } = useAuth()
 
 definePageMeta({
