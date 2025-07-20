@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -126,9 +125,6 @@ func Load() *Config {
 		},
 	}
 
-	// Debug logging for RBAC config
-	fmt.Printf("DEBUG: RBAC Config loaded - SuperAdminDiscordID: '%s'\n", config.RBAC.SuperAdminDiscordID)
-	
 	return config
 }
 
@@ -136,10 +132,6 @@ func Load() *Config {
 func getEnv(key, fallback string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
-	}
-	// Debug logging for SUPER_ADMIN_DISCORD_ID
-	if key == "SUPER_ADMIN_DISCORD_ID" {
-		fmt.Printf("DEBUG: Environment variable %s not found, using fallback: '%s'\n", key, fallback)
 	}
 	return fallback
 }

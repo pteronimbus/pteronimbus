@@ -113,11 +113,6 @@ func (a *AuthService) HandleCallback(ctx context.Context, code string) (*models.
 		if isNewUser && a.rbacService != nil {
 			// Check if this user should be a super admin (by Discord ID)
 			isSuperAdmin := user.DiscordUserID == a.rbacService.config.SuperAdminDiscordID
-			
-			// Debug logging
-			fmt.Printf("Super admin check: user.DiscordUserID='%s', config.SuperAdminDiscordID='%s', isSuperAdmin=%t\n", 
-				user.DiscordUserID, a.rbacService.config.SuperAdminDiscordID, isSuperAdmin)
-			
 			if isSuperAdmin {
 				// Assign super admin role to the new user
 				err = a.rbacService.AssignInitialSuperAdminRole(ctx, user.ID)
