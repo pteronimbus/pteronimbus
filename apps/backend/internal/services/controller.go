@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -111,11 +112,26 @@ func (s *ControllerService) Handshake(ctx context.Context, req *models.Handshake
 
 // Heartbeat processes a controller heartbeat and updates its status
 func (s *ControllerService) Heartbeat(ctx context.Context, controllerID string, req *models.HeartbeatRequest) (*models.HeartbeatResponse, error) {
+	// Validate UUID format first
+	if !s.validateUUID(controllerID) {
+		return &models.HeartbeatResponse{
+			Success: false,
+			Message: "Controller not found",
+		}, nil
+	}
+
 	// First, get the current controller to check its status
 	var controller models.Controller
 	err := s.db.WithContext(ctx).Where("id = ?", controllerID).First(&controller).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
+			return &models.HeartbeatResponse{
+				Success: false,
+				Message: "Controller not found",
+			}, nil
+		}
+		// Check if it's a UUID format error from PostgreSQL
+		if strings.Contains(err.Error(), "invalid input syntax for type uuid") {
 			return &models.HeartbeatResponse{
 				Success: false,
 				Message: "Controller not found",
@@ -167,10 +183,25 @@ func (s *ControllerService) Heartbeat(ctx context.Context, controllerID string, 
 
 // ApproveController approves a pending controller
 func (s *ControllerService) ApproveController(ctx context.Context, controllerID string, approvedBy string) (*models.ControllerApprovalResponse, error) {
+	// Validate UUID format first
+	if !s.validateUUID(controllerID) {
+		return &models.ControllerApprovalResponse{
+			Success: false,
+			Message: "Controller not found",
+		}, nil
+	}
+
 	var controller models.Controller
 	err := s.db.WithContext(ctx).Where("id = ?", controllerID).First(&controller).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
+			return &models.ControllerApprovalResponse{
+				Success: false,
+				Message: "Controller not found",
+			}, nil
+		}
+		// Check if it's a UUID format error from PostgreSQL
+		if strings.Contains(err.Error(), "invalid input syntax for type uuid") {
 			return &models.ControllerApprovalResponse{
 				Success: false,
 				Message: "Controller not found",
@@ -203,10 +234,25 @@ func (s *ControllerService) ApproveController(ctx context.Context, controllerID 
 
 // RejectController rejects a pending controller
 func (s *ControllerService) RejectController(ctx context.Context, controllerID string, rejectedBy string, reason string) (*models.ControllerApprovalResponse, error) {
+	// Validate UUID format first
+	if !s.validateUUID(controllerID) {
+		return &models.ControllerApprovalResponse{
+			Success: false,
+			Message: "Controller not found",
+		}, nil
+	}
+
 	var controller models.Controller
 	err := s.db.WithContext(ctx).Where("id = ?", controllerID).First(&controller).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
+			return &models.ControllerApprovalResponse{
+				Success: false,
+				Message: "Controller not found",
+			}, nil
+		}
+		// Check if it's a UUID format error from PostgreSQL
+		if strings.Contains(err.Error(), "invalid input syntax for type uuid") {
 			return &models.ControllerApprovalResponse{
 				Success: false,
 				Message: "Controller not found",
@@ -239,13 +285,28 @@ func (s *ControllerService) RejectController(ctx context.Context, controllerID s
 	}, nil
 }
 
+// validateUUID checks if a string is a valid UUID format
+func (s *ControllerService) validateUUID(id string) bool {
+	_, err := uuid.Parse(id)
+	return err == nil
+}
+
 // GetControllerStatus returns the current status of a controller
 func (s *ControllerService) GetControllerStatus(ctx context.Context, controllerID string) (*models.ControllerStatus, error) {
+	// Validate UUID format first
+	if !s.validateUUID(controllerID) {
+		return nil, nil // Return nil to indicate "not found" for invalid UUIDs
+	}
+
 	var controller models.Controller
 	err := s.db.WithContext(ctx).Where("id = ?", controllerID).First(&controller).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
+		}
+		// Check if it's a UUID format error from PostgreSQL
+		if strings.Contains(err.Error(), "invalid input syntax for type uuid") {
+			return nil, nil // Return nil to indicate "not found" for invalid UUIDs
 		}
 		return nil, fmt.Errorf("failed to get controller: %w", err)
 	}

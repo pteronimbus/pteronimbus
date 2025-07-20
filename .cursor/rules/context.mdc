@@ -476,3 +476,26 @@ Implement circuit breakers for external service calls:
 - High error rate alerts
 - Discord API rate limit alerts
 - Game server failure alerts
+
+## Backend Testing Strategy
+
+**PostgreSQL with Testcontainers**: All backend tests use PostgreSQL with testcontainers-go for production parity.
+
+**Key Principles**:
+- Use PostgreSQL containers instead of SQLite for real database testing
+- Always use proper UUIDs, never string IDs in tests
+- Mock external services (Discord API, Auth)
+- Test both success and error scenarios
+- Always defer cleanup functions
+
+**Test Pattern**:
+```go
+func TestService_Method(t *testing.T) {
+    service, db, cleanup := setupService(t)
+    defer cleanup()
+    
+    // Use proper UUIDs: uuid.New().String()
+    // Test real database operations
+    // Mock external services
+}
+```

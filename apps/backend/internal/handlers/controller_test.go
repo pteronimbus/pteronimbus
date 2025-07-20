@@ -12,18 +12,16 @@ import (
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/config"
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/models"
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/services"
+	"github.com/pteronimbus/pteronimbus/apps/backend/internal/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 )
 
-func setupControllerHandlerTest(t *testing.T) (*ControllerHandler, *gin.Engine) {
-	// Setup database
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
+func setupControllerHandlerTest(t *testing.T) (*ControllerHandler, *gin.Engine, func()) {
+	// Setup database with PostgreSQL test container
+	db, cleanup := testutils.SetupTestDatabase(t)
 
-	err = db.AutoMigrate(&models.Controller{})
+	err := db.AutoMigrate(&models.Controller{})
 	require.NoError(t, err)
 
 	// Setup config
@@ -51,11 +49,12 @@ func setupControllerHandlerTest(t *testing.T) (*ControllerHandler, *gin.Engine) 
 	router := gin.New()
 	router.Use(gin.Recovery())
 
-	return handler, router
+	return handler, router, cleanup
 }
 
 func TestControllerHandler_Handshake_Success(t *testing.T) {
-	handler, router := setupControllerHandlerTest(t)
+	handler, router, cleanup := setupControllerHandlerTest(t)
+	defer cleanup()
 
 	// Setup route
 	router.POST("/handshake", handler.Handshake)
@@ -96,7 +95,8 @@ func TestControllerHandler_Handshake_Success(t *testing.T) {
 }
 
 func TestControllerHandler_Handshake_InvalidRequest(t *testing.T) {
-	handler, router := setupControllerHandlerTest(t)
+	handler, router, cleanup := setupControllerHandlerTest(t)
+	defer cleanup()
 
 	// Setup route
 	router.POST("/handshake", handler.Handshake)
@@ -131,7 +131,8 @@ func TestControllerHandler_Handshake_InvalidRequest(t *testing.T) {
 }
 
 func TestControllerHandler_Handshake_ExistingController(t *testing.T) {
-	handler, router := setupControllerHandlerTest(t)
+	handler, router, cleanup := setupControllerHandlerTest(t)
+	defer cleanup()
 
 	// Setup route
 	router.POST("/handshake", handler.Handshake)
@@ -182,7 +183,8 @@ func TestControllerHandler_Handshake_ExistingController(t *testing.T) {
 }
 
 func TestControllerHandler_Heartbeat_Success(t *testing.T) {
-	handler, router := setupControllerHandlerTest(t)
+	handler, router, cleanup := setupControllerHandlerTest(t)
+	defer cleanup()
 
 	// Setup routes
 	router.POST("/handshake", handler.Handshake)
@@ -246,7 +248,8 @@ func TestControllerHandler_Heartbeat_Success(t *testing.T) {
 }
 
 func TestControllerHandler_ApproveController_Success(t *testing.T) {
-	handler, router := setupControllerHandlerTest(t)
+	handler, router, cleanup := setupControllerHandlerTest(t)
+	defer cleanup()
 
 	// Setup routes
 	router.POST("/handshake", handler.Handshake)
@@ -297,7 +300,8 @@ func TestControllerHandler_ApproveController_Success(t *testing.T) {
 }
 
 func TestControllerHandler_RejectController_Success(t *testing.T) {
-	handler, router := setupControllerHandlerTest(t)
+	handler, router, cleanup := setupControllerHandlerTest(t)
+	defer cleanup()
 
 	// Setup routes
 	router.POST("/handshake", handler.Handshake)
@@ -356,7 +360,8 @@ func TestControllerHandler_RejectController_Success(t *testing.T) {
 }
 
 func TestControllerHandler_Heartbeat_MissingAuthHeader(t *testing.T) {
-	handler, router := setupControllerHandlerTest(t)
+	handler, router, cleanup := setupControllerHandlerTest(t)
+	defer cleanup()
 
 	// Setup route
 	router.POST("/heartbeat", handler.Heartbeat)
@@ -389,7 +394,8 @@ func TestControllerHandler_Heartbeat_MissingAuthHeader(t *testing.T) {
 }
 
 func TestControllerHandler_Heartbeat_InvalidAuthHeader(t *testing.T) {
-	handler, router := setupControllerHandlerTest(t)
+	handler, router, cleanup := setupControllerHandlerTest(t)
+	defer cleanup()
 
 	// Setup route
 	router.POST("/heartbeat", handler.Heartbeat)
@@ -422,7 +428,8 @@ func TestControllerHandler_Heartbeat_InvalidAuthHeader(t *testing.T) {
 }
 
 func TestControllerHandler_Heartbeat_InvalidToken(t *testing.T) {
-	handler, router := setupControllerHandlerTest(t)
+	handler, router, cleanup := setupControllerHandlerTest(t)
+	defer cleanup()
 
 	// Setup route
 	router.POST("/heartbeat", handler.Heartbeat)
@@ -455,7 +462,8 @@ func TestControllerHandler_Heartbeat_InvalidToken(t *testing.T) {
 }
 
 func TestControllerHandler_GetControllerStatus_Success(t *testing.T) {
-	handler, router := setupControllerHandlerTest(t)
+	handler, router, cleanup := setupControllerHandlerTest(t)
+	defer cleanup()
 
 	// Setup routes
 	router.POST("/handshake", handler.Handshake)
@@ -507,13 +515,14 @@ func TestControllerHandler_GetControllerStatus_Success(t *testing.T) {
 }
 
 func TestControllerHandler_GetControllerStatus_NotFound(t *testing.T) {
-	handler, router := setupControllerHandlerTest(t)
+	handler, router, cleanup := setupControllerHandlerTest(t)
+	defer cleanup()
 
 	// Setup route
 	router.GET("/controllers/:id", handler.GetControllerStatus)
 
-	// Request non-existent controller
-	req := httptest.NewRequest("GET", "/controllers/non-existent-id", nil)
+	// Test 1: Request non-existent controller with proper UUID format
+	req := httptest.NewRequest("GET", "/controllers/123e4567-e89b-12d3-a456-426614174000", nil)
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)
@@ -529,8 +538,33 @@ func TestControllerHandler_GetControllerStatus_NotFound(t *testing.T) {
 	assert.Equal(t, "Controller not found", response["message"].(string))
 }
 
+func TestControllerHandler_GetControllerStatus_InvalidUUID(t *testing.T) {
+	handler, router, cleanup := setupControllerHandlerTest(t)
+	defer cleanup()
+
+	// Setup route
+	router.GET("/controllers/:id", handler.GetControllerStatus)
+
+	// Test 2: Request with invalid UUID format - should return 404, not 500
+	req := httptest.NewRequest("GET", "/controllers/invalid-uuid-format", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	// Assert response - should be 404, not 500
+	assert.Equal(t, http.StatusNotFound, w.Code)
+
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	require.NoError(t, err)
+
+	assert.False(t, response["success"].(bool))
+	assert.Equal(t, "Controller not found", response["message"].(string))
+}
+
 func TestControllerHandler_GetControllerStatus_MissingID(t *testing.T) {
-	handler, router := setupControllerHandlerTest(t)
+	handler, router, cleanup := setupControllerHandlerTest(t)
+	defer cleanup()
 
 	// Setup route
 	router.GET("/controllers/:id", handler.GetControllerStatus)
@@ -546,7 +580,8 @@ func TestControllerHandler_GetControllerStatus_MissingID(t *testing.T) {
 }
 
 func TestControllerHandler_GetAllControllers_Success(t *testing.T) {
-	handler, router := setupControllerHandlerTest(t)
+	handler, router, cleanup := setupControllerHandlerTest(t)
+	defer cleanup()
 
 	// Setup routes
 	router.POST("/handshake", handler.Handshake)

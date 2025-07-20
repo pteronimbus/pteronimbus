@@ -116,7 +116,7 @@ make controller-build
 ```
 
 ## Testing Strategy
-- **Backend**: Unit tests for handlers, services, middleware + integration tests
+- **Backend**: PostgreSQL with testcontainers-go for production parity, proper UUIDs, mocked external services
 - **Frontend**: Component tests with Vitest and Vue Test Utils
 - **Coverage**: HTML coverage reports generated for both stacks
 - **Environment**: Test-specific configurations and mock services

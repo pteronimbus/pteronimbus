@@ -151,7 +151,7 @@ Each implementation task must include:
   - Unit tests for all service functions (80% coverage minimum)
   - Integration tests for Discord API interactions
   - API endpoint testing with authentication scenarios
-  - Database operation testing with test containers
+  - Database operation testing with PostgreSQL testcontainers
   - Mock Discord API responses for testing
   - Write unit and integration tests
   - _Requirements: Testing Requirements 1, 2, 6_

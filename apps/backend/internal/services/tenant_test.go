@@ -5,11 +5,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-	"gorm.io/driver/sqlite"
+	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/models"
+	"github.com/pteronimbus/pteronimbus/apps/backend/internal/testutils"
 )
 
 // Extend the existing MockDiscordService with additional methods for tenant testing
@@ -45,166 +47,61 @@ func (m *MockDiscordService) GetGuildMember(ctx context.Context, botToken, guild
 	return args.Get(0).(*models.DiscordMember), args.Error(1)
 }
 
-// setupTestDB creates an in-memory SQLite database for testing
-func setupTestDB(t *testing.T) *gorm.DB {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
-		DisableForeignKeyConstraintWhenMigrating: true,
-	})
-	assert.NoError(t, err)
-
-	// Create simplified models for testing that work with SQLite
-	type TestUser struct {
-		ID            string `gorm:"primaryKey"`
-		DiscordUserID string `gorm:"uniqueIndex;not null"`
-		Username      string `gorm:"not null"`
-		Avatar        string
-		Email         string
-		CreatedAt     time.Time
-		UpdatedAt     time.Time
-	}
-
-	type TestTenant struct {
-		ID              string `gorm:"primaryKey"`
-		DiscordServerID string `gorm:"uniqueIndex;not null"`
-		Name            string `gorm:"not null"`
-		Icon            string
-		OwnerID         string `gorm:"not null"`
-		Config          string `gorm:"type:text"` // Store as JSON string for SQLite
-		CreatedAt       time.Time
-		UpdatedAt       time.Time
-	}
-
-	type TestUserTenant struct {
-		ID          string `gorm:"primaryKey"`
-		UserID      string `gorm:"not null;index"`
-		TenantID    string `gorm:"not null;index"`
-		Roles       string `gorm:"type:text"` // Store as JSON string
-		Permissions string `gorm:"type:text"` // Store as JSON string
-		CreatedAt   time.Time
-		UpdatedAt   time.Time
-	}
-
-	type TestTenantDiscordRole struct {
-		ID            string `gorm:"primaryKey"`
-		TenantID      string `gorm:"not null;index"`
-		DiscordRoleID string `gorm:"not null"`
-		Name          string `gorm:"not null"`
-		Color         int
-		Position      int
-		Permissions   string `gorm:"type:text"` // Store as JSON string
-		Mentionable   bool
-		Hoist         bool
-		CreatedAt     time.Time
-		UpdatedAt     time.Time
-	}
-
-	type TestTenantDiscordUser struct {
-		ID            string `gorm:"primaryKey"`
-		TenantID      string `gorm:"not null;index"`
-		DiscordUserID string `gorm:"not null"`
-		Username      string `gorm:"not null"`
-		DisplayName   string
-		Avatar        string
-		Roles         string    `gorm:"type:text"` // Store as JSON string
-		JoinedAt      time.Time
-		LastSyncAt    time.Time
-		CreatedAt     time.Time
-		UpdatedAt     time.Time
-	}
-
-	type TestGameServer struct {
-		ID        string `gorm:"primaryKey"`
-		TenantID  string `gorm:"not null;index"`
-		Name      string `gorm:"not null"`
-		GameType  string `gorm:"not null"`
-		Config    string `gorm:"type:text"` // Store as JSON string
-		Status    string `gorm:"type:text"` // Store as JSON string
-		CreatedAt time.Time
-		UpdatedAt time.Time
-	}
-
-	// Create a simplified tenant model for testing
-	type SimpleTenant struct {
-		ID              string `gorm:"primaryKey"`
-		DiscordServerID string `gorm:"uniqueIndex;not null"`
-		Name            string `gorm:"not null"`
-		Icon            string
-		OwnerID         string `gorm:"not null"`
-		Config          string `gorm:"type:text"`
-		CreatedAt       time.Time
-		UpdatedAt       time.Time
-	}
-
-	// Auto-migrate the test schema
-	err = db.AutoMigrate(
-		&TestUser{},
-		&TestTenant{},
-		&TestUserTenant{},
-		&TestTenantDiscordRole{},
-		&TestTenantDiscordUser{},
-		&TestGameServer{},
-		&SimpleTenant{},
+// setupTestDB creates a PostgreSQL test database with all required models
+func setupTestDB(t *testing.T) (*gorm.DB, func()) {
+	return testutils.SetupTestDatabaseWithModels(t,
+		&models.User{},
+		&models.Tenant{},
+		&models.UserTenant{},
+		&models.TenantDiscordRole{},
+		&models.TenantDiscordUser{},
+		&models.GameServer{},
+		&models.Session{},
 	)
-	assert.NoError(t, err)
-
-	return db
 }
 
 func TestTenantService_CreateTenant(t *testing.T) {
-	db := setupTestDB(t)
-	ownerID := "user-123"
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	ownerID := uuid.New().String()
 	discordGuild := &models.DiscordGuild{
 		ID:   "guild-123",
 		Name: "Test Guild",
 		Icon: "icon-hash",
 	}
 
-	// Since we're using SQLite for testing, we'll test the basic functionality
-	// by creating a tenant record directly and verifying it works
-	
-	// Create a simplified tenant record for testing
-	type SimpleTenant struct {
-		ID              string `gorm:"primaryKey"`
-		DiscordServerID string `gorm:"uniqueIndex;not null"`
-		Name            string `gorm:"not null"`
-		Icon            string
-		OwnerID         string `gorm:"not null"`
-		Config          string `gorm:"type:text"`
-		CreatedAt       time.Time
-		UpdatedAt       time.Time
-	}
-
-	testTenant := &SimpleTenant{
-		ID:              "tenant-123",
+	// Create a tenant using the actual Tenant model
+	testTenant := &models.Tenant{
 		DiscordServerID: discordGuild.ID,
 		Name:            discordGuild.Name,
 		Icon:            discordGuild.Icon,
 		OwnerID:         ownerID,
-		Config:          `{"resource_limits":{"max_game_servers":5}}`,
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
+		Config: models.TenantConfig{
+			ResourceLimits: models.ResourceLimits{
+				MaxGameServers: 5,
+			},
+		},
 	}
 
 	err := db.Create(testTenant).Error
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Test that we can retrieve the created tenant
-	var retrievedTenant SimpleTenant
+	var retrievedTenant models.Tenant
 	err = db.Where("discord_server_id = ?", discordGuild.ID).First(&retrievedTenant).Error
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, discordGuild.ID, retrievedTenant.DiscordServerID)
 	assert.Equal(t, discordGuild.Name, retrievedTenant.Name)
 	assert.Equal(t, discordGuild.Icon, retrievedTenant.Icon)
 	assert.Equal(t, ownerID, retrievedTenant.OwnerID)
+	assert.Equal(t, 5, retrievedTenant.Config.ResourceLimits.MaxGameServers)
 
 	// Test duplicate tenant creation
-	duplicateTenant := &SimpleTenant{
-		ID:              "tenant-456",
+	duplicateTenant := &models.Tenant{
 		DiscordServerID: discordGuild.ID, // Same Discord server ID
 		Name:            "Duplicate Guild",
 		OwnerID:         ownerID,
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
 	}
 	err = db.Create(duplicateTenant).Error
 	assert.Error(t, err) // Should fail due to unique constraint
@@ -212,7 +109,7 @@ func TestTenantService_CreateTenant(t *testing.T) {
 
 func TestTenantService_GetTenant(t *testing.T) {
 	// This test focuses on testing the permission checking logic
-	// rather than database operations which are complex with SQLite
+	// rather than database operations
 	tenantService := &TenantService{}
 
 	// Test CheckManageServerPermission method which is pure logic
@@ -266,43 +163,21 @@ func TestTenantService_AddUserToTenant(t *testing.T) {
 				ID:          "guild-123",
 				Name:        "Test Guild",
 				Owner:       false,
-				Permissions: "32", // MANAGE_GUILD = 0x20 = 32
+				Permissions: "32", // MANAGE_GUILD
 			},
 			expected:    true,
 			description: "User with MANAGE_GUILD permission should have access",
 		},
 		{
-			name: "admin_permission",
+			name: "no_permission",
 			guild: &models.DiscordGuild{
 				ID:          "guild-123",
 				Name:        "Test Guild",
 				Owner:       false,
-				Permissions: "8", // ADMINISTRATOR = 0x8
+				Permissions: "1", // Basic permissions only
 			},
 			expected:    false,
-			description: "ADMINISTRATOR permission alone is not enough, need MANAGE_GUILD",
-		},
-		{
-			name: "combined_permissions",
-			guild: &models.DiscordGuild{
-				ID:          "guild-123",
-				Name:        "Test Guild",
-				Owner:       false,
-				Permissions: "40", // MANAGE_GUILD (32) + ADMINISTRATOR (8) = 40
-			},
-			expected:    true,
-			description: "Combined permissions including MANAGE_GUILD should work",
-		},
-		{
-			name: "no_permissions",
-			guild: &models.DiscordGuild{
-				ID:          "guild-123",
-				Name:        "Test Guild",
-				Owner:       false,
-				Permissions: "0",
-			},
-			expected:    false,
-			description: "No permissions should deny access",
+			description: "User without manage permissions should not have access",
 		},
 	}
 
@@ -315,219 +190,375 @@ func TestTenantService_AddUserToTenant(t *testing.T) {
 }
 
 func TestTenantService_SyncDiscordRoles(t *testing.T) {
-	// Test the Discord role sync logic without complex database operations
-	mockDiscordService := new(MockDiscordService)
-	
-	// Mock Discord roles
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	// Create a tenant first
+	tenant := &models.Tenant{
+		DiscordServerID: "guild-123",
+		Name:            "Test Guild",
+		OwnerID:         uuid.New().String(),
+	}
+	err := db.Create(tenant).Error
+	require.NoError(t, err)
+
+	// Create Discord roles to sync
 	discordRoles := []models.DiscordRole{
 		{
 			ID:          "role-1",
 			Name:        "Admin",
 			Color:       16711680, // Red
-			Position:    10,
+			Position:    1,
+			Permissions: "2147483647",
 			Mentionable: true,
 			Hoist:       true,
 		},
 		{
 			ID:          "role-2",
-			Name:        "Member",
-			Color:       0, // Default
-			Position:    1,
+			Name:        "Moderator",
+			Color:       16776960, // Yellow
+			Position:    2,
+			Permissions: "8192", // MANAGE_MESSAGES
 			Mentionable: false,
 			Hoist:       false,
 		},
 	}
 
-	ctx := context.Background()
-	botToken := "bot-token"
-	guildID := "guild-123"
+	// Create tenant Discord roles
+	for _, role := range discordRoles {
+		tenantRole := &models.TenantDiscordRole{
+			TenantID:      tenant.ID,
+			DiscordRoleID: role.ID,
+			Name:          role.Name,
+			Color:         role.Color,
+			Position:      role.Position,
+			Permissions:   models.StringArray{role.Permissions},
+			Mentionable:   role.Mentionable,
+			Hoist:         role.Hoist,
+		}
+		err := db.Create(tenantRole).Error
+		require.NoError(t, err)
+	}
 
-	mockDiscordService.On("GetGuildRoles", ctx, botToken, guildID).Return(discordRoles, nil)
-
-	// Test that the Discord service mock works correctly
-	roles, err := mockDiscordService.GetGuildRoles(ctx, botToken, guildID)
-	assert.NoError(t, err)
+	// Verify roles were created
+	var roles []models.TenantDiscordRole
+	err = db.Where("tenant_id = ?", tenant.ID).Find(&roles).Error
+	require.NoError(t, err)
 	assert.Len(t, roles, 2)
-	assert.Equal(t, "Admin", roles[0].Name)
-	assert.Equal(t, "Member", roles[1].Name)
 
-	mockDiscordService.AssertExpectations(t)
+	// Verify role details
+	adminRole := roles[0]
+	if adminRole.Name == "Moderator" {
+		adminRole = roles[1]
+	}
+	assert.Equal(t, "Admin", adminRole.Name)
+	assert.Equal(t, 16711680, adminRole.Color)
+	assert.Equal(t, 1, adminRole.Position)
+	assert.True(t, adminRole.Mentionable)
+	assert.True(t, adminRole.Hoist)
+	assert.Contains(t, adminRole.Permissions, "2147483647")
 }
 
 func TestTenantService_SyncDiscordUsers(t *testing.T) {
-	// Test the Discord user sync logic without complex database operations
-	mockDiscordService := new(MockDiscordService)
-	
-	// Mock Discord members
-	joinedAt := time.Now().Format(time.RFC3339)
-	discordMembers := []models.DiscordMember{
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	// Create a tenant first
+	tenant := &models.Tenant{
+		DiscordServerID: "guild-123",
+		Name:            "Test Guild",
+		OwnerID:         uuid.New().String(),
+	}
+	err := db.Create(tenant).Error
+	require.NoError(t, err)
+
+	// Create Discord users to sync
+	discordUsers := []models.DiscordMember{
 		{
 			User: &models.DiscordUser{
 				ID:       "user-1",
 				Username: "testuser1",
+				Avatar:   "avatar1",
 			},
 			Nick:     "TestUser1",
 			Roles:    []string{"role-1", "role-2"},
-			JoinedAt: joinedAt,
+			JoinedAt: "2023-01-01T00:00:00Z",
 		},
 		{
 			User: &models.DiscordUser{
 				ID:       "user-2",
 				Username: "testuser2",
+				Avatar:   "avatar2",
 			},
 			Nick:     "TestUser2",
-			Roles:    []string{"role-2"},
-			JoinedAt: joinedAt,
+			Roles:    []string{"role-1"},
+			JoinedAt: "2023-01-02T00:00:00Z",
 		},
 	}
 
-	ctx := context.Background()
-	botToken := "bot-token"
-	guildID := "guild-123"
+	// Create tenant Discord users
+	for _, member := range discordUsers {
+		joinedAt, _ := time.Parse(time.RFC3339, member.JoinedAt)
+		tenantUser := &models.TenantDiscordUser{
+			TenantID:      tenant.ID,
+			DiscordUserID: member.User.ID,
+			Username:      member.User.Username,
+			DisplayName:   member.Nick,
+			Avatar:        member.User.Avatar,
+			Roles:         models.StringArray(member.Roles),
+			JoinedAt:      &joinedAt,
+			LastSyncAt:    time.Now(),
+		}
+		err := db.Create(tenantUser).Error
+		require.NoError(t, err)
+	}
 
-	mockDiscordService.On("GetGuildMembers", ctx, botToken, guildID, 1000).Return(discordMembers, nil)
+	// Verify users were created
+	var users []models.TenantDiscordUser
+	err = db.Where("tenant_id = ?", tenant.ID).Find(&users).Error
+	require.NoError(t, err)
+	assert.Len(t, users, 2)
 
-	// Test that the Discord service mock works correctly
-	members, err := mockDiscordService.GetGuildMembers(ctx, botToken, guildID, 1000)
-	assert.NoError(t, err)
-	assert.Len(t, members, 2)
-	assert.Equal(t, "testuser1", members[0].User.Username)
-	assert.Equal(t, "testuser2", members[1].User.Username)
-	assert.Equal(t, "TestUser1", members[0].Nick)
-	assert.Equal(t, "TestUser2", members[1].Nick)
-
-	mockDiscordService.AssertExpectations(t)
+	// Verify user details
+	user1 := users[0]
+	if user1.Username == "testuser2" {
+		user1 = users[1]
+	}
+	assert.Equal(t, "testuser1", user1.Username)
+	assert.Equal(t, "TestUser1", user1.DisplayName)
+	assert.Equal(t, "avatar1", user1.Avatar)
+	assert.Len(t, user1.Roles, 2)
+	assert.Contains(t, user1.Roles, "role-1")
+	assert.Contains(t, user1.Roles, "role-2")
 }
 
 func TestTenantService_HasPermission(t *testing.T) {
-	// Test permission checking logic without complex database operations
-	// This focuses on the core business logic of permission evaluation
-	
-	// Test cases for permission string parsing and evaluation
-	testCases := []struct {
-		name           string
-		userPermissions []string
-		rolePermissions []string
-		checkPermission string
-		expected       bool
-		description    string
-	}{
-		{
-			name:           "direct_permission_match",
-			userPermissions: []string{"read", "write"},
-			rolePermissions: []string{},
-			checkPermission: "read",
-			expected:       true,
-			description:    "User should have direct permission",
-		},
-		{
-			name:           "wildcard_permission",
-			userPermissions: []string{"*"},
-			rolePermissions: []string{},
-			checkPermission: "any_permission",
-			expected:       true,
-			description:    "Wildcard permission should grant access to anything",
-		},
-		{
-			name:           "role_based_permission",
-			userPermissions: []string{},
-			rolePermissions: []string{"admin", "manage"},
-			checkPermission: "admin",
-			expected:       true,
-			description:    "Role-based permission should work",
-		},
-		{
-			name:           "no_permission",
-			userPermissions: []string{"read"},
-			rolePermissions: []string{"write"},
-			checkPermission: "admin",
-			expected:       false,
-			description:    "Should deny access when permission not granted",
-		},
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	// Create a tenant
+	tenant := &models.Tenant{
+		DiscordServerID: "guild-123",
+		Name:            "Test Guild",
+		OwnerID:         uuid.New().String(),
 	}
+	err := db.Create(tenant).Error
+	require.NoError(t, err)
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// Test the permission checking logic
-			hasDirectPermission := false
-			for _, perm := range tc.userPermissions {
-				if perm == tc.checkPermission || perm == "*" {
-					hasDirectPermission = true
-					break
-				}
-			}
-
-			hasRolePermission := false
-			for _, perm := range tc.rolePermissions {
-				if perm == tc.checkPermission || perm == "*" {
-					hasRolePermission = true
-					break
-				}
-			}
-
-			result := hasDirectPermission || hasRolePermission
-			assert.Equal(t, tc.expected, result, tc.description)
-		})
+	// Create a user
+	user := &models.User{
+		DiscordUserID: "user-123",
+		Username:      "testuser",
 	}
+	err = db.Create(user).Error
+	require.NoError(t, err)
+
+	// Create Discord roles first
+	discordRole1 := &models.TenantDiscordRole{
+		TenantID:      tenant.ID,
+		DiscordRoleID: "admin",
+		Name:          "Admin",
+		Permissions:   models.StringArray{"manage_servers", "view_logs", "manage_users"},
+	}
+	err = db.Create(discordRole1).Error
+	require.NoError(t, err)
+
+	discordRole2 := &models.TenantDiscordRole{
+		TenantID:      tenant.ID,
+		DiscordRoleID: "moderator",
+		Name:          "Moderator",
+		Permissions:   models.StringArray{"view_logs"},
+	}
+	err = db.Create(discordRole2).Error
+	require.NoError(t, err)
+
+	// Create user-tenant relationship with both direct and role-based permissions
+	userTenant := &models.UserTenant{
+		UserID:      user.ID,
+		TenantID:    tenant.ID,
+		Roles:       models.StringArray{"admin", "moderator"},
+		Permissions: models.StringArray{"manage_servers", "view_logs", "manage_users"},
+	}
+	err = db.Create(userTenant).Error
+	require.NoError(t, err)
+
+	// Test permission checking
+	tenantService := &TenantService{db: db}
+
+	// Test direct permissions
+	hasPermission, err := tenantService.HasPermission(context.Background(), user.ID, tenant.ID, "manage_servers")
+	require.NoError(t, err)
+	assert.True(t, hasPermission)
+
+	hasPermission, err = tenantService.HasPermission(context.Background(), user.ID, tenant.ID, "view_logs")
+	require.NoError(t, err)
+	assert.True(t, hasPermission)
+
+	// Test role-based permissions (from admin role)
+	hasPermission, err = tenantService.HasPermission(context.Background(), user.ID, tenant.ID, "manage_users")
+	require.NoError(t, err)
+	assert.True(t, hasPermission)
+
+	// Test invalid permission
+	hasPermission, err = tenantService.HasPermission(context.Background(), user.ID, tenant.ID, "invalid_permission")
+	require.NoError(t, err)
+	assert.False(t, hasPermission)
+
+	// Test non-existent user
+	hasPermission, err = tenantService.HasPermission(context.Background(), uuid.New().String(), tenant.ID, "manage_servers")
+	require.NoError(t, err)
+	assert.False(t, hasPermission)
+
+	// Test non-existent tenant
+	hasPermission, err = tenantService.HasPermission(context.Background(), user.ID, uuid.New().String(), "manage_servers")
+	require.NoError(t, err)
+	assert.False(t, hasPermission)
 }
 
 func TestTenantService_CheckManageServerPermission(t *testing.T) {
 	tenantService := &TenantService{}
 
-	// Test owner permission
-	guild := &models.DiscordGuild{
-		ID:    "guild-123",
-		Name:  "Test Guild",
-		Owner: true,
+	testCases := []struct {
+		name        string
+		guild       *models.DiscordGuild
+		expected    bool
+		description string
+	}{
+		{
+			name: "owner_has_permission",
+			guild: &models.DiscordGuild{
+				ID:          "guild-123",
+				Name:        "Test Guild",
+				Owner:       true,
+				Permissions: "0",
+			},
+			expected:    true,
+			description: "Guild owner should always have permission",
+		},
+		{
+			name: "manage_guild_permission",
+			guild: &models.DiscordGuild{
+				ID:          "guild-123",
+				Name:        "Test Guild",
+				Owner:       false,
+				Permissions: "32", // MANAGE_GUILD
+			},
+			expected:    true,
+			description: "User with MANAGE_GUILD permission should have access",
+		},
+		{
+			name: "administrator_permission",
+			guild: &models.DiscordGuild{
+				ID:          "guild-123",
+				Name:        "Test Guild",
+				Owner:       false,
+				Permissions: "8", // ADMINISTRATOR
+			},
+			expected:    false, // Current implementation only checks for MANAGE_GUILD
+			description: "Current implementation only checks for MANAGE_GUILD permission",
+		},
+		{
+			name: "no_permission",
+			guild: &models.DiscordGuild{
+				ID:          "guild-123",
+				Name:        "Test Guild",
+				Owner:       false,
+				Permissions: "1", // Basic permissions only
+			},
+			expected:    false,
+			description: "User without manage permissions should not have access",
+		},
 	}
-	hasPermission := tenantService.CheckManageServerPermission(guild)
-	assert.True(t, hasPermission)
 
-	// Test manage guild permission (0x00000020 = 32)
-	guild = &models.DiscordGuild{
-		ID:          "guild-123",
-		Name:        "Test Guild",
-		Owner:       false,
-		Permissions: "32", // MANAGE_GUILD permission
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := tenantService.CheckManageServerPermission(tc.guild)
+			assert.Equal(t, tc.expected, result, tc.description)
+		})
 	}
-	hasPermission = tenantService.CheckManageServerPermission(guild)
-	assert.True(t, hasPermission)
-
-	// Test insufficient permissions
-	guild = &models.DiscordGuild{
-		ID:          "guild-123",
-		Name:        "Test Guild",
-		Owner:       false,
-		Permissions: "1", // Only basic permissions
-	}
-	hasPermission = tenantService.CheckManageServerPermission(guild)
-	assert.False(t, hasPermission)
-
-	// Test invalid permissions string
-	guild = &models.DiscordGuild{
-		ID:          "guild-123",
-		Name:        "Test Guild",
-		Owner:       false,
-		Permissions: "invalid",
-	}
-	hasPermission = tenantService.CheckManageServerPermission(guild)
-	assert.False(t, hasPermission)
 }
 
 func TestTenantService_DeleteTenant(t *testing.T) {
-	// Test the deletion logic without complex database operations
-	// This focuses on testing the business logic of cascading deletes
-	
-	// Test that the service has the correct method signature
-	tenantService := &TenantService{}
-	
-	// Verify the service exists and has the expected methods
-	assert.NotNil(t, tenantService)
-	
-	// Test the core deletion logic by verifying the method exists
-	// In a real implementation, this would test the cascading delete logic
-	// but for now we'll just verify the service structure is correct
-	
-	// The actual deletion logic is tested in integration tests
-	// where we can use a real database with proper foreign key constraints
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	// Create a tenant
+	tenant := &models.Tenant{
+		DiscordServerID: "guild-123",
+		Name:            "Test Guild",
+		OwnerID:         uuid.New().String(),
+	}
+	err := db.Create(tenant).Error
+	require.NoError(t, err)
+
+	// Create associated data
+	user := &models.User{
+		DiscordUserID: "user-123",
+		Username:      "testuser",
+	}
+	err = db.Create(user).Error
+	require.NoError(t, err)
+
+	userTenant := &models.UserTenant{
+		UserID:   user.ID,
+		TenantID: tenant.ID,
+		Roles:    models.StringArray{"admin"},
+	}
+	err = db.Create(userTenant).Error
+	require.NoError(t, err)
+
+	discordRole := &models.TenantDiscordRole{
+		TenantID:      tenant.ID,
+		DiscordRoleID: "role-123",
+		Name:          "Admin",
+	}
+	err = db.Create(discordRole).Error
+	require.NoError(t, err)
+
+	discordUser := &models.TenantDiscordUser{
+		TenantID:      tenant.ID,
+		DiscordUserID: "user-123",
+		Username:      "testuser",
+	}
+	err = db.Create(discordUser).Error
+	require.NoError(t, err)
+
+	gameServer := &models.GameServer{
+		TenantID: tenant.ID,
+		Name:     "Test Server",
+		GameType: "minecraft",
+	}
+	err = db.Create(gameServer).Error
+	require.NoError(t, err)
+
+	// Delete the tenant using the service method
+	tenantService := &TenantService{db: db}
+	err = tenantService.DeleteTenant(context.Background(), tenant.ID)
+	require.NoError(t, err)
+
+	// Verify tenant is deleted
+	var deletedTenant models.Tenant
+	err = db.Where("id = ?", tenant.ID).First(&deletedTenant).Error
+	assert.Error(t, err) // Should not find the tenant
+
+	// Verify associated data is also deleted (if cascade is set up)
+	var userTenants []models.UserTenant
+	err = db.Where("tenant_id = ?", tenant.ID).Find(&userTenants).Error
+	require.NoError(t, err)
+	assert.Len(t, userTenants, 0)
+
+	var discordRoles []models.TenantDiscordRole
+	err = db.Where("tenant_id = ?", tenant.ID).Find(&discordRoles).Error
+	require.NoError(t, err)
+	assert.Len(t, discordRoles, 0)
+
+	var discordUsers []models.TenantDiscordUser
+	err = db.Where("tenant_id = ?", tenant.ID).Find(&discordUsers).Error
+	require.NoError(t, err)
+	assert.Len(t, discordUsers, 0)
+
+	var gameServers []models.GameServer
+	err = db.Where("tenant_id = ?", tenant.ID).Find(&gameServers).Error
+	require.NoError(t, err)
+	assert.Len(t, gameServers, 0)
 }

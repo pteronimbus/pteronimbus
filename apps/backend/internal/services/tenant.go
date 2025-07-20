@@ -336,9 +336,16 @@ func (ts *TenantService) HasPermission(ctx context.Context, userID, tenantID, pe
 
 	// Check role-based permissions
 	var discordRoles []models.TenantDiscordRole
-	err = ts.db.Where("tenant_id = ? AND discord_role_id IN ?", tenantID, userTenant.Roles).Find(&discordRoles).Error
-	if err != nil {
-		return false, fmt.Errorf("failed to get Discord roles: %w", err)
+	if len(userTenant.Roles) > 0 {
+		// Convert StringArray to []string for the IN query
+		roleIDs := make([]string, len(userTenant.Roles))
+		for i, role := range userTenant.Roles {
+			roleIDs[i] = role
+		}
+		err = ts.db.Where("tenant_id = ? AND discord_role_id IN ?", tenantID, roleIDs).Find(&discordRoles).Error
+		if err != nil {
+			return false, fmt.Errorf("failed to get Discord roles: %w", err)
+		}
 	}
 
 	for _, role := range discordRoles {

@@ -8,24 +8,23 @@ import (
 
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/config"
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/models"
+	"github.com/pteronimbus/pteronimbus/apps/backend/internal/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-func setupControllerTestDB(t *testing.T) *gorm.DB {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+func setupControllerTestDB(t *testing.T) (*gorm.DB, func()) {
+	db, cleanup := testutils.SetupTestDatabase(t)
+
+	err := db.AutoMigrate(&models.Controller{})
 	require.NoError(t, err)
 
-	err = db.AutoMigrate(&models.Controller{})
-	require.NoError(t, err)
-
-	return db
+	return db, cleanup
 }
 
-func setupControllerService(t *testing.T) (*ControllerService, *gorm.DB) {
-	db := setupControllerTestDB(t)
+func setupControllerService(t *testing.T) (*ControllerService, *gorm.DB, func()) {
+	db, cleanup := setupControllerTestDB(t)
 
 	cfg := &config.Config{
 		JWT: config.JWTConfig{
@@ -42,11 +41,12 @@ func setupControllerService(t *testing.T) (*ControllerService, *gorm.DB) {
 	jwtService := NewJWTService(cfg)
 	service := NewControllerService(db, cfg, jwtService)
 
-	return service, db
+	return service, db, cleanup
 }
 
 func TestControllerService_Handshake_NewController(t *testing.T) {
-	service, _ := setupControllerService(t)
+	service, _, cleanup := setupControllerService(t)
+	defer cleanup()
 	ctx := context.Background()
 
 	req := &models.HandshakeRequest{
@@ -73,12 +73,13 @@ func TestControllerService_Handshake_NewController(t *testing.T) {
 }
 
 func TestControllerService_Handshake_ExistingController(t *testing.T) {
-	service, db := setupControllerService(t)
+	service, db, cleanup := setupControllerService(t)
+	defer cleanup()
 	ctx := context.Background()
 
 	// Create an existing controller
 	existingController := models.Controller{
-		ID:             "existing-controller-id",
+		ID:             "123e4567-e89b-12d3-a456-426614174000",
 		ClusterID:      "test-cluster-1",
 		ClusterName:    "Old Cluster Name",
 		Version:        "0.9.0",
@@ -113,12 +114,13 @@ func TestControllerService_Handshake_ExistingController(t *testing.T) {
 }
 
 func TestControllerService_Handshake_ExistingApprovedController(t *testing.T) {
-	service, db := setupControllerService(t)
+	service, db, cleanup := setupControllerService(t)
+	defer cleanup()
 	ctx := context.Background()
 
 	// Create an existing approved controller
 	existingController := models.Controller{
-		ID:             "existing-controller-id",
+		ID:             "123e4567-e89b-12d3-a456-426614174001",
 		ClusterID:      "test-cluster-1",
 		ClusterName:    "Old Cluster Name",
 		Version:        "0.9.0",
@@ -153,7 +155,8 @@ func TestControllerService_Handshake_ExistingApprovedController(t *testing.T) {
 }
 
 func TestControllerService_Handshake_WithSecret(t *testing.T) {
-	service, _ := setupControllerService(t)
+	service, _, cleanup := setupControllerService(t)
+	defer cleanup()
 	ctx := context.Background()
 
 	// Update the service config to include a handshake secret
@@ -172,12 +175,13 @@ func TestControllerService_Handshake_WithSecret(t *testing.T) {
 }
 
 func TestControllerService_Heartbeat_Success(t *testing.T) {
-	service, db := setupControllerService(t)
+	service, db, cleanup := setupControllerService(t)
+	defer cleanup()
 	ctx := context.Background()
 
 	// Create a controller first
 	controller := models.Controller{
-		ID:             "test-controller-id",
+		ID:             "123e4567-e89b-12d3-a456-426614174002",
 		ClusterID:      "test-cluster-1",
 		ClusterName:    "Test Cluster",
 		Version:        "1.0.0",
@@ -213,12 +217,13 @@ func TestControllerService_Heartbeat_Success(t *testing.T) {
 }
 
 func TestControllerService_Heartbeat_PendingController(t *testing.T) {
-	service, db := setupControllerService(t)
+	service, db, cleanup := setupControllerService(t)
+	defer cleanup()
 	ctx := context.Background()
 
 	// Create a pending controller
 	controller := models.Controller{
-		ID:             "test-controller-id",
+		ID:             "123e4567-e89b-12d3-a456-426614174003",
 		ClusterID:      "test-cluster-1",
 		ClusterName:    "Test Cluster",
 		Version:        "1.0.0",
@@ -247,7 +252,8 @@ func TestControllerService_Heartbeat_PendingController(t *testing.T) {
 }
 
 func TestControllerService_Heartbeat_ControllerNotFound(t *testing.T) {
-	service, _ := setupControllerService(t)
+	service, _, cleanup := setupControllerService(t)
+	defer cleanup()
 	ctx := context.Background()
 
 	req := &models.HeartbeatRequest{
@@ -262,12 +268,13 @@ func TestControllerService_Heartbeat_ControllerNotFound(t *testing.T) {
 }
 
 func TestControllerService_GetControllerStatus_Online(t *testing.T) {
-	service, db := setupControllerService(t)
+	service, db, cleanup := setupControllerService(t)
+	defer cleanup()
 	ctx := context.Background()
 
 	// Create a controller with recent heartbeat
 	controller := models.Controller{
-		ID:             "test-controller-id",
+		ID:             "123e4567-e89b-12d3-a456-426614174004",
 		ClusterID:      "test-cluster-1",
 		ClusterName:    "Test Cluster",
 		Version:        "1.0.0",
@@ -292,12 +299,13 @@ func TestControllerService_GetControllerStatus_Online(t *testing.T) {
 }
 
 func TestControllerService_GetControllerStatus_Offline(t *testing.T) {
-	service, db := setupControllerService(t)
+	service, db, cleanup := setupControllerService(t)
+	defer cleanup()
 	ctx := context.Background()
 
 	// Create a controller with old heartbeat
 	controller := models.Controller{
-		ID:             "test-controller-id",
+		ID:             "123e4567-e89b-12d3-a456-426614174005",
 		ClusterID:      "test-cluster-1",
 		ClusterName:    "Test Cluster",
 		Version:        "1.0.0",
@@ -317,7 +325,8 @@ func TestControllerService_GetControllerStatus_Offline(t *testing.T) {
 }
 
 func TestControllerService_GetControllerStatus_NotFound(t *testing.T) {
-	service, _ := setupControllerService(t)
+	service, _, cleanup := setupControllerService(t)
+	defer cleanup()
 	ctx := context.Background()
 
 	status, err := service.GetControllerStatus(ctx, "non-existent-id")
@@ -326,13 +335,14 @@ func TestControllerService_GetControllerStatus_NotFound(t *testing.T) {
 }
 
 func TestControllerService_GetAllControllers(t *testing.T) {
-	service, db := setupControllerService(t)
+	service, db, cleanup := setupControllerService(t)
+	defer cleanup()
 	ctx := context.Background()
 
 	// Create multiple controllers
 	controllers := []models.Controller{
 		{
-			ID:             "controller-1",
+			ID:             "123e4567-e89b-12d3-a456-426614174006",
 			ClusterID:      "cluster-1",
 			ClusterName:    "Cluster 1",
 			Version:        "1.0.0",
@@ -342,7 +352,7 @@ func TestControllerService_GetAllControllers(t *testing.T) {
 			CreatedAt:      time.Now().UTC().Add(-time.Hour),
 		},
 		{
-			ID:             "controller-2",
+			ID:             "123e4567-e89b-12d3-a456-426614174007",
 			ClusterID:      "cluster-2",
 			ClusterName:    "Cluster 2",
 			Version:        "1.1.0",
@@ -390,10 +400,11 @@ func TestControllerService_GetAllControllers(t *testing.T) {
 }
 
 func TestControllerService_ValidateControllerToken_Valid(t *testing.T) {
-	service, _ := setupControllerService(t)
+	service, _, cleanup := setupControllerService(t)
+	defer cleanup()
 
 	// Generate a valid token
-	controllerID := "test-controller-id"
+	controllerID := "123e4567-e89b-12d3-a456-426614174008"
 	token := service.generateControllerToken(controllerID, "test-cluster")
 
 	// Validate the token
@@ -403,7 +414,8 @@ func TestControllerService_ValidateControllerToken_Valid(t *testing.T) {
 }
 
 func TestControllerService_ValidateControllerToken_Invalid(t *testing.T) {
-	service, _ := setupControllerService(t)
+	service, _, cleanup := setupControllerService(t)
+	defer cleanup()
 
 	// Test with invalid token
 	_, err := service.ValidateControllerToken("invalid-token")
@@ -411,7 +423,8 @@ func TestControllerService_ValidateControllerToken_Invalid(t *testing.T) {
 }
 
 func TestControllerService_ValidateControllerToken_WrongType(t *testing.T) {
-	service, _ := setupControllerService(t)
+	service, _, cleanup := setupControllerService(t)
+	defer cleanup()
 
 	// Create a token with wrong type
 	cfg := service.config
@@ -434,13 +447,14 @@ func TestControllerService_ValidateControllerToken_WrongType(t *testing.T) {
 }
 
 func TestControllerService_CleanupInactiveControllers(t *testing.T) {
-	service, db := setupControllerService(t)
+	service, db, cleanup := setupControllerService(t)
+	defer cleanup()
 	ctx := context.Background()
 
 	// Create controllers with different heartbeat ages
 	controllers := []models.Controller{
 		{
-			ID:             "active-controller",
+			ID:             "123e4567-e89b-12d3-a456-426614174009",
 			ClusterID:      "active-cluster",
 			ClusterName:    "Active Cluster",
 			Version:        "1.0.0",
@@ -449,7 +463,7 @@ func TestControllerService_CleanupInactiveControllers(t *testing.T) {
 			HandshakeToken: "token-1",
 		},
 		{
-			ID:             "inactive-controller",
+			ID:             "123e4567-e89b-12d3-a456-426614174010",
 			ClusterID:      "inactive-cluster",
 			ClusterName:    "Inactive Cluster",
 			Version:        "1.0.0",
@@ -473,16 +487,17 @@ func TestControllerService_CleanupInactiveControllers(t *testing.T) {
 	err = db.Find(&remainingControllers).Error
 	require.NoError(t, err)
 	assert.Len(t, remainingControllers, 1)
-	assert.Equal(t, "active-controller", remainingControllers[0].ID)
+	assert.Equal(t, "123e4567-e89b-12d3-a456-426614174009", remainingControllers[0].ID)
 }
 
 func TestControllerService_ApproveController(t *testing.T) {
-	service, db := setupControllerService(t)
+	service, db, cleanup := setupControllerService(t)
+	defer cleanup()
 	ctx := context.Background()
 
 	// Create a pending controller
 	controller := models.Controller{
-		ID:             "test-controller-id",
+		ID:             "123e4567-e89b-12d3-a456-426614174011",
 		ClusterID:      "test-cluster-1",
 		ClusterName:    "Test Cluster",
 		Version:        "1.0.0",
@@ -509,12 +524,13 @@ func TestControllerService_ApproveController(t *testing.T) {
 }
 
 func TestControllerService_RejectController(t *testing.T) {
-	service, db := setupControllerService(t)
+	service, db, cleanup := setupControllerService(t)
+	defer cleanup()
 	ctx := context.Background()
 
 	// Create a pending controller
 	controller := models.Controller{
-		ID:             "test-controller-id",
+		ID:             "123e4567-e89b-12d3-a456-426614174012",
 		ClusterID:      "test-cluster-1",
 		ClusterName:    "Test Cluster",
 		Version:        "1.0.0",
@@ -539,13 +555,14 @@ func TestControllerService_RejectController(t *testing.T) {
 }
 
 func TestControllerService_GetControllerStatus_AutoDegraded(t *testing.T) {
-	service, db := setupControllerService(t)
+	service, db, cleanup := setupControllerService(t)
+	defer cleanup()
 	ctx := context.Background()
 
 	// Create an active controller with an old heartbeat (offline)
 	oldHeartbeat := time.Now().UTC().Add(-time.Hour) // 1 hour ago
 	controller := models.Controller{
-		ID:             "test-controller-id",
+		ID:             "123e4567-e89b-12d3-a456-426614174013",
 		ClusterID:      "test-cluster-1",
 		ClusterName:    "Test Cluster",
 		Version:        "1.0.0",
@@ -572,7 +589,8 @@ func TestControllerService_GetControllerStatus_AutoDegraded(t *testing.T) {
 }
 
 func TestControllerService_GetAllControllers_AutoDegraded(t *testing.T) {
-	service, db := setupControllerService(t)
+	service, db, cleanup := setupControllerService(t)
+	defer cleanup()
 	ctx := context.Background()
 
 	// Create multiple controllers with different states
@@ -581,7 +599,7 @@ func TestControllerService_GetAllControllers_AutoDegraded(t *testing.T) {
 
 	controllers := []models.Controller{
 		{
-			ID:             "controller-1",
+			ID:             "123e4567-e89b-12d3-a456-426614174014",
 			ClusterID:      "cluster-1",
 			ClusterName:    "Cluster 1",
 			Version:        "1.0.0",
@@ -590,7 +608,7 @@ func TestControllerService_GetAllControllers_AutoDegraded(t *testing.T) {
 			HandshakeToken: "token-1",
 		},
 		{
-			ID:             "controller-2",
+			ID:             "123e4567-e89b-12d3-a456-426614174015",
 			ClusterID:      "cluster-2",
 			ClusterName:    "Cluster 2",
 			Version:        "1.0.0",
@@ -599,7 +617,7 @@ func TestControllerService_GetAllControllers_AutoDegraded(t *testing.T) {
 			HandshakeToken: "token-2",
 		},
 		{
-			ID:             "controller-3",
+			ID:             "123e4567-e89b-12d3-a456-426614174016",
 			ClusterID:      "cluster-3",
 			ClusterName:    "Cluster 3",
 			Version:        "1.0.0",
@@ -620,9 +638,9 @@ func TestControllerService_GetAllControllers_AutoDegraded(t *testing.T) {
 	assert.Len(t, statuses, 3)
 
 	// Find each controller and verify its status
-	controller1 := findControllerByID(statuses, "controller-1")
-	controller2 := findControllerByID(statuses, "controller-2")
-	controller3 := findControllerByID(statuses, "controller-3")
+	controller1 := findControllerByID(statuses, "123e4567-e89b-12d3-a456-426614174014")
+	controller2 := findControllerByID(statuses, "123e4567-e89b-12d3-a456-426614174015")
+	controller3 := findControllerByID(statuses, "123e4567-e89b-12d3-a456-426614174016")
 
 	assert.NotNil(t, controller1)
 	assert.Equal(t, "degraded", controller1.Status)
@@ -638,18 +656,19 @@ func TestControllerService_GetAllControllers_AutoDegraded(t *testing.T) {
 
 	// Verify the database was updated for controller-1
 	var updatedController models.Controller
-	err = db.Where("id = ?", "controller-1").First(&updatedController).Error
+	err = db.Where("id = ?", "123e4567-e89b-12d3-a456-426614174014").First(&updatedController).Error
 	require.NoError(t, err)
 	assert.Equal(t, "degraded", updatedController.Status)
 }
 
 func TestControllerService_Heartbeat_DegradedToActive(t *testing.T) {
-	service, db := setupControllerService(t)
+	service, db, cleanup := setupControllerService(t)
+	defer cleanup()
 	ctx := context.Background()
 
 	// Create a degraded controller
 	controller := models.Controller{
-		ID:             "test-controller-id",
+		ID:             "123e4567-e89b-12d3-a456-426614174017",
 		ClusterID:      "test-cluster-1",
 		ClusterName:    "Test Cluster",
 		Version:        "1.0.0",

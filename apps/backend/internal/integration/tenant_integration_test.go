@@ -4,18 +4,18 @@ import (
 	"context"
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"gorm.io/driver/sqlite"
+	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/handlers"
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/middleware"
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/models"
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/services"
+	"github.com/pteronimbus/pteronimbus/apps/backend/internal/testutils"
 )
 
 // TenantMockDiscordService for tenant integration tests
@@ -99,65 +99,17 @@ func (m *TenantMockAuthService) Logout(ctx context.Context, accessToken string) 
 }
 
 // setupIntegrationTest sets up a complete test environment
-func setupIntegrationTest(t *testing.T) (*gin.Engine, *gorm.DB, *TenantMockDiscordService) {
-	// Setup in-memory database
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	assert.NoError(t, err)
-
-	// Create simplified models for SQLite testing
-	type TestUser struct {
-		ID            string `gorm:"primaryKey"`
-		DiscordUserID string `gorm:"uniqueIndex;not null"`
-		Username      string `gorm:"not null"`
-		Avatar        string
-		Email         string
-		CreatedAt     time.Time
-		UpdatedAt     time.Time
-	}
-
-	type TestTenant struct {
-		ID              string `gorm:"primaryKey"`
-		DiscordServerID string `gorm:"uniqueIndex;not null"`
-		Name            string `gorm:"not null"`
-		Icon            string
-		OwnerID         string `gorm:"not null"`
-		Config          string `gorm:"type:text"` // Store as JSON string
-		CreatedAt       time.Time
-		UpdatedAt       time.Time
-	}
-
-	type TestUserTenant struct {
-		ID          string `gorm:"primaryKey"`
-		UserID      string `gorm:"not null;index"`
-		TenantID    string `gorm:"not null;index"`
-		Roles       string `gorm:"type:text"` // Store as JSON string
-		Permissions string `gorm:"type:text"` // Store as JSON string
-		CreatedAt   time.Time
-		UpdatedAt   time.Time
-	}
-
-	type TestTenantDiscordRole struct {
-		ID            string `gorm:"primaryKey"`
-		TenantID      string `gorm:"not null;index"`
-		DiscordRoleID string `gorm:"not null"`
-		Name          string `gorm:"not null"`
-		Color         int
-		Position      int
-		Permissions   string `gorm:"type:text"` // Store as JSON string
-		Mentionable   bool
-		Hoist         bool
-		CreatedAt     time.Time
-		UpdatedAt     time.Time
-	}
-
-	// Auto-migrate simplified models
-	err = db.AutoMigrate(
-		&TestUser{},
-		&TestTenant{},
-		&TestUserTenant{},
-		&TestTenantDiscordRole{},
+func setupIntegrationTest(t *testing.T) (*gin.Engine, *gorm.DB, *TenantMockDiscordService, func()) {
+	// Setup PostgreSQL test database with all required models
+	db, cleanup := testutils.SetupTestDatabaseWithModels(t,
+		&models.User{},
+		&models.Tenant{},
+		&models.UserTenant{},
+		&models.TenantDiscordRole{},
+		&models.TenantDiscordUser{},
+		&models.GameServer{},
+		&models.Session{},
 	)
-	assert.NoError(t, err)
 
 	// Setup mock services
 	mockDiscordService := new(TenantMockDiscordService)
@@ -204,12 +156,13 @@ func setupIntegrationTest(t *testing.T) (*gin.Engine, *gorm.DB, *TenantMockDisco
 		}
 	}
 
-	return router, db, mockDiscordService
+	return router, db, mockDiscordService, cleanup
 }
 
 func TestTenantIntegration_ServiceInitialization(t *testing.T) {
 	// Test that the integration setup works correctly
-	router, db, mockDiscordService := setupIntegrationTest(t)
+	router, db, mockDiscordService, cleanup := setupIntegrationTest(t)
+	defer cleanup()
 
 	// Verify that all components are properly initialized
 	assert.NotNil(t, router)
@@ -218,9 +171,9 @@ func TestTenantIntegration_ServiceInitialization(t *testing.T) {
 
 	// Test that the database connection works
 	sqlDB, err := db.DB()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = sqlDB.Ping()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestTenantIntegration_PermissionLogic(t *testing.T) {

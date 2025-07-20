@@ -3,27 +3,30 @@ package services
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/models"
 	"github.com/stretchr/testify/assert"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+
+	"github.com/pteronimbus/pteronimbus/apps/backend/internal/testutils"
 )
 
-func setupGameServerTestDB() *gorm.DB {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	if err != nil {
-		panic("failed to connect database")
-	}
-
-	// Auto migrate the schema
-	db.AutoMigrate(&models.GameServer{})
-
-	return db
+func setupGameServerTestDB(t *testing.T) (*gorm.DB, func()) {
+	return testutils.SetupTestDatabaseWithModels(t,
+		&models.GameServer{},
+		&models.Tenant{},
+		&models.User{},
+		&models.UserTenant{},
+		&models.TenantDiscordRole{},
+		&models.TenantDiscordUser{},
+		&models.Session{},
+	)
 }
 
 func TestGameServerService_GetTenantServers(t *testing.T) {
-	db := setupGameServerTestDB()
+	db, cleanup := setupGameServerTestDB(t)
+	defer cleanup()
 	service := NewGameServerService(db)
 	ctx := context.Background()
 
@@ -51,7 +54,8 @@ func TestGameServerService_GetTenantServers(t *testing.T) {
 }
 
 func TestGameServerService_GetTenantActivity(t *testing.T) {
-	db := setupGameServerTestDB()
+	db, cleanup := setupGameServerTestDB(t)
+	defer cleanup()
 	service := NewGameServerService(db)
 	ctx := context.Background()
 
@@ -83,24 +87,53 @@ func TestGameServerService_GetTenantActivity(t *testing.T) {
 }
 
 func TestGameServerService_GetTenantDiscordStats(t *testing.T) {
-	db := setupGameServerTestDB()
+	db, cleanup := setupGameServerTestDB(t)
+	defer cleanup()
 	service := NewGameServerService(db)
 	ctx := context.Background()
 
+	// Create a proper tenant with UUID for the test
+	tenant := &models.Tenant{
+		DiscordServerID: "guild-123",
+		Name:            "Test Guild",
+		OwnerID:         "user-123",
+	}
+	err := db.Create(tenant).Error
+	assert.NoError(t, err)
+
+	// Create some Discord roles and users for the tenant
+	discordRole := &models.TenantDiscordRole{
+		TenantID:      tenant.ID,
+		DiscordRoleID: "role-123",
+		Name:          "Admin",
+	}
+	err = db.Create(discordRole).Error
+	assert.NoError(t, err)
+
+	discordUser := &models.TenantDiscordUser{
+		TenantID:      tenant.ID,
+		DiscordUserID: "user-123",
+		Username:      "testuser",
+		LastSyncAt:    time.Now(),
+	}
+	err = db.Create(discordUser).Error
+	assert.NoError(t, err)
+
 	// Test getting Discord stats
-	stats, err := service.GetTenantDiscordStats(ctx, "tenant-123")
+	stats, err := service.GetTenantDiscordStats(ctx, tenant.ID)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, stats)
 
-	// Verify the mock data structure
-	assert.Equal(t, 42, stats.MemberCount)
-	assert.Equal(t, 8, stats.RoleCount)
+	// Verify the actual data from database
+	assert.Equal(t, 1, stats.MemberCount) // 1 user created
+	assert.Equal(t, 1, stats.RoleCount)   // 1 role created
 	assert.NotEmpty(t, stats.LastSync)
 }
 
 func TestGameServerService_GetTenantServers_DifferentTenant(t *testing.T) {
-	db := setupGameServerTestDB()
+	db, cleanup := setupGameServerTestDB(t)
+	defer cleanup()
 	service := NewGameServerService(db)
 	ctx := context.Background()
 
@@ -117,7 +150,8 @@ func TestGameServerService_GetTenantServers_DifferentTenant(t *testing.T) {
 }
 
 func TestGameServerService_ActivityTypes(t *testing.T) {
-	db := setupGameServerTestDB()
+	db, cleanup := setupGameServerTestDB(t)
+	defer cleanup()
 	service := NewGameServerService(db)
 	ctx := context.Background()
 
