@@ -48,18 +48,9 @@ func (j *JWTService) GenerateAccessToken(user *models.User, sessionID string) (s
 	// Debug output
 	fmt.Printf("JWT Debug: now=%v, expiresAt=%v, TTL=%v\n", now, expiresAt, j.accessTokenTTL)
 	
-	// Check if user is super admin if RBAC service is available
-	isSuperAdmin := false
+	// Get user's system roles if RBAC service is available
 	var systemRoles []string
 	if j.rbacService != nil {
-		var err error
-		isSuperAdmin, err = j.rbacService.IsSuperAdmin(context.Background(), user.ID)
-		if err != nil {
-			// Log error but don't fail token generation
-			// In production, you might want to handle this differently
-			fmt.Printf("Warning: failed to check super admin status for user %s: %v\n", user.ID, err)
-		}
-
 		// Get user's system roles
 		userSystemRoles, err := j.rbacService.GetUserSystemRoles(context.Background(), user.ID)
 		if err != nil {
@@ -78,7 +69,6 @@ func (j *JWTService) GenerateAccessToken(user *models.User, sessionID string) (s
 		DiscordUserID: user.DiscordUserID,
 		Username:      user.Username,
 		SessionID:     sessionID,
-		IsSuperAdmin:  isSuperAdmin,
 		SystemRoles:   systemRoles,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
@@ -103,17 +93,9 @@ func (j *JWTService) GenerateRefreshToken(user *models.User, sessionID string) (
 	now := time.Now()
 	expiresAt := now.Add(j.refreshTokenTTL)
 	
-	// Check if user is super admin if RBAC service is available
-	isSuperAdmin := false
+	// Get user's system roles if RBAC service is available
 	var systemRoles []string
 	if j.rbacService != nil {
-		var err error
-		isSuperAdmin, err = j.rbacService.IsSuperAdmin(context.Background(), user.ID)
-		if err != nil {
-			// Log error but don't fail token generation
-			fmt.Printf("Warning: failed to check super admin status for user %s: %v\n", user.ID, err)
-		}
-
 		// Get user's system roles
 		userSystemRoles, err := j.rbacService.GetUserSystemRoles(context.Background(), user.ID)
 		if err != nil {
@@ -132,7 +114,6 @@ func (j *JWTService) GenerateRefreshToken(user *models.User, sessionID string) (
 		DiscordUserID: user.DiscordUserID,
 		Username:      user.Username,
 		SessionID:     sessionID,
-		IsSuperAdmin:  isSuperAdmin,
 		SystemRoles:   systemRoles,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expiresAt),

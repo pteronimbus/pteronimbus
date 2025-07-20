@@ -46,7 +46,6 @@ type JWTClaims struct {
 	DiscordUserID string   `json:"discord_user_id"`
 	Username      string   `json:"username"`
 	SessionID     string   `json:"session_id"`
-	IsSuperAdmin  bool     `json:"is_super_admin"`
 	SystemRoles   []string `json:"system_roles,omitempty"`
 	jwt.RegisteredClaims
 }

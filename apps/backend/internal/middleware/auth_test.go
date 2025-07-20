@@ -88,7 +88,6 @@ func TestAuthMiddleware_RequireAuth(t *testing.T) {
 					DiscordUserID: "discord_user_id",
 					Username:      "testuser",
 					SessionID:     "session_id",
-					IsSuperAdmin:  false,
 					SystemRoles:   []string{},
 				}
 				m.On("ValidateAccessToken", mock.Anything, "valid_token").Return(user, nil)

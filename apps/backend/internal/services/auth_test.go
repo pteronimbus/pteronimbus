@@ -842,9 +842,16 @@ func TestAuthService_SuperAdminJWTInclusion(t *testing.T) {
 			assert.NoError(t, err)
 			assert.NotNil(t, claims)
 
-			// Check IsSuperAdmin field in JWT claims
-			assert.Equal(t, tt.expectSuperAdminJWT, claims.IsSuperAdmin, 
-				"JWT IsSuperAdmin should be %v for user %s", tt.expectSuperAdminJWT, tt.discordUserID)
+			// Check superadmin role in JWT system roles
+			hasSuperAdminRole := false
+			for _, role := range claims.SystemRoles {
+				if role == "superadmin" {
+					hasSuperAdminRole = true
+					break
+				}
+			}
+			assert.Equal(t, tt.expectSuperAdminJWT, hasSuperAdminRole, 
+				"JWT should have superadmin role: %v for user %s", tt.expectSuperAdminJWT, tt.discordUserID)
 
 			// Verify mocks
 			mockDiscord.AssertExpectations(t)
@@ -866,19 +873,24 @@ func TestAuthService_HandleCallback_WithRBAC(t *testing.T) {
 
 	// Setup mock services
 	mockDiscord := new(MockDiscordService)
-	mockJWT := new(MockJWTService)
 	mockRedis := new(MockRedisService)
-
-	// Setup JWT service mocks
-	expiresAt := time.Now().Add(time.Hour)
-	mockJWT.On("GenerateAccessToken", mock.AnythingOfType("*models.User"), mock.AnythingOfType("string")).Return("access_token", expiresAt, nil)
-	mockJWT.On("GenerateRefreshToken", mock.AnythingOfType("*models.User"), mock.AnythingOfType("string")).Return("refresh_token", expiresAt, nil)
 
 	// Setup Redis service mocks
 	mockRedis.On("StoreSession", mock.Anything, mock.AnythingOfType("*models.Session")).Return(nil)
 
+	// Create real JWT service with RBAC integration for testing
+	cfg := &config.Config{
+		JWT: config.JWTConfig{
+			Secret:          "test-secret-key-for-jwt-validation",
+			AccessTokenTTL:  time.Hour,
+			RefreshTokenTTL: time.Hour * 24 * 7,
+			Issuer:          "pteronimbus-test",
+		},
+	}
+	jwtService := NewJWTServiceWithRBAC(cfg, rbacService)
+
 	// Create auth service with RBAC integration
-	authService := NewAuthServiceWithRBAC(db, mockDiscord, mockJWT, mockRedis, rbacService)
+	authService := NewAuthServiceWithRBAC(db, mockDiscord, jwtService, mockRedis, rbacService)
 
 	t.Run("SuperAdminUserGetsSuperAdminRole", func(t *testing.T) {
 		// Setup Discord service mocks for super admin user
@@ -907,12 +919,58 @@ func TestAuthService_HandleCallback_WithRBAC(t *testing.T) {
 		err = db.Where("discord_user_id = ?", "superadmin123").First(&user).Error
 		require.NoError(t, err)
 
-		// Verify super admin role was assigned
+		// Verify super admin gets BOTH superadmin and systemuser roles
 		systemRoles, err := rbacService.GetUserSystemRoles(context.Background(), user.ID)
 		require.NoError(t, err)
-		assert.Len(t, systemRoles, 1)
-		assert.Equal(t, "superadmin", systemRoles[0].Name)
-		assert.Contains(t, systemRoles[0].Permissions, models.PermissionSystemAdmin)
+		assert.Len(t, systemRoles, 2, "Super admin should have both superadmin and systemuser roles")
+		
+		// Check for both roles
+		roleNames := make([]string, len(systemRoles))
+		for i, role := range systemRoles {
+			roleNames[i] = role.Name
+		}
+		assert.Contains(t, roleNames, "superadmin", "Super admin should have superadmin role")
+		assert.Contains(t, roleNames, "systemuser", "Super admin should also have systemuser role")
+		
+		// Verify superadmin role has correct permissions
+		for _, role := range systemRoles {
+			if role.Name == "superadmin" {
+				assert.Contains(t, role.Permissions, models.PermissionSystemAdmin)
+			}
+		}
+	})
+
+	t.Run("SuperAdminUserGetsBothRolesInJWT", func(t *testing.T) {
+		// Setup Discord service mocks for super admin user
+		discordToken := &models.DiscordTokenResponse{
+			AccessToken:  "access_token3",
+			RefreshToken: "refresh_token3",
+			ExpiresIn:    3600,
+		}
+		discordUser := &models.DiscordUser{
+			ID:       "superadmin123", // Matches config
+			Username: "superadmin",
+			Avatar:   "avatar123",
+			Email:    "superadmin@example.com",
+		}
+
+		mockDiscord.On("ExchangeCodeForToken", mock.Anything, "fake_code3").Return(discordToken, nil)
+		mockDiscord.On("GetUserInfo", mock.Anything, "access_token3").Return(discordUser, nil)
+
+		// Test the callback flow
+		authResponse, err := authService.HandleCallback(context.Background(), "fake_code3")
+		require.NoError(t, err)
+		require.NotNil(t, authResponse)
+
+		// Decode JWT to check both roles are included
+		claims, err := jwtService.ValidateToken(authResponse.AccessToken)
+		require.NoError(t, err)
+		require.NotNil(t, claims)
+
+		// Check that JWT contains both roles
+		assert.Len(t, claims.SystemRoles, 2, "JWT should contain both superadmin and systemuser roles")
+		assert.Contains(t, claims.SystemRoles, "superadmin", "JWT should contain superadmin role")
+		assert.Contains(t, claims.SystemRoles, "systemuser", "JWT should contain systemuser role")
 	})
 
 	t.Run("RegularUserGetsSystemUserRole", func(t *testing.T) {
@@ -955,7 +1013,6 @@ func TestAuthService_HandleCallback_WithRBAC(t *testing.T) {
 
 	// Verify mocks were called as expected
 	mockDiscord.AssertExpectations(t)
-	mockJWT.AssertExpectations(t)
 	mockRedis.AssertExpectations(t)
 }
 

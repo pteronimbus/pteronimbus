@@ -76,9 +76,10 @@ export const useAuth = () => {
       if (accessToken && refreshToken && userData) {
         try {
           const user = JSON.parse(userData)
-          // Decode JWT to get super admin status
+          // Decode JWT to get super admin status from system roles
           const tokenPayload = decodeJWT(accessToken)
-          const isSuperAdmin = tokenPayload?.is_super_admin || false
+          const systemRoles = tokenPayload?.system_roles || []
+          const isSuperAdmin = systemRoles.includes('superadmin')
           
           authState.value = {
             user,
@@ -121,9 +122,10 @@ export const useAuth = () => {
 
   // Store auth data
   const storeAuth = (authResponse: AuthResponse) => {
-    // Decode JWT to get super admin status
+    // Decode JWT to get super admin status from system roles
     const tokenPayload = decodeJWT(authResponse.access_token)
-    const isSuperAdmin = tokenPayload?.is_super_admin || false
+    const systemRoles = tokenPayload?.system_roles || []
+    const isSuperAdmin = systemRoles.includes('superadmin')
     
     authState.value = {
       user: authResponse.user,

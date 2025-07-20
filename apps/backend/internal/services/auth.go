@@ -110,11 +110,20 @@ func (a *AuthService) HandleCallback(ctx context.Context, code string) (*models.
 			isNewUser = true
 		}
 
-		// If this is a new user and RBAC service is available, check for super admin assignment
+		// If this is a new user and RBAC service is available, assign appropriate roles
 		if isNewUser && a.rbacService != nil {
 			// Check if this user should be a super admin (by Discord ID)
 			if a.rbacService.config.SuperAdminDiscordID != "" && strings.EqualFold(user.DiscordUserID, a.rbacService.config.SuperAdminDiscordID) {
-				// Assign super admin role to the new user
+				// Super admin users get BOTH superadmin and systemuser roles
+				// First assign the systemuser role (base role for all users)
+				err = a.rbacService.AssignDefaultSystemUserRole(ctx, user.ID)
+				if err != nil {
+					fmt.Printf("Warning: failed to assign systemuser role to super admin user %s: %v\n", user.ID, err)
+				} else {
+					fmt.Printf("Successfully assigned systemuser role to super admin user %s (%s)\n", user.Username, user.DiscordUserID)
+				}
+				
+				// Then assign the super admin role
 				err = a.rbacService.AssignInitialSuperAdminRole(ctx, user.ID)
 				if err != nil {
 					fmt.Printf("Warning: failed to assign super admin role to new user %s: %v\n", user.ID, err)
@@ -122,7 +131,7 @@ func (a *AuthService) HandleCallback(ctx context.Context, code string) (*models.
 					fmt.Printf("Successfully assigned super admin role to new user %s (%s)\n", user.Username, user.DiscordUserID)
 				}
 			} else {
-				// Assign default systemuser role to all new users (except super admins)
+				// Regular users get only the systemuser role
 				err = a.rbacService.AssignDefaultSystemUserRole(ctx, user.ID)
 				if err != nil {
 					fmt.Printf("Warning: failed to assign systemuser role to new user %s: %v\n", user.ID, err)

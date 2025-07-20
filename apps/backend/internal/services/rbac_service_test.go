@@ -816,12 +816,25 @@ func TestRBACService_SuperAdminAutoAssignmentDuringSignup(t *testing.T) {
 		err = db.Where("discord_user_id = ?", "superadmin123").First(&user).Error
 		require.NoError(t, err)
 
-		// Verify super admin role was assigned
+		// Verify super admin gets BOTH superadmin and systemuser roles
 		systemRoles, err := rbacService.GetUserSystemRoles(context.Background(), user.ID)
 		require.NoError(t, err)
-		assert.Len(t, systemRoles, 1)
-		assert.Equal(t, "superadmin", systemRoles[0].Name)
-		assert.Contains(t, systemRoles[0].Permissions, models.PermissionSystemAdmin)
+		assert.Len(t, systemRoles, 2, "Super admin should have both superadmin and systemuser roles")
+		
+		// Check for both roles
+		roleNames := make([]string, len(systemRoles))
+		for i, role := range systemRoles {
+			roleNames[i] = role.Name
+		}
+		assert.Contains(t, roleNames, "superadmin", "Super admin should have superadmin role")
+		assert.Contains(t, roleNames, "systemuser", "Super admin should also have systemuser role")
+		
+		// Verify superadmin role has correct permissions
+		for _, role := range systemRoles {
+			if role.Name == "superadmin" {
+				assert.Contains(t, role.Permissions, models.PermissionSystemAdmin)
+			}
+		}
 	})
 } 
 
