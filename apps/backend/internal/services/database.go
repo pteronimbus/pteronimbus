@@ -45,6 +45,10 @@ func (ds *DatabaseService) AutoMigrate() error {
 		&models.TenantDiscordUser{},
 		&models.GameServer{},
 		&models.Controller{},
+		&models.Permission{},
+		&models.Role{},
+		&models.PermissionAuditLog{},
+		&models.GuildMembershipCache{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)
