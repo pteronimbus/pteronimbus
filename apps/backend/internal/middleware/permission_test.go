@@ -26,6 +26,8 @@ func setupPermissionMiddlewareTest(t *testing.T) (*PermissionMiddleware, *gorm.D
 		&models.TenantDiscordUser{},
 		&models.Permission{},
 		&models.Role{},
+		&models.SystemRole{},
+		&models.UserSystemRole{},
 		&models.PermissionAuditLog{},
 		&models.GuildMembershipCache{},
 	)

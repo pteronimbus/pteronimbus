@@ -578,6 +578,12 @@ func TestAuthService_SuperAdminRoleAssignment(t *testing.T) {
 
 	// Create test configuration with super admin Discord ID
 	cfg := &config.Config{
+		JWT: config.JWTConfig{
+			Secret:          "test-secret-key",
+			AccessTokenTTL:  time.Hour,
+			RefreshTokenTTL: time.Hour * 24 * 7,
+			Issuer:          "pteronimbus-test",
+		},
 		RBAC: config.RBACConfig{
 			SuperAdminDiscordID: "197918357025062922", // Your Discord ID
 			RoleSyncTTL:         time.Minute * 5,
@@ -664,6 +670,15 @@ func TestAuthService_SuperAdminRoleAssignment(t *testing.T) {
 				mockRedis.On("StoreSession", mock.Anything, mock.Anything).Return(nil)
 			},
 			checkSuperAdminStatus: func(t *testing.T, userID string) {
+				// Get user details for debugging
+				var user models.User
+				err := db.Where("id = ?", userID).First(&user).Error
+				if err != nil {
+					t.Logf("Failed to get user: %v", err)
+				} else {
+					t.Logf("User details: ID=%s, DiscordID=%s, Username=%s", user.ID, user.DiscordUserID, user.Username)
+				}
+
 				// Check that the user does not have super admin role
 				isSuperAdmin, err := rbacService.IsSuperAdmin(context.Background(), userID)
 				if err != nil {
@@ -684,6 +699,10 @@ func TestAuthService_SuperAdminRoleAssignment(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Reset mocks before each test case
+			mockDiscord.ExpectedCalls = nil
+			mockRedis.ExpectedCalls = nil
+
 			// Setup mocks
 			tt.setupMocks(mockDiscord, mockRedis)
 
@@ -714,6 +733,12 @@ func TestAuthService_SuperAdminJWTInclusion(t *testing.T) {
 
 	// Create test configuration with super admin Discord ID
 	cfg := &config.Config{
+		JWT: config.JWTConfig{
+			Secret:          "test-secret-key",
+			AccessTokenTTL:  time.Hour,
+			RefreshTokenTTL: time.Hour * 24 * 7,
+			Issuer:          "pteronimbus-test",
+		},
 		RBAC: config.RBACConfig{
 			SuperAdminDiscordID: "197918357025062922",
 			RoleSyncTTL:         time.Minute * 5,
@@ -791,6 +816,10 @@ func TestAuthService_SuperAdminJWTInclusion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Reset mocks before each test case
+			mockDiscord.ExpectedCalls = nil
+			mockRedis.ExpectedCalls = nil
+
 			// Setup mocks
 			tt.setupMocks(mockDiscord, mockRedis)
 
@@ -807,6 +836,7 @@ func TestAuthService_SuperAdminJWTInclusion(t *testing.T) {
 			if err != nil {
 				t.Logf("JWT validation error: %v", err)
 				t.Logf("Access token: %s", authResponse.AccessToken)
+				t.Fatalf("JWT validation failed: %v", err)
 			}
 			assert.NoError(t, err)
 			assert.NotNil(t, claims)
@@ -828,9 +858,10 @@ func setupTestDatabaseWithModels(t *testing.T) (*gorm.DB, func()) {
 		&models.Session{},
 		&models.UserTenant{},
 		&models.Tenant{},
-		&models.UserTenant{},
 		&models.Permission{},
 		&models.Role{},
+		&models.SystemRole{},
+		&models.UserSystemRole{},
 		&models.PermissionAuditLog{},
 		&models.GuildMembershipCache{},
 	)

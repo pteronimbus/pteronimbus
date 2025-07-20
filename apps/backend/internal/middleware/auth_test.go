@@ -83,7 +83,16 @@ func TestAuthMiddleware_RequireAuth(t *testing.T) {
 					DiscordUserID: "discord_user_id",
 					Username:      "testuser",
 				}
+				claims := &models.JWTClaims{
+					UserID:        "user_id",
+					DiscordUserID: "discord_user_id",
+					Username:      "testuser",
+					SessionID:     "session_id",
+					IsSuperAdmin:  false,
+					SystemRoles:   []string{},
+				}
 				m.On("ValidateAccessToken", mock.Anything, "valid_token").Return(user, nil)
+				m.On("ParseTokenClaims", "valid_token").Return(claims, nil)
 			},
 			expectedStatus: http.StatusOK,
 			expectAbort:    false,

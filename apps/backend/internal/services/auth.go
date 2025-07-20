@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -112,8 +113,7 @@ func (a *AuthService) HandleCallback(ctx context.Context, code string) (*models.
 		// If this is a new user and RBAC service is available, check for super admin assignment
 		if isNewUser && a.rbacService != nil {
 			// Check if this user should be a super admin (by Discord ID)
-			isSuperAdmin := user.DiscordUserID == a.rbacService.config.SuperAdminDiscordID
-			if isSuperAdmin {
+			if a.rbacService.config.SuperAdminDiscordID != "" && strings.EqualFold(user.DiscordUserID, a.rbacService.config.SuperAdminDiscordID) {
 				// Assign super admin role to the new user
 				err = a.rbacService.AssignInitialSuperAdminRole(ctx, user.ID)
 				if err != nil {
