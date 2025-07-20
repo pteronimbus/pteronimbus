@@ -18,6 +18,7 @@ import (
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/middleware"
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/models"
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/services"
+	"log/slog"
 )
 
 // AuthIntegrationTestSuite tests the complete authentication flow
@@ -51,7 +52,7 @@ func (suite *AuthIntegrationTestSuite) SetupSuite() {
 	mockRedisService := &MockRedisService{}
 	
 	suite.authService = services.NewAuthService(nil, mockDiscordService, suite.jwtService, mockRedisService)
-	suite.authHandler = handlers.NewAuthHandler(suite.authService)
+	suite.authHandler = handlers.NewAuthHandler(suite.authService, slog.Default())
 
 	// Setup router
 	suite.router = gin.New()
