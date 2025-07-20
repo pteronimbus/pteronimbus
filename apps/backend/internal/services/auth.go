@@ -121,6 +121,14 @@ func (a *AuthService) HandleCallback(ctx context.Context, code string) (*models.
 				} else {
 					fmt.Printf("Successfully assigned super admin role to new user %s (%s)\n", user.Username, user.DiscordUserID)
 				}
+			} else {
+				// Assign default systemuser role to all new users (except super admins)
+				err = a.rbacService.AssignDefaultSystemUserRole(ctx, user.ID)
+				if err != nil {
+					fmt.Printf("Warning: failed to assign systemuser role to new user %s: %v\n", user.ID, err)
+				} else {
+					fmt.Printf("Successfully assigned systemuser role to new user %s (%s)\n", user.Username, user.DiscordUserID)
+				}
 			}
 		}
 

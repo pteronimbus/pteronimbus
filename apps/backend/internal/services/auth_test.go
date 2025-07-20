@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/models"
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/config"
 	"github.com/pteronimbus/pteronimbus/apps/backend/internal/testutils"
@@ -850,6 +851,112 @@ func TestAuthService_SuperAdminJWTInclusion(t *testing.T) {
 			mockRedis.AssertExpectations(t)
 		})
 	}
+}
+
+func TestAuthService_HandleCallback_WithRBAC(t *testing.T) {
+	// Setup test database
+	db, cleanup := setupTestDatabaseWithModels(t)
+	defer cleanup()
+
+	// Setup RBAC service with super admin config
+	rbacConfig := &config.RBACConfig{
+		SuperAdminDiscordID: "superadmin123",
+	}
+	rbacService := NewRBACService(db, rbacConfig)
+
+	// Setup mock services
+	mockDiscord := new(MockDiscordService)
+	mockJWT := new(MockJWTService)
+	mockRedis := new(MockRedisService)
+
+	// Setup JWT service mocks
+	expiresAt := time.Now().Add(time.Hour)
+	mockJWT.On("GenerateAccessToken", mock.AnythingOfType("*models.User"), mock.AnythingOfType("string")).Return("access_token", expiresAt, nil)
+	mockJWT.On("GenerateRefreshToken", mock.AnythingOfType("*models.User"), mock.AnythingOfType("string")).Return("refresh_token", expiresAt, nil)
+
+	// Setup Redis service mocks
+	mockRedis.On("StoreSession", mock.Anything, mock.AnythingOfType("*models.Session")).Return(nil)
+
+	// Create auth service with RBAC integration
+	authService := NewAuthServiceWithRBAC(db, mockDiscord, mockJWT, mockRedis, rbacService)
+
+	t.Run("SuperAdminUserGetsSuperAdminRole", func(t *testing.T) {
+		// Setup Discord service mocks for super admin user
+		discordToken := &models.DiscordTokenResponse{
+			AccessToken:  "access_token",
+			RefreshToken: "refresh_token",
+			ExpiresIn:    3600,
+		}
+		discordUser := &models.DiscordUser{
+			ID:       "superadmin123", // Matches config
+			Username: "superadmin",
+			Avatar:   "avatar123",
+			Email:    "superadmin@example.com",
+		}
+
+		mockDiscord.On("ExchangeCodeForToken", mock.Anything, "fake_code").Return(discordToken, nil)
+		mockDiscord.On("GetUserInfo", mock.Anything, "access_token").Return(discordUser, nil)
+
+		// Test the callback flow
+		authResponse, err := authService.HandleCallback(context.Background(), "fake_code")
+		require.NoError(t, err)
+		require.NotNil(t, authResponse)
+
+		// Verify user was created
+		var user models.User
+		err = db.Where("discord_user_id = ?", "superadmin123").First(&user).Error
+		require.NoError(t, err)
+
+		// Verify super admin role was assigned
+		systemRoles, err := rbacService.GetUserSystemRoles(context.Background(), user.ID)
+		require.NoError(t, err)
+		assert.Len(t, systemRoles, 1)
+		assert.Equal(t, "superadmin", systemRoles[0].Name)
+		assert.Contains(t, systemRoles[0].Permissions, models.PermissionSystemAdmin)
+	})
+
+	t.Run("RegularUserGetsSystemUserRole", func(t *testing.T) {
+		// Setup Discord service mocks for regular user
+		discordToken := &models.DiscordTokenResponse{
+			AccessToken:  "access_token2",
+			RefreshToken: "refresh_token2",
+			ExpiresIn:    3600,
+		}
+		discordUser := &models.DiscordUser{
+			ID:       "regularuser123", // Not matching super admin Discord ID
+			Username: "regularuser",
+			Avatar:   "avatar456",
+			Email:    "regular@example.com",
+		}
+
+		mockDiscord.On("ExchangeCodeForToken", mock.Anything, "fake_code2").Return(discordToken, nil)
+		mockDiscord.On("GetUserInfo", mock.Anything, "access_token2").Return(discordUser, nil)
+
+		// Test the callback flow
+		authResponse, err := authService.HandleCallback(context.Background(), "fake_code2")
+		require.NoError(t, err)
+		require.NotNil(t, authResponse)
+
+		// Verify user was created
+		var user models.User
+		err = db.Where("discord_user_id = ?", "regularuser123").First(&user).Error
+		require.NoError(t, err)
+
+		// Verify systemuser role was assigned
+		systemRoles, err := rbacService.GetUserSystemRoles(context.Background(), user.ID)
+		require.NoError(t, err)
+		assert.Len(t, systemRoles, 1)
+		assert.Equal(t, "systemuser", systemRoles[0].Name)
+		assert.Contains(t, systemRoles[0].Permissions, models.PermissionTemplateRead)
+		// Verify tenant-scoped permissions are NOT included
+		assert.NotContains(t, systemRoles[0].Permissions, models.PermissionServerRead)
+		assert.NotContains(t, systemRoles[0].Permissions, models.PermissionLogRead)
+	})
+
+	// Verify mocks were called as expected
+	mockDiscord.AssertExpectations(t)
+	mockJWT.AssertExpectations(t)
+	mockRedis.AssertExpectations(t)
 }
 
 func setupTestDatabaseWithModels(t *testing.T) (*gorm.DB, func()) {

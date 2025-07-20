@@ -595,6 +595,24 @@ func (rs *RBACService) AssignInitialSuperAdminRole(ctx context.Context, userID s
 	return nil
 }
 
+// AssignDefaultSystemUserRole assigns the default systemuser role to a new user
+// This bypasses the normal permission checks since it's used during user creation
+func (rs *RBACService) AssignDefaultSystemUserRole(ctx context.Context, userID string) error {
+	// Ensure the systemuser role exists
+	err := rs.ensureSystemUserRole(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to ensure systemuser role: %w", err)
+	}
+
+	// Assign the systemuser role to the user
+	err = rs.AssignSystemRoleToUser(ctx, userID, "systemuser")
+	if err != nil {
+		return fmt.Errorf("failed to assign systemuser role: %w", err)
+	}
+
+	return nil
+}
+
 // RemoveSuperAdminRole removes the super admin role from a user
 func (rs *RBACService) RemoveSuperAdminRole(ctx context.Context, userID string) error {
 	// Check if the performing user is a super admin
@@ -643,7 +661,7 @@ func (rs *RBACService) RemoveSuperAdminRole(ctx context.Context, userID string) 
 	return nil
 } 
 
-// ensureSuperAdminSystemRole ensures the superadmin system role exists
+// ensureSuperAdminSystemRole ensures the super admin system role exists
 func (rs *RBACService) ensureSuperAdminSystemRole(ctx context.Context) error {
 	var superAdminRole models.SystemRole
 	err := rs.db.WithContext(ctx).Where("name = ?", "superadmin").First(&superAdminRole).Error
@@ -660,6 +678,30 @@ func (rs *RBACService) ensureSuperAdminSystemRole(ctx context.Context) error {
 		}
 	} else if err != nil {
 		return fmt.Errorf("failed to check super admin system role: %w", err)
+	}
+
+	return nil
+} 
+
+// ensureSystemUserRole ensures the systemuser role exists
+func (rs *RBACService) ensureSystemUserRole(ctx context.Context) error {
+	var systemUserRole models.SystemRole
+	err := rs.db.WithContext(ctx).Where("name = ?", "systemuser").First(&systemUserRole).Error
+	if err == gorm.ErrRecordNotFound {
+		// Create the systemuser role with basic permissions
+		systemUserRole = models.SystemRole{
+			Name:        "systemuser",
+			Description: "Default system user with basic access",
+			Permissions: models.StringArray{
+				models.PermissionTemplateRead,
+			},
+		}
+		err = rs.db.WithContext(ctx).Create(&systemUserRole).Error
+		if err != nil {
+			return fmt.Errorf("failed to create systemuser role: %w", err)
+		}
+	} else if err != nil {
+		return fmt.Errorf("failed to check systemuser role: %w", err)
 	}
 
 	return nil

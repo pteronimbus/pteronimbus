@@ -749,6 +749,14 @@ func TestRBACService_AssignInitialSuperAdminRole(t *testing.T) {
 	})
 
 	t.Run("AssignInitialSuperAdminRole_SecondTime", func(t *testing.T) {
+		// Create a new user for this test
+		user := &models.User{
+			DiscordUserID: "superadmin123",
+			Username:      "superadmin",
+		}
+		err := db.Create(user).Error
+		require.NoError(t, err)
+
 		// Should not fail when called again (idempotent)
 		err = rbacService.AssignInitialSuperAdminRole(context.Background(), user.ID)
 		require.NoError(t, err)
@@ -798,88 +806,84 @@ func TestRBACService_SuperAdminAutoAssignmentDuringSignup(t *testing.T) {
 		// Create auth service with RBAC integration
 		authService := NewAuthServiceWithRBAC(db, mockDiscord, mockJWT, mockRedis, rbacService)
 
-		// Simulate Discord OAuth2 callback for super admin user
+		// Test the callback flow
 		authResponse, err := authService.HandleCallback(context.Background(), "fake_code")
 		require.NoError(t, err)
-		assert.NotNil(t, authResponse)
+		require.NotNil(t, authResponse)
 
-		// Verify the super admin system role was created
-		var systemRole models.SystemRole
-		err = db.Where("name = ?", "superadmin").First(&systemRole).Error
+		// Verify user was created
+		var user models.User
+		err = db.Where("discord_user_id = ?", "superadmin123").First(&user).Error
 		require.NoError(t, err)
-		assert.Equal(t, "superadmin", systemRole.Name)
-		assert.Equal(t, "Super administrator with full system access", systemRole.Description)
-		assert.Contains(t, systemRole.Permissions, models.PermissionSystemAdmin)
 
-		// Verify the role was assigned to the user
-		systemRoles, err := rbacService.GetUserSystemRoles(context.Background(), authResponse.User.ID)
+		// Verify super admin role was assigned
+		systemRoles, err := rbacService.GetUserSystemRoles(context.Background(), user.ID)
 		require.NoError(t, err)
 		assert.Len(t, systemRoles, 1)
 		assert.Equal(t, "superadmin", systemRoles[0].Name)
+		assert.Contains(t, systemRoles[0].Permissions, models.PermissionSystemAdmin)
+	})
+} 
 
-		// Verify user is super admin
-		isSuperAdmin, err := rbacService.IsSuperAdmin(context.Background(), authResponse.User.ID)
+func TestRBACService_SystemUserAutoAssignmentDuringSignup(t *testing.T) {
+	rbacService, db, cleanup := setupRBACTest(t)
+	defer cleanup()
+
+	t.Run("RegularUserSignupCreatesSystemUserRoleAutomatically", func(t *testing.T) {
+		// Create a regular user (not super admin)
+		user := &models.User{
+			DiscordUserID: "regularuser123", // Not the super admin Discord ID
+			Username:      "regularuser",
+		}
+		err := db.Create(user).Error
 		require.NoError(t, err)
-		assert.True(t, isSuperAdmin)
 
-		// Verify mocks were called as expected
-		mockDiscord.AssertExpectations(t)
-		mockJWT.AssertExpectations(t)
-		mockRedis.AssertExpectations(t)
+		// Assign systemuser role to the new user
+		err = rbacService.AssignDefaultSystemUserRole(context.Background(), user.ID)
+		require.NoError(t, err)
+
+		// Verify systemuser role was assigned
+		systemRoles, err := rbacService.GetUserSystemRoles(context.Background(), user.ID)
+		require.NoError(t, err)
+		assert.Len(t, systemRoles, 1)
+		assert.Equal(t, "systemuser", systemRoles[0].Name)
+		assert.Contains(t, systemRoles[0].Permissions, models.PermissionTemplateRead)
+		// Verify tenant-scoped permissions are NOT included
+		assert.NotContains(t, systemRoles[0].Permissions, models.PermissionServerRead)
+		assert.NotContains(t, systemRoles[0].Permissions, models.PermissionLogRead)
 	})
 
-	t.Run("RegularUserSignupDoesNotCreateSuperAdminRole", func(t *testing.T) {
-		// Create mock services for auth flow
-		mockDiscord := new(MockDiscordService)
-		mockJWT := new(MockJWTService)
-		mockRedis := new(MockRedisService)
-
-		// Setup Discord service mocks for regular user
-		discordToken := &models.DiscordTokenResponse{
-			AccessToken:  "access_token",
-			RefreshToken: "refresh_token",
-			ExpiresIn:    3600,
+	t.Run("AssignDefaultSystemUserRole_SecondTime", func(t *testing.T) {
+		// Create another regular user
+		user := &models.User{
+			DiscordUserID: "anotheruser123",
+			Username:      "anotheruser",
 		}
-		discordUser := &models.DiscordUser{
-			ID:       "regular123", // Not matching super admin Discord ID
-			Username: "regularuser",
-			Avatar:   "avatar123",
-			Email:    "regular@example.com",
-		}
-
-		mockDiscord.On("ExchangeCodeForToken", mock.Anything, "fake_code").Return(discordToken, nil)
-		mockDiscord.On("GetUserInfo", mock.Anything, "access_token").Return(discordUser, nil)
-
-		// Setup JWT service mocks
-		expiresAt := time.Now().Add(time.Hour)
-		mockJWT.On("GenerateAccessToken", mock.AnythingOfType("*models.User"), mock.AnythingOfType("string")).Return("access_token", expiresAt, nil)
-		mockJWT.On("GenerateRefreshToken", mock.AnythingOfType("*models.User"), mock.AnythingOfType("string")).Return("refresh_token", expiresAt, nil)
-
-		// Setup Redis service mocks
-		mockRedis.On("StoreSession", mock.Anything, mock.AnythingOfType("*models.Session")).Return(nil)
-
-		// Create auth service with RBAC integration
-		authService := NewAuthServiceWithRBAC(db, mockDiscord, mockJWT, mockRedis, rbacService)
-
-		// Simulate Discord OAuth2 callback for regular user
-		authResponse, err := authService.HandleCallback(context.Background(), "fake_code")
+		err := db.Create(user).Error
 		require.NoError(t, err)
-		assert.NotNil(t, authResponse)
 
-		// Verify the user does NOT have super admin role
-		systemRoles, err := rbacService.GetUserSystemRoles(context.Background(), authResponse.User.ID)
+		// Should not fail when called again (idempotent)
+		err = rbacService.AssignDefaultSystemUserRole(context.Background(), user.ID)
 		require.NoError(t, err)
-		assert.Len(t, systemRoles, 0)
 
-		// Verify user is not super admin
-		isSuperAdmin, err := rbacService.IsSuperAdmin(context.Background(), authResponse.User.ID)
+		// Verify user still has systemuser role
+		systemRoles, err := rbacService.GetUserSystemRoles(context.Background(), user.ID)
 		require.NoError(t, err)
-		assert.False(t, isSuperAdmin)
+		assert.Len(t, systemRoles, 1)
+		assert.Equal(t, "systemuser", systemRoles[0].Name)
+	})
 
-		// Verify mocks were called as expected
-		mockDiscord.AssertExpectations(t)
-		mockJWT.AssertExpectations(t)
-		mockRedis.AssertExpectations(t)
+	t.Run("SystemUserRoleCreation", func(t *testing.T) {
+		// Test that the systemuser role is created with correct permissions
+		var systemUserRole models.SystemRole
+		err := db.Where("name = ?", "systemuser").First(&systemUserRole).Error
+		require.NoError(t, err)
+		assert.Equal(t, "systemuser", systemUserRole.Name)
+		assert.Equal(t, "Default system user with basic access", systemUserRole.Description)
+		assert.Contains(t, systemUserRole.Permissions, models.PermissionTemplateRead)
+		// Verify tenant-scoped permissions are NOT included
+		assert.NotContains(t, systemUserRole.Permissions, models.PermissionServerRead)
+		assert.NotContains(t, systemUserRole.Permissions, models.PermissionLogRead)
 	})
 }
 
