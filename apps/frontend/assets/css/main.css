@@ -63,7 +63,72 @@ input, textarea, select {
     @apply text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600;
 }
 
-/* Buttons inherit from their variants but ensure text is readable */
+/* Enhanced Button Styling */
 button {
-    @apply transition-colors;
+    @apply transition-all duration-200 font-medium;
+}
+
+/* Override UButton styles for consistent theming */
+[data-variant="outline"] {
+    @apply shadow-sm hover:shadow-md transition-all duration-200;
+}
+
+[data-variant="outline"][data-color="primary"] {
+    @apply bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 text-gray-900 dark:text-gray-100;
+}
+
+[data-variant="outline"][data-color="success"] {
+    @apply bg-white dark:bg-gray-800 hover:bg-green-50 dark:hover:bg-green-900/20 border-green-200 dark:border-green-600/50 hover:border-green-300 dark:hover:border-green-500 text-green-700 dark:text-green-400;
+}
+
+[data-variant="outline"][data-color="error"] {
+    @apply bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20 border-red-200 dark:border-red-600/50 hover:border-red-300 dark:hover:border-red-500 text-red-700 dark:text-red-400;
+}
+
+[data-variant="outline"][data-color="warning"] {
+    @apply bg-white dark:bg-gray-800 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 border-yellow-200 dark:border-yellow-600/50 hover:border-yellow-300 dark:hover:border-yellow-500 text-yellow-700 dark:text-yellow-400;
+}
+
+[data-variant="outline"][data-color="info"] {
+    @apply bg-white dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 border-blue-200 dark:border-blue-600/50 hover:border-blue-300 dark:hover:border-blue-500 text-blue-700 dark:text-blue-400;
+}
+
+[data-variant="outline"][data-color="secondary"] {
+    @apply bg-white dark:bg-gray-800 hover:bg-purple-50 dark:hover:bg-purple-900/20 border-purple-200 dark:border-purple-600/50 hover:border-purple-300 dark:hover:border-purple-500 text-purple-700 dark:text-purple-400;
+}
+
+[data-variant="outline"][data-color="neutral"] {
+    @apply bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 text-gray-700 dark:text-gray-300;
+}
+
+[data-variant="ghost"] {
+    @apply shadow-sm hover:shadow-md transition-all duration-200;
+}
+
+[data-variant="ghost"][data-color="primary"] {
+    @apply bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100;
+}
+
+[data-variant="ghost"][data-color="success"] {
+    @apply bg-white dark:bg-gray-800 hover:bg-green-50 dark:hover:bg-green-900/20 text-green-700 dark:text-green-400;
+}
+
+[data-variant="ghost"][data-color="error"] {
+    @apply bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-700 dark:text-red-400;
+}
+
+[data-variant="ghost"][data-color="warning"] {
+    @apply bg-white dark:bg-gray-800 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400;
+}
+
+[data-variant="ghost"][data-color="info"] {
+    @apply bg-white dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-700 dark:text-blue-400;
+}
+
+[data-variant="ghost"][data-color="secondary"] {
+    @apply bg-white dark:bg-gray-800 hover:bg-purple-50 dark:hover:bg-purple-900/20 text-purple-700 dark:text-purple-400;
+}
+
+[data-variant="ghost"][data-color="neutral"] {
+    @apply bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300;
 } 

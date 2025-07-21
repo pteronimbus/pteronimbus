@@ -135,18 +135,19 @@ const controllerStats = computed(() => {
 
 // Page header actions
 const headerActions = computed(() => {
-  const actions = [
+  const actions: any[] = [
     {
       label: 'Back to Controllers',
       icon: 'i-heroicons-arrow-left-20-solid',
-      color: 'neutral' as const,
-      variant: 'ghost' as const,
+      color: 'neutral',
+      variant: 'ghost',
       onClick: () => router.push('/admin/controllers')
     },
     {
       label: 'Refresh',
       icon: 'i-heroicons-arrow-path-20-solid',
-      color: 'primary' as const,
+      color: 'primary',
+      variant: 'outline',
       onClick: () => fetchControllers(),
       loading: isLoading.value
     }
@@ -158,14 +159,16 @@ const headerActions = computed(() => {
       {
         label: 'Approve',
         icon: 'i-heroicons-check-circle-20-solid',
-        color: 'success' as const,
+        color: 'success',
+        variant: 'outline',
         onClick: () => handleApproveController(),
         loading: isLoading.value
       },
       {
         label: 'Reject',
         icon: 'i-heroicons-x-circle-20-solid',
-        color: 'error' as const,
+        color: 'error',
+        variant: 'outline',
         onClick: () => handleRejectController(),
         loading: isLoading.value
       }
@@ -265,7 +268,7 @@ const handleRejectController = async () => {
         <template #extra>
           <UBadge 
             :color="controller.status === 'pending_approval' ? 'warning' : 
-                    controller.status === 'degraded' ? 'orange' :
+                    controller.status === 'degraded' ? 'warning' :
                     controller.is_online ? 'success' : 'error'" 
             variant="subtle"
             class="ml-2"
@@ -318,7 +321,7 @@ const handleRejectController = async () => {
                 <div class="flex justify-between">
                   <span class="text-gray-600 dark:text-gray-400">Status:</span>
                   <UBadge :color="controller.status === 'pending_approval' ? 'warning' : 
-                                   controller.status === 'degraded' ? 'orange' :
+                                   controller.status === 'degraded' ? 'warning' :
                                    controller.is_online ? 'success' : 'error'" variant="subtle">
                     {{ t(`admin.controllers.statuses.${controller.status}`) }}
                   </UBadge>
@@ -373,7 +376,7 @@ const handleRejectController = async () => {
       <UIcon name="i-heroicons-magnifying-glass-20-solid" class="w-12 h-12 text-gray-400 mx-auto mb-4" />
       <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">Controller Not Found</h2>
       <p class="text-gray-600 dark:text-gray-400 mb-4">The controller you're looking for doesn't exist or has been removed.</p>
-      <UButton @click="router.push('/admin/controllers')" color="primary">Back to Controllers</UButton>
+      <UButton @click="router.push('/admin/controllers')" color="primary" variant="outline">Back to Controllers</UButton>
     </div>
   </div>
 </template> 

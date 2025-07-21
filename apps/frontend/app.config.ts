@@ -1,5 +1,15 @@
 export default defineAppConfig({
   ui: {
+    button: {
+      defaultVariants: {
+        color: 'primary',
+        variant: 'outline',
+        size: 'sm'
+      },
+      slots: {
+        base: 'transition-all duration-200 font-medium'
+      }
+    },
     colors: {
       primary: 'blue',
       neutral: 'cool'

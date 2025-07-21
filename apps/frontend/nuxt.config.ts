@@ -14,6 +14,8 @@ export default defineNuxtConfig({
     '@nuxtjs/i18n'
   ],
 
+
+
   runtimeConfig: {
     public: {
       backendUrl: process.env.BACKEND_URL || 'http://localhost:8080',

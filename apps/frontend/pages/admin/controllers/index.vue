@@ -82,6 +82,7 @@ const headerActions = computed(() => [
     label: t('admin.controllers.refreshControllers'),
     icon: 'i-heroicons-arrow-path-20-solid',
     color: 'primary' as const,
+    variant: 'outline' as const,
     onClick: () => handleRefreshControllers(),
     loading: isLoading.value
   },
